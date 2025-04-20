@@ -58,7 +58,7 @@ services:
     network_mode: host
 
   app:
-    image: pad-ws
+    image: ghcr.io/pad-ws/pad-ws:latest
     container_name: pad
     environment:
       - STATIC_DIR=${STATIC_DIR}
