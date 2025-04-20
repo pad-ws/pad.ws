@@ -1,0 +1,44 @@
+@import './fonts.scss';
+@import './HtmlEditor.scss';
+@import './AuthModal.scss';
+@import './FeedbackButton.scss';
+@import './DiscordButton.scss';
+@import './MainMenuLabel.scss';
+/* Override Excalidraw styles */
+
+body {
+    margin: 0;
+}
+
+.excalidraw-wrapper {
+    height: 100vh;
+    position: relative;
+    z-index: 1;
+}
+
+.excalidraw.theme--dark {
+    --color-primary-light: #a4571b !important;
+    --color-on-primary-container: #e0dfff !important;
+    --color-surface-primary-container: #cc6d24 !important;
+    --color-selection: #a4571b !important;
+}
+
+.excalidraw .sidebar-trigger {
+    display: none !important;
+}
+
+.excalidraw__embeddable__outer {
+    padding: 0px !important;
+    pointer-events: all !important;
+}
+
+.excalidraw .layer-ui__wrapper__top-right {
+    gap: 0rem;
+}
+
+.dropdown-menu-group-title {
+    font-weight: 1000 !important;
+    color: #fa8933 !important;
+    margin-left: 11px !important;
+    font-size: 15px !important;
+}

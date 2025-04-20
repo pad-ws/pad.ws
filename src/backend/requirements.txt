@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+httpx
+jinja2
+asyncpg
+python-dotenv
+PyJWT
+requests
+sqlalchemy

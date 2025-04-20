@@ -1,0 +1,191 @@
+/* Auth Modal Styles */
+.auth-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Backdrop with blur effect */
+.auth-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(0.8px);
+}
+
+/* Modal container with animation */
+.auth-modal-container {
+  padding: 18px;
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 500px;
+  border-radius: 12px;
+  background-color: #232329;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  animation: zoomIn 0.3s ease-out forwards;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Modal content */
+.auth-modal-content {
+  padding: 30px;
+  margin: 12px;
+  margin-top: 0px;
+  margin-bottom: 0px;
+}
+
+/* Modal title container */
+.auth-modal-title-container {
+  position: relative;
+  text-align: center;
+  margin: 0px;
+}
+
+/* Modal title */
+.auth-modal-title {
+  margin: 0 auto;
+  font-size: 72px;
+  font-weight: 700;
+  color: white;
+  text-align: center;
+  display: inline-block;
+}
+
+/* Beta text */
+.beta-text {
+  position: absolute;
+  color: #555;
+  font-weight: normal;
+  font-size: 18px;
+  display: inline-block;
+  top: 15px;
+  right: 25px; /* Adjust this value as needed */
+}
+
+/* Modal description */
+.auth-modal-description {
+  margin-top: 26px;
+  margin-bottom: 30px;
+  color: #a0a0a9;
+  font-size: 16px;
+  line-height: 1.5;
+  text-align: center;
+  white-space: pre-line;
+}
+
+/* Sign-in buttons container */
+.auth-modal-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Base button styles */
+.auth-modal-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+/* Outline button style (GitHub) */
+.auth-modal-button-outline {
+  border: 1px solid #3a3a43;
+  background-color: #2a2a33;
+  color: white;
+}
+
+.auth-modal-button-outline:hover {
+  background-color: #323239;
+}
+
+/* Primary button style (Google) */
+.auth-modal-button-primary {
+  border: none;
+  background-color: white;
+  color: #232329;
+}
+
+.auth-modal-button-primary:hover {
+  background-color: #f0f0f0;
+}
+
+/* Info text */
+.auth-modal-info {
+  margin-top: 24px;
+  margin-bottom: 0px;
+  color: #6b6b76;
+  font-size: 12px;
+  text-align: center;
+  background-color: rgba(0, 0, 0, 0);
+  padding: 12px;
+  border-radius: 6px;
+}
+
+/* Animation keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Media query for screens under 700x700 */
+@media (max-width: 700px), (max-height: 700px) {
+  .auth-modal-container {
+    max-width: 100%;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    margin: 0;
+    padding: 50px;
+    box-shadow: none;
+  }
+  
+  .auth-modal-content {
+    padding: 20px;
+    margin: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  
+  .auth-modal-title-container {
+    position: relative;
+    display: inline-block;
+    margin: 0 auto;
+  }
+  
+  .beta-text {
+    position: absolute;
+    right: -52px; /* Position relative to the title container */
+    top: 15px;
+  }
+}

@@ -1,0 +1,8 @@
+*.pyc
+*/__pycache__/*
+node_modules
+dist
+src/excalidraw
+.env
+src/frontend/.env.local
+.vscode/settings.json

@@ -1,0 +1,19 @@
+.feedback-button {
+  height: 2.75rem;
+  padding: 0 1rem;
+  border-radius: 0.5rem;
+  margin-left: 0.275rem;
+
+  background: #232329;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.15s ease-in-out, border 0.15s ease-in-out;
+
+  &:hover,
+  &:focus {
+    background: #cc6d24;
+    outline: none;
+  }
+}

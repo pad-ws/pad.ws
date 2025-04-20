@@ -1,0 +1,25 @@
+{
+  "name": "with-script-in-browser",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@excalidraw/excalidraw": "*",
+    "@monaco-editor/react": "^4.7.0",
+    "@tanstack/react-query": "^5.74.3",
+    "@tanstack/react-query-devtools": "^5.74.3",
+    "browser-fs-access": "0.29.1",
+    "lucide-react": "^0.488.0",
+    "posthog-js": "^1.236.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "typescript": "^5",
+    "vite": "5.2.0"
+  },
+  "scripts": {
+    "start": "vite",
+    "build": "vite build"
+  }
+}

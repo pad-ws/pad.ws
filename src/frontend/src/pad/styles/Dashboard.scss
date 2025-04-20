@@ -1,0 +1,88 @@
+/* Apply box-sizing border-box to all elements */
+* {
+  box-sizing: border-box;
+}
+
+.dashboard {
+  width: 100%;
+  height: 100%;
+
+  padding: 4px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  
+  font-family: Arial, sans-serif;
+  
+  background: transparent;
+
+  border: 0px solid transparent;
+  
+  &__top-section {
+    margin: 10px;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    
+    &--full-height {
+      flex: 1;
+      height: calc(100% - 20px); /* Account for margins */
+      transition: height 0.3s ease-in-out;
+    }
+  }
+  
+  &__bottom-section {
+    margin: 10px;
+    margin-top: 5px;
+
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Prevent overflow */
+    box-sizing: border-box;
+    transition: all 0.3s ease-in-out; /* Add smooth transition */
+  }
+  
+  &__welcome-message {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+    
+    margin-bottom: 18px;
+    h1 {
+      color: #ffffff;
+      font-size: 2.5rem;
+      text-align: center;
+      opacity: 0.9;
+      animation: fadeIn 0.5s ease-in-out;
+    }
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 0.9; transform: translateY(0); }
+  }
+  
+  .state-indicator {
+    width: 100%;
+    height: 100%;
+
+    padding: 10px;
+
+    border-radius: 7px;
+  }
+
+  .control-button {
+    height: 100%;
+    width: fit-content;
+  }
+
+  .action-button {
+    border-radius: 7px;
+  }
+}

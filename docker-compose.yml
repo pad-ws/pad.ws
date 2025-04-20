@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    network_mode: host
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: keycloak
+    command: start
+    environment:
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: ${KEYCLOAK_PORT}
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT_BACKCHANNEL: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HOSTNAME_URL: http://localhost:${KEYCLOAK_PORT}
+      KC_HOSTNAME_ADMIN_URL: http://localhost:${KEYCLOAK_PORT}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_PROXY: "edge"
+      PROXY_ADDRESS_FORWARDING: "true"
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://localhost:5432/${POSTGRES_DB}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+    restart: unless-stopped
+    network_mode: host
+
+  coder:
+    image: ghcr.io/coder/coder:latest
+    container_name: coder
+    environment:
+      CODER_ACCESS_URL: http://localhost:${CODER_PORT}
+      CODER_OIDC_ISSUER_URL: http://localhost:8080/realms/${OIDC_REALM}
+      CODER_OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      CODER_OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      CODER_OIDC_SIGN_IN_TEXT: "Sign in for pad"
+      CODER_ADDITIONAL_CSP_POLICY: ${CODER_ADDITIONAL_CSP_POLICY}
+      CODER_OAUTH2_GITHUB_DEFAULT_PROVIDER_ENABLED: "false"
+      CODER_PG_CONNECTION_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}?sslmode=disable
+      CODER_ADDRESS: 0.0.0.0:7080
+      CODER_OIDC_IGNORE_EMAIL_VERIFIED: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - ${DOCKER_GROUP_ID}
+    restart: unless-stopped
+    network_mode: host
+
+  app:
+    image: pad-ws
+    container_name: pad
+    environment:
+      - STATIC_DIR=${STATIC_DIR}
+      - ASSETS_DIR=${ASSETS_DIR}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
+      - OIDC_SERVER_URL=http://localhost:${KEYCLOAK_PORT}
+      - OIDC_REALM=${OIDC_REALM}
+      - REDIRECT_URI=http://localhost:${APP_PORT}/auth/callback
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=localhost
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - CODER_API_KEY=${CODER_API_KEY}
+      - CODER_URL=http://localhost:${CODER_PORT}
+      - CODER_TEMPLATE_ID=${CODER_TEMPLATE_ID}
+      - CODER_DEFAULT_ORGANIZATION=${CODER_DEFAULT_ORGANIZATION}
+    network_mode: host
+
+volumes:
+  postgres_data:
