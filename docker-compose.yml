@@ -61,8 +61,8 @@ services:
     image: ghcr.io/pad-ws/pad.ws:main
     container_name: pad
     environment:
-      - STATIC_DIR=${STATIC_DIR}
-      - ASSETS_DIR=${ASSETS_DIR}
+      - STATIC_DIR=/app/frontend/dist
+      - ASSETS_DIR=/app/frontend/dist/assets
       - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
       - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
       - OIDC_SERVER_URL=http://localhost:${KEYCLOAK_PORT}
