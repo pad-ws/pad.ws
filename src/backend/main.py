@@ -6,7 +6,6 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from api_analytics.fastapi import Analytics
 from dotenv import load_dotenv
 import posthog
 
@@ -34,9 +33,6 @@ async def lifespan(_: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
-
-# Add analytics middleware
-app.add_middleware(Analytics, api_key="ea6d92e3-51d7-48f0-a327-8a38869ade13")
 
 # CORS middleware setup
 app.add_middleware(

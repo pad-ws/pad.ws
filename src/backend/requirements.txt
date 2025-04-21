@@ -6,6 +6,5 @@ asyncpg
 python-dotenv
 PyJWT
 requests
-api-analytics[fastapi]
 sqlalchemy
 posthog
