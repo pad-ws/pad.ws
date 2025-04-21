@@ -16,3 +16,9 @@
     outline: none;
   }
 }
+
+@media (max-width: 730px) {
+  .discord-button {
+    display: none !important;
+  }
+}

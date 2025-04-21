@@ -17,3 +17,9 @@
     outline: none;
   }
 }
+
+@media (max-width: 730px) {
+  .feedback-button {
+    display: none !important;
+  }
+}

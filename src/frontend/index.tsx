@@ -1,6 +1,9 @@
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+
+import posthog from "./src/utils/posthog";
 import { PostHogProvider } from 'posthog-js/react';
+
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from './src/api/queryClient';
@@ -11,12 +14,8 @@ import "./src/styles/index.scss";
 import type * as TExcalidraw from "@excalidraw/excalidraw";
 
 import App from "./src/App";
-import { AuthProvider } from "./src/auth/AuthContext";
 import AuthGate from "./src/AuthGate";
-import ErrorBoundary from "./src/ErrorBoundary";
 
-// PostHog is automatically initialized in ./utils/posthog.ts
-import "./src/utils/posthog";
 
 declare global {
   interface Window {
@@ -30,15 +29,7 @@ async function initApp() {
   const { Excalidraw } = window.ExcalidrawLib;
   root.render(
     <StrictMode>
-
-      <ErrorBoundary>
-        <PostHogProvider
-          apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY}
-          options={{
-            api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-          }}
-        >
-
+        <PostHogProvider client={posthog}>
           <QueryClientProvider client={queryClient}>
             <AuthGate>
               <App
@@ -51,7 +42,6 @@ async function initApp() {
             <ReactQueryDevtools initialIsOpen={false} />
           </QueryClientProvider>
         </PostHogProvider>
-      </ErrorBoundary>
     </StrictMode>,
   );
 }
