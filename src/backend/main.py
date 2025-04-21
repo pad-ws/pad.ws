@@ -6,7 +6,18 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from api_analytics.fastapi import Analytics
+from dotenv import load_dotenv
+import posthog
+
+load_dotenv()
+
+POSTHOG_API_KEY = os.environ.get("VITE_PUBLIC_POSTHOG_KEY")
+POSTHOG_HOST = os.environ.get("VITE_PUBLIC_POSTHOG_HOST")
+
+if POSTHOG_API_KEY:
+    posthog.project_api_key = POSTHOG_API_KEY
+    posthog.host = POSTHOG_HOST
 
 from db import init_db
 from config import STATIC_DIR, ASSETS_DIR
@@ -24,6 +35,9 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Add analytics middleware
+app.add_middleware(Analytics, api_key="ea6d92e3-51d7-48f0-a327-8a38869ade13")
+
 # CORS middleware setup
 app.add_middleware(
     CORSMiddleware,
@@ -33,7 +47,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-print("ASSETS_DIR", ASSETS_DIR)
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 
 @app.get("/")
