@@ -8,7 +8,6 @@ import { useSaveCanvas } from "./api/hooks";
 import type * as TExcalidraw from "@excalidraw/excalidraw";
 import type { NonDeletedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import type { ExcalidrawImperativeAPI, AppState } from "@excalidraw/excalidraw/types";
-import AuthModal from "./auth/AuthModal";
 import { useAuthCheck } from "./api/hooks";
 
 export interface AppProps {
@@ -26,10 +25,7 @@ export default function App({
 }: AppProps) {
   const { useHandleLibrary, MainMenu } = excalidrawLib;
 
-  // Get authentication state from React Query
   const { data: isAuthenticated, isLoading: isAuthLoading } = useAuthCheck();
-
-  // Get user profile for analytics identification
   const { data: userProfile } = useUserProfile();
 
   // Only enable canvas queries if authenticated and not loading
@@ -44,12 +40,10 @@ export default function App({
   useCustom(excalidrawAPI, customArgs);
   useHandleLibrary({ excalidrawAPI });
 
-  // On login and canvas data load, update the scene
-  // Helper to ensure collaborators is a Map
   function normalizeCanvasData(data: any) {
     if (!data) return data;
     const appState = { ...data.appState };
-    // Remove width and height so they get recomputed when loading from DB
+    appState.width = undefined;
     if ("width" in appState) {
       delete appState.width;
     }
@@ -68,26 +62,18 @@ export default function App({
     }
   }, [excalidrawAPI, canvasData]);
 
-  // Use React Query mutation for saving canvas
   const { mutate: saveCanvas } = useSaveCanvas({
     onSuccess: () => {
-      console.debug("Canvas saved to database successfully");
-      // Track canvas save event with PostHog
-      capture('canvas_saved');
+      console.debug("[pad.ws] Canvas saved to database successfully");
     },
     onError: (error) => {
-      console.error("Failed to save canvas to database:", error);
-      // Track canvas save failure
-      capture('canvas_save_failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      console.error("[pad.ws] Failed to save canvas to database:", error);
     }
   });
 
   useEffect(() => {
     if (excalidrawAPI) {
       (window as any).excalidrawAPI = excalidrawAPI;
-      // Track application loaded event
       capture('app_loaded');
     }
     return () => {
@@ -95,13 +81,11 @@ export default function App({
     };
   }, [excalidrawAPI]);
 
-  // Ref to store the last sent canvas data for change detection
   const lastSentCanvasDataRef = useRef<string>("");
 
   const debouncedLogChange = useCallback(
     debounce(
       (elements: NonDeletedExcalidrawElement[], state: AppState, files: any) => {
-        // Only save if authenticated
         if (!isAuthenticated) return;
 
         const canvasData = {
@@ -110,11 +94,9 @@ export default function App({
           files
         };
 
-        // Compare with last sent data (deep equality via JSON.stringify)
         const serialized = JSON.stringify(canvasData);
         if (serialized !== lastSentCanvasDataRef.current) {
           lastSentCanvasDataRef.current = serialized;
-          // Use React Query mutation to save canvas
           saveCanvas(canvasData);
         }
       },
@@ -123,12 +105,18 @@ export default function App({
     [saveCanvas, isAuthenticated]
   );
 
-  // Identify user in PostHog when username is available
   useEffect(() => {
-    if (userProfile?.username) {
-      posthog.identify(userProfile.username);
+    if (userProfile?.id) {
+      posthog.identify(userProfile.id);
+      if (posthog.people && typeof posthog.people.set === "function") {
+        const {
+          id, // do not include in properties
+          ...personProps
+        } = userProfile;
+        posthog.people.set(personProps);
+      }
     }
-  }, [userProfile?.username]);
+  }, [userProfile]);
 
   return (
     <>
@@ -141,7 +129,6 @@ export default function App({
         {children}
       </ExcalidrawWrapper>
 
-      {/* AuthModal is now handled by AuthGate */}
     </>
   );
 }
