@@ -1,7 +1,7 @@
 import React from 'react';
 import { useWorkspaceState, useStartWorkspace, useStopWorkspace } from '../../api/hooks';
 import '../styles/index.scss';
-import { Play, CircleX, LoaderCircle } from 'lucide-react';
+import { Play, CircleStop, LoaderCircle } from 'lucide-react';
 
 export const ControlButton: React.FC = () => {
   const { data: workspaceState } = useWorkspaceState({
@@ -41,7 +41,7 @@ export const ControlButton: React.FC = () => {
         className="control-button"
         aria-label="Stop VM"
       >
-        <CircleX className="control-icon" color="black" />
+        <CircleStop className="control-icon" color="#c72b2b" />
       </button>
     );
   } else {
