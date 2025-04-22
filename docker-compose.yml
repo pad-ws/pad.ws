@@ -57,7 +57,7 @@ services:
     restart: unless-stopped
     network_mode: host
 
-  app:
+  pad:
     image: ghcr.io/pad-ws/pad.ws:main
     container_name: pad
     environment:
