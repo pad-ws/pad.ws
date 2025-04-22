@@ -4,15 +4,17 @@ import posthog from 'posthog-js';
 if (import.meta.env.VITE_PUBLIC_POSTHOG_KEY) {
   posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_KEY, {
     api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-    capture_pageview: true,
-    capture_pageleave: true,
-    autocapture: true,
-    persistence: 'localStorage',
     debug: false,
+    session_recording: {
+      recordCrossOriginIframes: true,
+      captureCanvas: {
+        recordCanvas: false,
+      }
+    },
   });
-  console.debug('PostHog initialized successfully');
+  console.debug('[pad.ws] PostHog initialized successfully');
 } else {
-  console.warn('PostHog API key not found. Analytics will not be tracked.');
+  console.warn('[pad.ws] PostHog API key not found. Analytics will not be tracked.');
 }
 
 // Helper function to track custom events

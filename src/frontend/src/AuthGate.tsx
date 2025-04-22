@@ -1,40 +1,60 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAuthCheck } from "./api/hooks";
 import AuthModal from "./auth/AuthModal";
 
 /**
- * AuthGate ensures the authentication check is the very first XHR request.
- * It blocks rendering of children until the auth check completes.
- * If unauthenticated, it shows the AuthModal.
+ * If unauthenticated, it shows the AuthModal as an overlay, but still renders the app behind it.
+ * 
+ * If authenticated, it silently primes the Coder OIDC session by loading
+ * the OIDC callback endpoint in a hidden iframe. This is a workaround:
+ * without this, users would see the Coder login screen when opening an embedded terminal.
+ * 
+ * The iframe is removed as soon as it loads, or after a fallback timeout.
  */
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { data: isAuthenticated, isLoading } = useAuthCheck();
   const [coderAuthDone, setCoderAuthDone] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
-    // When authenticated, also authenticate with Coder using an iframe
+    // Only run the Coder OIDC priming once per session, after auth is confirmed
     if (isAuthenticated === true && !coderAuthDone) {
-      // Create a hidden iframe to handle Coder authentication
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = 'https://coder.pad.ws/api/v2/users/oidc/callback';
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = "https://coder.pad.ws/api/v2/users/oidc/callback";
 
-      // Add the iframe to the document
-      document.body.appendChild(iframe);
-
-      // Clean up after a short delay
-      setTimeout(() => {
-        document.body.removeChild(iframe);
+      // Remove iframe as soon as it loads, or after 2s fallback
+      const cleanup = () => {
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
         setCoderAuthDone(true);
-      }, 2000); // 2 seconds should be enough for the auth to complete
+      };
+
+      iframe.onload = cleanup;
+      document.body.appendChild(iframe);
+      iframeRef.current = iframe;
+
+      // Fallback: remove iframe after 5s if onload doesn't fire
+      timeoutRef.current = window.setTimeout(cleanup, 5000);
+
+      // Cleanup on unmount or re-run
+      return () => {
+        if (iframeRef.current && iframeRef.current.parentNode) {
+          iframeRef.current.parentNode.removeChild(iframeRef.current);
+        }
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+      };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, coderAuthDone]);
 
-  // Always render children (App), but overlay AuthModal if unauthenticated
+  // Always render children; overlay AuthModal if not authenticated
   return (
     <>
       {children}
-      {isAuthenticated === false && !isLoading && <AuthModal />}
+      {isAuthenticated === false && <AuthModal />}
     </>
   );
 }

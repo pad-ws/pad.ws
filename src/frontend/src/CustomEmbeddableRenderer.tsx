@@ -38,7 +38,7 @@ export const renderCustomEmbeddable = (
       default:
         return null;
     }
+  } else {
+    return <iframe className="custom-rendered-embeddable" src={element.link} />;
   }
-
-  return null;
 };

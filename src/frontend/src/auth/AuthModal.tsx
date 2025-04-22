@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
+import { capture } from "../utils/posthog";
 import "../styles/AuthModal.scss";
 
 interface AuthModalProps {
@@ -9,14 +10,14 @@ interface AuthModalProps {
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({
-  title = "pad.ws",
-  description = "Welcome\n\nPad is a browser-based developer environment where you can take notes and code side to side.\n\nYour workspace is an Ubuntu virtual machine that we run for you in the cloud",
+  description = "This is a browser-based developer environment where you can take notes and code side to side.\n\nYour workspace is an Ubuntu virtual machine that we run for you in the cloud",
   infoText = "🚧 This is a beta. Consider all data is temporary and might be deleted at any time while we build",
 }) => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
+    capture("auth_modal_shown");
     // Prevent scrolling when modal is open
     document.body.style.overflow = "hidden";
 

@@ -4,15 +4,26 @@
 @import './FeedbackButton.scss';
 @import './DiscordButton.scss';
 @import './MainMenuLabel.scss';
+@import './CustomEmbeddableRenderer.scss';
+
 /* Override Excalidraw styles */
 
 body {
     margin: 0;
 }
 
+#root {
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    z-index: 1;
+    background-color: #111111;
+}
+
 .excalidraw-wrapper {
-    height: 100vh;
-    position: relative;
+    height: 100%;
+    width: 100%;
+    display: flex;
     z-index: 1;
 }
 

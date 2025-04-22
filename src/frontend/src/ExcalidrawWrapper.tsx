@@ -1,17 +1,17 @@
 import React, { Children, cloneElement } from 'react';
-import DiscordButton from './components/DiscordButton';
-import FeedbackButton from './components/FeedbackButton';
+import DiscordButton from './ui/DiscordButton';
+import FeedbackButton from './ui/FeedbackButton';
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 import type { NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import type { AppState } from '@excalidraw/excalidraw/types';
-import { MainMenuConfig } from './MainMenu';
+import { MainMenuConfig } from './ui/MainMenu';
 import { renderCustomEmbeddable } from './CustomEmbeddableRenderer';
 
 const defaultInitialData = {
   elements: [],
   appState: {
     gridModeEnabled: true,
-    gridSize: 20,
+    gridSize: 40,
     gridStep: 5,
   },
   files: {},

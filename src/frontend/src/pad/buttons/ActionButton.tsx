@@ -315,7 +315,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   
   const executeAction = () => {
     // Track button click event with PostHog
-    capture('button_clicked', {
+    capture('custom_button_clicked', {
       target: selectedTarget,
       action: selectedAction,
       codeVariant: selectedTarget === 'code' ? selectedCodeVariant : null
@@ -328,7 +328,6 @@ const ActionButton: React.FC<ActionButtonProps> = ({
         return;
       }
       
-      const elements = excalidrawAPI.getSceneElements();
       const baseUrl = getUrl();
       
       if (!baseUrl) {
@@ -347,7 +346,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
         scrollToView: true
       });
       
-      console.debug(`Embedded ${selectedTarget} at URL: ${baseUrl}`);
+      console.debug(`[pad.ws] Embedded ${selectedTarget} at URL: ${baseUrl}`);
       
       // Track successful embed action
       capture('embed_created', {
@@ -361,7 +360,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
         return;
       }
       
-      console.debug(`Opening ${selectedTarget} in new tab from ${baseUrl}`);
+      console.debug(`[pad.ws] Opening ${selectedTarget} in new tab from ${baseUrl}`);
       window.open(baseUrl, '_blank');
       
       // Track tab open action
@@ -388,7 +387,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       } else if (selectedTarget === 'code') {
         const prefix = selectedCodeVariant === 'cursor' ? 'cursor' : 'vscode';
         magnetLink = `${prefix}://coder.coder-remote/open?owner=${owner}&workspace=${workspace}&url=${url}&token=&openRecent=true&agent=${agent}`;
-        console.debug(`Opening ${selectedCodeVariant} desktop app with magnet link: ${magnetLink}`);
+        console.debug(`[pad.ws] Opening ${selectedCodeVariant} desktop app with magnet link: ${magnetLink}`);
         window.open(magnetLink, '_blank');
         
         // Track desktop app open action
@@ -415,15 +414,6 @@ const ActionButton: React.FC<ActionButtonProps> = ({
 
   
   const handleTabClick = (tabType: string, value: string) => {
-    // Track tab selection change
-    capture('tab_selection_changed', {
-      tabType,
-      newValue: value,
-      previousTarget: selectedTarget,
-      previousCodeVariant: selectedTarget === 'code' ? selectedCodeVariant : null,
-      previousAction: selectedAction
-    });
-    
     if (tabType === 'target') {
       setSelectedTarget(value as TargetType);
     } else if (tabType === 'editor') {
@@ -440,7 +430,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     setShowOptions(newShowOptions);
     
     // Track settings toggle event
-    capture('settings_toggled', {
+    capture('custom_button_edit_settings', {
       target: selectedTarget,
       action: selectedAction,
       codeVariant: selectedTarget === 'code' ? selectedCodeVariant : null,

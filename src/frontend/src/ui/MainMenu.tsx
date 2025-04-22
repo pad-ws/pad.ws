@@ -4,9 +4,9 @@ import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 import type { MainMenu as MainMenuType } from '@excalidraw/excalidraw';
 
 import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User } from 'lucide-react';
-import { capture } from './utils/posthog';
-import { ExcalidrawElementFactory, PlacementMode } from './lib/ExcalidrawElementFactory';
-import { useUserProfile } from "./api/hooks";
+import { capture } from '../utils/posthog';
+import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
+import { useUserProfile } from "../api/hooks";
 
 interface MainMenuConfigProps {
   MainMenu: typeof MainMenuType;
