@@ -58,7 +58,7 @@ services:
     network_mode: host
 
   app:
-    image: ghcr.io/plutack/pad.ws:feat-improve-stop-icon
+    image: ghcr.io/pad-ws/pad.ws:main
     container_name: pad
     environment:
       - STATIC_DIR=/app/frontend/dist
