@@ -46,10 +46,10 @@ async def save_canvas(data: Dict[str, Any], auth: SessionData = Depends(require_
         width = app_state.get("width")
         height = app_state.get("height")
         zoom = app_state.get("zoom", {}).get("value")
-        api_path = str(request.url.path) if request else None
         full_url = None
         if request:
             full_url = str(request.base_url).rstrip("/") + str(request.url.path)
+            full_url = full_url.replace("http://", "https://")
         posthog.capture(
             distinct_id=user_id,
             event="canvas_saved",
