@@ -1,7 +1,7 @@
 import type { 
   ExcalidrawElement
-} from '@excalidraw/excalidraw/element/types';
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
+} from '@atyrode/excalidraw/element/types';
+import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 
 // Enum for placement modes
 export enum PlacementMode {

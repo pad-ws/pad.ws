@@ -5,9 +5,9 @@ import { debounce } from "./utils/debounce";
 import { capture } from "./utils/posthog";
 import posthog from "./utils/posthog";
 import { useSaveCanvas } from "./api/hooks";
-import type * as TExcalidraw from "@excalidraw/excalidraw";
-import type { NonDeletedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
-import type { ExcalidrawImperativeAPI, AppState } from "@excalidraw/excalidraw/types";
+import type * as TExcalidraw from "@atyrode/excalidraw";
+import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
+import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
 import { useAuthCheck } from "./api/hooks";
 
 export interface AppProps {
