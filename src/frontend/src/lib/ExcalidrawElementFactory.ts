@@ -119,7 +119,10 @@ export class ExcalidrawElementFactory {
     return {
       ...element,
       type: "embeddable",
-      link: options.link
+      link: options.link,
+      customData: {
+        showHyperlinkIcon: false
+      }
     };
   }
 
