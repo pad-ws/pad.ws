@@ -8,10 +8,10 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from './src/api/queryClient';
 
-import "@excalidraw/excalidraw/index.css";
+import "@atyrode/excalidraw/index.css";
 import "./src/styles/index.scss";
 
-import type * as TExcalidraw from "@excalidraw/excalidraw";
+import type * as TExcalidraw from "@atyrode/excalidraw";
 
 import App from "./src/App";
 import AuthGate from "./src/AuthGate";

@@ -1,7 +1,7 @@
 import React from 'react';
 
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
-import type { MainMenu as MainMenuType } from '@excalidraw/excalidraw';
+import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
+import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 
 import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User } from 'lucide-react';
 import { capture } from '../utils/posthog';

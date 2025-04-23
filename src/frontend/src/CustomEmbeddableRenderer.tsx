@@ -1,6 +1,6 @@
 import React from 'react';
-import type { NonDeleted, ExcalidrawEmbeddableElement } from '@excalidraw/excalidraw/element/types';
-import type { AppState } from '@excalidraw/excalidraw/types';
+import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidraw/element/types';
+import type { AppState } from '@atyrode/excalidraw/types';
 import {
   Dashboard,
   StateIndicator,

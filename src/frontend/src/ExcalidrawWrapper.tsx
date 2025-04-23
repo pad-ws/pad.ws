@@ -1,9 +1,9 @@
 import React, { Children, cloneElement } from 'react';
 import DiscordButton from './ui/DiscordButton';
 import FeedbackButton from './ui/FeedbackButton';
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
-import type { NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
-import type { AppState } from '@excalidraw/excalidraw/types';
+import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
+import type { NonDeletedExcalidrawElement } from '@atyrode/excalidraw/element/types';
+import type { AppState } from '@atyrode/excalidraw/types';
 import { MainMenuConfig } from './ui/MainMenu';
 import { renderCustomEmbeddable } from './CustomEmbeddableRenderer';
 
