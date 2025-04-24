@@ -10,7 +10,7 @@ interface AuthModalProps {
 
 const AuthModal: React.FC<AuthModalProps> = ({
   description = <>Welcome to your <strong className="highlight">whiteboard IDE</strong>. Open <strong className="highlight">terminals</strong> and start coding right away in your own <strong className="highlight">Ubuntu VM</strong>!</>,
-  warningText = "🚧 This is a beta. We can't guarantee data integrity! 🚧",
+  warningText = "🚧 This is a beta. Make backups! 🚧",
 }) => {
   const [isMounted, setIsMounted] = useState(false);
 
