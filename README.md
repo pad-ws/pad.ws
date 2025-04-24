@@ -9,7 +9,7 @@
 ## ✨ Features
 
 * 🎨 **Interactive Whiteboard** - Draw, sketch and visualize your ideas with Excalidraw
-* 💻 **Fully fetched IDE** - Access terminals and VS Code directly within the whiteboard
+* 💻 **Fully fledged IDE** - Access terminals and VS Code directly within the whiteboard
 * ☁️ **Browser friendly** - Access your dev env from any device
 * 🔄 **Seamless Workflow** - Switch between visual ideation and coding
 * 🛠️ **Use your own tools** - Access your VM from your desktop client (VS Code & Cursor supported)
