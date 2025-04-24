@@ -1,0 +1,42 @@
+.editor-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.editor-toolbar {
+  display: flex;
+  justify-content: right;
+  padding: 8px;
+  background-color: #1e1e1e;
+  border-bottom: 1px solid #333;
+}
+
+.language-selector {
+  margin-right: 10px;
+  
+  .language-select {
+    background-color: #252526;
+    color: #cccccc;
+    border: 1px solid #3c3c3c;
+    border-radius: 7px;
+    padding: 4px 8px;
+    font-size: 12px;
+    max-width: 150px;
+    
+    &:focus {
+      outline: none;
+      border-color: #007fd4;
+    }
+    
+    option {
+      background-color: #252526;
+      color: #cccccc;
+    }
+  }
+}
+
+.monaco-editor-container {
+  flex: 1;
+}

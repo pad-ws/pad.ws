@@ -5,7 +5,8 @@ import {
   Dashboard,
   StateIndicator,
   ControlButton,
-  HtmlEditor
+  HtmlEditor,
+  Editor
 } from './pad';
 import { ActionButton } from './pad/buttons';
 
@@ -20,8 +21,9 @@ export const renderCustomEmbeddable = (
 
     switch (path) {
       case 'html':
-      case 'editor':
         return <HtmlEditor element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+      case 'editor':
+        return <Editor element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
       case 'state':
         return <StateIndicator />;
       case 'control':

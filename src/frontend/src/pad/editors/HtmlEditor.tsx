@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidraw/element/types';
 import type { AppState } from '@atyrode/excalidraw/types';
-import Editor from '@monaco-editor/react';
+import Editor from './Editor';
 import { ExcalidrawElementFactory } from '../../lib/ExcalidrawElementFactory';
 import '../../styles/HtmlEditor.scss';
 
@@ -17,10 +17,32 @@ export const HtmlEditor: React.FC<HtmlEditorProps> = ({
   excalidrawAPI
 }) => {
   const [createNew, setCreateNew] = useState(true);
-  const [editorValue, setEditorValue] = useState('<button style="padding: 8px; background: #5294f6; color: white; border: none; border-radius: 4px;">Example Button</button>');
+  const defaultHtml = '<button style="padding: 8px; background: #5294f6; color: white; border: none; border-radius: 4px;">Example Button</button>';
+  const [editorValue, setEditorValue] = useState(
+    element.customData?.editorContent || defaultHtml
+  );
   const editorRef = useRef<any>(null);
+  const elementIdRef = useRef(element.id);
 
-  const handleEditorDidMount = (editor: any) => {
+  // Load content from customData when element changes (e.g., when cloned or pasted)
+  useEffect(() => {
+    // Check if element ID has changed (indicating a new element)
+    if (element.id !== elementIdRef.current) {
+      elementIdRef.current = element.id;
+      
+      // If element has customData with editorContent, update the state
+      if (element.customData?.editorContent) {
+        setEditorValue(element.customData.editorContent);
+      } else {
+        setEditorValue(defaultHtml);
+      }
+      
+      // Note: We don't need to update language here since HtmlEditor always uses 'html'
+      // But we still save it in customData for consistency
+    }
+  }, [element.id, element.customData, defaultHtml]);
+
+  const handleEditorMount = (editor: any) => {
     editorRef.current = editor;
   };
 
@@ -30,6 +52,9 @@ export const HtmlEditor: React.FC<HtmlEditorProps> = ({
     const htmlContent = editorRef.current.getValue();
     const elements = excalidrawAPI.getSceneElements();
     
+    // Get the current editor content
+    const currentContent = editorRef.current.getValue();
+    
     // Create a new iframe element with the HTML content using our factory
     const newElement = ExcalidrawElementFactory.createIframeElement({
       x: createNew ? element.x + element.width + 20 : element.x,
@@ -37,7 +62,11 @@ export const HtmlEditor: React.FC<HtmlEditorProps> = ({
       width: element.width,
       height: element.height,
       htmlContent: htmlContent,
-      id: createNew ? undefined : element.id
+      id: createNew ? undefined : element.id,
+      customData: {
+        editorContent: currentContent,
+        editorLanguage: 'html' // Always set to html for HtmlEditor
+      }
     });
     
     // If creating a new element, add it to the scene
@@ -69,18 +98,13 @@ export const HtmlEditor: React.FC<HtmlEditorProps> = ({
       <div className="html-editor-content">
         <Editor
           height="100%"
-          defaultLanguage="html"
+          language="html"
           defaultValue={editorValue}
-          theme="vs-dark"
-          options={{
-            minimap: { enabled: false },
-            scrollBeyondLastLine: false,
-            fontSize: 12,
-            automaticLayout: true
-          }}
-          onMount={handleEditorDidMount}
           onChange={(value) => value && setEditorValue(value)}
-          className="monaco-editor-container"
+          onMount={handleEditorMount}
+          element={element}
+          excalidrawAPI={excalidrawAPI}
+          showLanguageSelector={false}
         />
         <div className="html-editor-controls">
           <label>
