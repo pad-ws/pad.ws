@@ -139,7 +139,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
             {/* Footer */}
             <div className="auth-modal-footer">
-              <a href="https://discord.com/invite/NnXSESxWpA" className="auth-modal-footer-link">
+              <a href="https://discord.com/invite/NnXSESxWpA" className="auth-modal-footer-link" target="_blank" rel="noopener noreferrer">
                 <svg
                   width="20"
                   height="20"
@@ -154,7 +154,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 </svg>
               </a>
               |
-              <a href="https://github.com/pad-ws/pad.ws" className="auth-modal-footer-link">
+              <a href="https://github.com/pad-ws/pad.ws" className="auth-modal-footer-link" target="_blank" rel="noopener noreferrer">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="20"
@@ -171,7 +171,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 </svg>
               </a>
               |
-              <a href="mailto:contact@pad.ws" className="auth-modal-footer-link">
+              <a href="mailto:contact@pad.ws" className="auth-modal-footer-link" target="_blank" rel="noopener noreferrer">
                 <Mail size={20} />
               </a>
             </div>
