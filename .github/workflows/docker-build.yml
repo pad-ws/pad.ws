@@ -12,7 +12,6 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Job for AMD64 architecture
   build-amd64:
     runs-on: ubuntu-latest
     permissions:
@@ -74,7 +73,6 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # Job for ARM64 architecture - runs on all events
   build-arm64:
     runs-on: ubuntu-latest
     permissions:
@@ -119,8 +117,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           builder: ${{ steps.buildx.outputs.name }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
-
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
       - name: Export ARM64 digest
         run: |
           mkdir -p /tmp/digests
