@@ -12,14 +12,20 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-amd64:
+  build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]
     permissions:
       contents: read
       packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -31,6 +37,13 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract platform short name
+        id: platform
+        run: |
+          # Extract the architecture from the platform (e.g., amd64 from linux/amd64)
+          ARCH=$(echo "${{ matrix.platform }}" | cut -d/ -f2)
+          echo "arch=${ARCH}" >> $GITHUB_OUTPUT
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
@@ -44,114 +57,24 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=long
 
-      - name: Build and push AMD64 Docker image
-        id: build
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}-amd64
+          platforms: ${{ matrix.platform }}
+          tags: ${{ steps.meta.outputs.tags }}-${{ steps.platform.outputs.arch }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          builder: ${{ steps.buildx.outputs.name }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-      - name: Export AMD64 digest
-        run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
-          echo "AMD64_DIGEST=${digest}" >> $GITHUB_ENV
 
-      - name: Upload AMD64 digest
-        uses: actions/upload-artifact@v4
-        with:
-          name: amd64-digest
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-  build-arm64:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        id: buildx
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,format=long
-
-      - name: Build and push ARM64 Docker image
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}-arm64
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          builder: ${{ steps.buildx.outputs.name }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-      - name: Export ARM64 digest
-        run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
-          echo "ARM64_DIGEST=${digest}" >> $GITHUB_ENV
-
-      - name: Upload ARM64 digest
-        uses: actions/upload-artifact@v4
-        with:
-          name: arm64-digest
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-  # Job to create multi-architecture manifest
   create-manifest:
     runs-on: ubuntu-latest
-    needs: [build-amd64, build-arm64]
+    needs: build
     permissions:
       contents: read
       packages: write
     steps:
-      - name: Download AMD64 digest
-        uses: actions/download-artifact@v4
-        with:
-          name: amd64-digest
-          path: /tmp/digests/amd64
-
-      - name: Download ARM64 digest
-        uses: actions/download-artifact@v4
-        with:
-          name: arm64-digest
-          path: /tmp/digests/arm64
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -176,17 +99,16 @@ jobs:
 
       - name: Create manifest list and push
         run: |
-          # Get the first tag from meta outputs
-          FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | cut -d, -f1)
+          # Get the first tag from meta outputs (without newlines)
+          FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
           
-          # Use both digests
-          AMD64_DIGEST=$(cat /tmp/digests/amd64/*)
-          ARM64_DIGEST=$(cat /tmp/digests/arm64/*)
+          # Create manifest with both architecture images
           docker buildx imagetools create \
             --tag ${FIRST_TAG} \
-            ${AMD64_DIGEST} ${ARM64_DIGEST}
+            ${FIRST_TAG}-amd64 \
+            ${FIRST_TAG}-arm64
 
       - name: Inspect image
         run: |
-          FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | cut -d, -f1)
+          FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
           docker buildx imagetools inspect ${FIRST_TAG}
