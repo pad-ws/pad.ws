@@ -56,8 +56,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           builder: ${{ steps.buildx.outputs.name }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
-
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
       - name: Export AMD64 digest
         run: |
           mkdir -p /tmp/digests
