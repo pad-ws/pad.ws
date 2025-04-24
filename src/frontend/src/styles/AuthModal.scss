@@ -9,12 +9,21 @@
   animation: fadeIn 0.3s ease-out forwards;
 }
 
+/* Wrapper for modal and logo */
+.auth-modal-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Backdrop with blur effect */
 .auth-modal-backdrop {
   position: absolute;
   inset: 0;
   background-color: rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(0.8px);
+  z-index: 0;
 }
 
 /* Modal container with animation */
@@ -31,19 +40,41 @@
   font-family: 'Roboto', sans-serif;
 }
 
+/* Favicon behind modal, relative to wrapper */
+.auth-modal-favicon {
+  position: absolute;
+  top: -13%;
+  left: 8%;
+  width: 65px;
+  height: 65px;
+  z-index: 0; /* Behind modal */
+  pointer-events: none;
+  user-select: none;
+}
+
 /* Modal content */
 .auth-modal-content {
-  padding: 30px;
+  position: relative;
+  z-index: 1;
+  padding: 20px;
   margin: 12px;
-  margin-top: 0px;
-  margin-bottom: 0px;
+  padding-top: 0px;
 }
 
 /* Modal title container */
 .auth-modal-title-container {
-  position: relative;
-  text-align: center;
-  margin: 0px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.auth-modal-separator {
+  width: 100%;
+  height: 1.5px;
+  background: rgba(120, 120, 120, 0.25);
+  margin: 0.75rem auto 1.5rem auto;
+  border: none;
+  border-radius: 1px;
 }
 
 /* Modal title */
@@ -54,6 +85,10 @@
   color: white;
   text-align: center;
   display: inline-block;
+  margin-bottom: 10px;
+}
+.auth-modal-title-dot {
+  color: #fa8933;
 }
 
 /* Beta text */
@@ -63,14 +98,14 @@
   font-weight: normal;
   font-size: 18px;
   display: inline-block;
-  top: 15px;
-  right: 25px; /* Adjust this value as needed */
+  top: 5%;
+  right: 2%;
 }
 
 /* Modal description */
 .auth-modal-description {
-  margin-top: 26px;
-  margin-bottom: 30px;
+  margin-top: 35px;
+  margin-bottom: 35px;
   color: #a0a0a9;
   font-size: 16px;
   line-height: 1.5;
@@ -81,8 +116,11 @@
 /* Sign-in buttons container */
 .auth-modal-buttons {
   display: flex;
+  align-items: center;
   flex-direction: column;
-  gap: 12px;
+  gap: 13px;
+  margin-top: 30px;
+  margin-bottom: 40px;
 }
 
 /* Base button styles */
@@ -91,9 +129,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: 100%;
+  width: 85%;
   height: 44px;
-  padding: 0 16px;
   border-radius: 6px;
   font-size: 15px;
   font-weight: 500;
@@ -108,10 +145,6 @@
   color: white;
 }
 
-.auth-modal-button-outline:hover {
-  background-color: #323239;
-}
-
 /* Primary button style (Google) */
 .auth-modal-button-primary {
   border: none;
@@ -119,20 +152,27 @@
   color: #232329;
 }
 
-.auth-modal-button-primary:hover {
-  background-color: #f0f0f0;
+/* Footer styles */
+.auth-modal-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #6b7280;
 }
 
-/* Info text */
-.auth-modal-info {
-  margin-top: 24px;
-  margin-bottom: 0px;
-  color: #6b6b76;
-  font-size: 12px;
-  text-align: center;
-  background-color: rgba(0, 0, 0, 0);
-  padding: 12px;
-  border-radius: 6px;
+.auth-modal-footer-link {
+  display: flex;
+  align-items: center;
+  color: #6b7280;
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.15s;
+}
+
+.auth-modal-footer-link:hover {
+  color: #a0a0a0;
 }
 
 /* Animation keyframes */
@@ -158,34 +198,55 @@
 
 /* Media query for screens under 700x700 */
 @media (max-width: 734px), (max-height: 700px) {
+  .auth-modal-wrapper {
+    width: 100vw;
+    height: 100vh;
+  }
   .auth-modal-container {
-    max-width: 100%;
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
     border-radius: 0;
     margin: 0;
-    padding: 50px;
+    padding: 0;
     box-shadow: none;
-  }
-  
-  .auth-modal-content {
-    padding: 20px;
-    margin: 0;
-    height: 100%;
     display: flex;
-    flex-direction: column;
+    align-items: center;
     justify-content: center;
   }
-  
+  .auth-modal-favicon {
+    width: 70px;
+    height: 70px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 0;
+    border-radius: 12px;
+  }
+  .auth-modal-content {
+    width: 100%;
+    max-width: 500px;
+    padding: 20px;
+    margin: 12px;
+    height: auto;
+    display: block;
+  }
   .auth-modal-title-container {
     position: relative;
-    display: inline-block;
-    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    gap: 0.5rem;
   }
-  
   .beta-text {
     position: absolute;
-    right: -52px; /* Position relative to the title container */
-    top: 15px;
+    color: #555;
+    font-weight: normal;
+    font-size: 18px;
+    display: inline-block;
+    top: 10%;
+    right: 15%;
   }
 }
