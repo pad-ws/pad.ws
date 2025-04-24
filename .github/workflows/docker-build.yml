@@ -32,6 +32,8 @@ jobs:
         id: buildx
 
       - name: Log in to the Container registry
+        # Only login if we're pushing (not a PR)
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -61,7 +63,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          # Only push if not a PR
+          push: ${{ github.event_name != 'pull_request' }}
           platforms: ${{ matrix.platform }}
           tags: ${{ steps.meta.outputs.tags }}-${{ steps.platform.outputs.arch }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -69,6 +72,8 @@ jobs:
           cache-to: type=gha,mode=max
 
   create-manifest:
+    # Skip this job for pull requests
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     needs: build
     permissions:
@@ -97,18 +102,24 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=long
 
-      - name: Create manifest list and push
+      - name: Create manifest lists and push
         run: |
-          # Get the first tag from meta outputs (without newlines)
-          FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
-          
-          # Create manifest with both architecture images
-          docker buildx imagetools create \
-            --tag ${FIRST_TAG} \
-            ${FIRST_TAG}-amd64 \
-            ${FIRST_TAG}-arm64
+          # Process each tag and create a manifest for it
+          echo "${{ steps.meta.outputs.tags }}" | while read -r TAG; do
+            if [ -n "$TAG" ]; then
+              echo "Creating manifest for $TAG"
+              docker buildx imagetools create \
+                --tag $TAG \
+                $TAG-amd64 \
+                $TAG-arm64
+            fi
+          done
 
-      - name: Inspect image
+      - name: Inspect images
         run: |
-          FIRST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
-          docker buildx imagetools inspect ${FIRST_TAG}
+          echo "${{ steps.meta.outputs.tags }}" | while read -r TAG; do
+            if [ -n "$TAG" ]; then
+              echo "Inspecting manifest for $TAG"
+              docker buildx imagetools inspect $TAG
+            fi
+          done
