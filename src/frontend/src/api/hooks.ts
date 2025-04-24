@@ -132,10 +132,16 @@ export function useUserProfile(options?: UseQueryOptions<UserProfile>) {
 }
 
 export function useWorkspaceState(options?: UseQueryOptions<WorkspaceState>) {
+  // Get the current auth state from the query cache
+  const authState = queryClient.getQueryData<boolean>(['auth']);
+  
   return useQuery({
     queryKey: ['workspaceState'],
     queryFn: api.getWorkspaceState,
-    refetchInterval: 5000, // Poll every 5 seconds
+    // Only poll if authenticated
+    refetchInterval: authState === true ? 5000 : false, // Poll every 5 seconds if authenticated, otherwise don't poll
+    // Don't retry on error if not authenticated
+    retry: authState === true ? 1 : false,
     ...options,
   });
 }
