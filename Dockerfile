@@ -1,5 +1,5 @@
 # Frontend build stage
-FROM node:20-slim as frontend-builder
+FROM node:20-slim AS frontend-builder
 WORKDIR /app/frontend
 
 # Copy package files first to leverage layer caching
