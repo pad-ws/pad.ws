@@ -1,6 +1,6 @@
 /* Auth Modal Styles */
 .auth-modal-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 50;
   display: flex;
@@ -21,9 +21,8 @@
 .auth-modal-backdrop {
   position: absolute;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(0.8px);
-  z-index: 0;
+  background-color: rgba(0, 0, 0, 0.2);
+  z-index: -1;
 }
 
 /* Modal container with animation */
@@ -43,13 +42,28 @@
 /* Favicon behind modal, relative to wrapper */
 .auth-modal-favicon {
   position: absolute;
-  top: -13%;
+  top: -11.5%;
   left: 8%;
   width: 65px;
   height: 65px;
   z-index: 0; /* Behind modal */
   pointer-events: none;
   user-select: none;
+  opacity: 0;
+  animation: fadeInSlideUp 0.3s ease-out forwards;
+  animation-delay: 1s; /* Delay appearance by 1 second */
+}
+
+/* Animation for favicon to slide up and fade in */
+@keyframes fadeInSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Modal content */
@@ -59,7 +73,7 @@
   padding: 20px;
   margin: 12px;
   padding-top: 0px;
-  padding-bottom: 5px;
+  padding-bottom: 0px;
 }
 
 /* Modal title container */
@@ -92,17 +106,6 @@
   color: #fa8933;
 }
 
-/* Beta text */
-.beta-text {
-  position: absolute;
-  color: #555;
-  font-weight: normal;
-  font-size: 18px;
-  display: inline-block;
-  top: 5%;
-  right: -3%;
-}
-
 /* Modal description */
 .auth-modal-description {
   margin-top: 35px;
@@ -112,6 +115,12 @@
   line-height: 1.5;
   text-align: center;
   white-space: pre-line;
+  max-width: 270px;
+  
+  .highlight {
+    color: #cfcfcf;
+    font-weight: bold;
+  }
 }
 
 /* Sign-in buttons container */
@@ -176,6 +185,15 @@
   color: #a0a0a0;
 }
 
+/* Warning message */
+.auth-modal-warning {
+  margin-top: 15px;
+  text-align: center;
+  color: #606060bd;
+  font-size: 12px;
+  font-weight: 400;
+}
+
 /* Animation keyframes */
 @keyframes fadeIn {
   from {
@@ -215,39 +233,5 @@
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-  .auth-modal-favicon {
-    width: 70px;
-    height: 70px;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    padding: 0;
-    border-radius: 12px;
-  }
-  .auth-modal-content {
-    width: 100%;
-    max-width: 500px;
-    padding: 20px;
-    margin: 12px;
-    height: auto;
-    display: block;
-  }
-  .auth-modal-title-container {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0;
-    gap: 0.5rem;
-  }
-  .beta-text {
-    position: absolute;
-    color: #555;
-    font-weight: normal;
-    font-size: 18px;
-    display: inline-block;
-    top: 10%;
-    right: 15%;
   }
 }
