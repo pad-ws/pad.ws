@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useAuthCheck } from "./api/hooks";
-import AuthModal from "./auth/AuthModal";
+import AuthModal from "./ui/AuthModal";
 
 /**
  * If unauthenticated, it shows the AuthModal as an overlay, but still renders the app behind it.
