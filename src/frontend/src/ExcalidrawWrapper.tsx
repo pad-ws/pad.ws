@@ -11,7 +11,7 @@ const defaultInitialData = {
   elements: [],
   appState: {
     gridModeEnabled: true,
-    gridSize: 40,
+    gridSize: 20,
     gridStep: 5,
   },
   files: {},
