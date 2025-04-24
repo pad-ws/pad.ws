@@ -4,9 +4,13 @@ import '../styles/index.scss';
 
 export const StateIndicator: React.FC = () => {
   const { data: isAuthenticated, isLoading: isAuthLoading } = useAuthCheck();
+  
+  // Only fetch workspace state if authenticated
   const { data: workspaceState, isLoading: isWorkspaceLoading } = useWorkspaceState({
     queryKey: ['workspaceState'],
     enabled: isAuthenticated === true && !isAuthLoading,
+    // Explicitly set refetchInterval to false when not authenticated
+    refetchInterval: isAuthenticated === true ? undefined : false,
   });
 
   const getStateClassName = () => {

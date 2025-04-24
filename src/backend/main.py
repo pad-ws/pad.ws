@@ -44,6 +44,7 @@ app.add_middleware(
 )
 
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 async def read_root(request: Request, auth: Optional[SessionData] = Depends(optional_auth)):

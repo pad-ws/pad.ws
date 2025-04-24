@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Authentication Complete</title>
+  <style>
+    body {
+      background: #18181b;
+      color: #fff;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .message {
+      margin-bottom: 2rem;
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="message">Authentication complete! You may close this window.</div>
+  <script>
+    localStorage.setItem('auth_completed', Date.now().toString());
+    // Close the window after a short delay to ensure message is sent
+    setTimeout(() => {
+      window.close();
+    }, 100);
+  </script>
+</body>
+</html>
