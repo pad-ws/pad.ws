@@ -7,6 +7,7 @@ import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, 
 import { capture } from '../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
 import { useUserProfile } from "../api/hooks";
+import { queryClient } from "../api/queryClient";
 
 interface MainMenuConfigProps {
   MainMenu: typeof MainMenuType;
@@ -171,9 +172,27 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
 
       <MainMenu.Item
           icon={<LogOut />}
-          onClick={() => {
+          onClick={async () => {
             capture('logout_clicked');
-            window.location.href = "/auth/logout";
+            
+            try {
+              // Call the logout endpoint but don't follow the redirect
+              await fetch('/auth/logout', { 
+                method: 'GET',
+                credentials: 'include' 
+              });
+              
+              // Clear the session_id cookie client-side
+              document.cookie = "session_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+              
+              // Invalidate auth query to show the AuthModal
+              queryClient.invalidateQueries({ queryKey: ['auth'] });
+              queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+              
+              console.log("Logged out successfully");
+            } catch (error) {
+              console.error("Logout failed:", error);
+            }
           }}
         >
           Logout

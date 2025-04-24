@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { capture } from "../utils/posthog";
 import { Mail } from "lucide-react";
+import { queryClient } from "../api/queryClient";
 import "../styles/AuthModal.scss";
 
 interface AuthModalProps {
@@ -16,11 +17,22 @@ const AuthModal: React.FC<AuthModalProps> = ({
   useEffect(() => {
     setIsMounted(true);
     capture("auth_modal_shown");
-    // Prevent scrolling when modal is open
-    document.body.style.overflow = "hidden";
+  }, []);
 
+  useEffect(() => {
+    const checkLocalStorage = () => {
+      const authCompleted = localStorage.getItem('auth_completed');
+      if (authCompleted) {
+        localStorage.removeItem('auth_completed');
+        queryClient.invalidateQueries({ queryKey: ['auth'] });
+        clearInterval(intervalId);
+      }
+    };
+    
+    const intervalId = setInterval(checkLocalStorage, 500);
+    
     return () => {
-      document.body.style.overflow = "auto";
+      clearInterval(intervalId);
     };
   }, []);
 
@@ -62,7 +74,11 @@ const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 className="auth-modal-button auth-modal-button-primary"
                 onClick={() => {
-                  window.location.href = "/auth/login?kc_idp_hint=google";
+                  window.open(
+                    "/auth/login?kc_idp_hint=google&popup=1",
+                    "authPopup",
+                    "width=500,height=700,noopener,noreferrer"
+                  );
                 }}
               >
                 <svg
@@ -96,7 +112,11 @@ const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 className="auth-modal-button auth-modal-button-outline"
                 onClick={() => {
-                  window.location.href = "/auth/login?kc_idp_hint=github";
+                  window.open(
+                    "/auth/login?kc_idp_hint=github&popup=1",
+                    "authPopup",
+                    "width=500,height=700,noopener,noreferrer"
+                  );
                 }}
               >
                 <svg
