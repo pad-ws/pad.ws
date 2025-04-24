@@ -3,14 +3,14 @@ import ReactDOM from "react-dom";
 import { capture } from "../utils/posthog";
 import { Mail } from "lucide-react";
 import { queryClient } from "../api/queryClient";
-import "../styles/AuthModal.scss";
 
 interface AuthModalProps {
-  description?: string;
+  description?: React.ReactNode;
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({
-  description = "A free whiteboard IDE in your browser.",
+  description = <>Welcome to your <strong className="highlight">whiteboard IDE</strong>. Open <strong className="highlight">terminals</strong> and start coding right away in your own <strong className="highlight">Ubuntu VM</strong>!</>,
+  warningText = "🚧 This is a beta. Make backups! 🚧",
 }) => {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -63,7 +63,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
           <div className="auth-modal-content">
             <div id="modal-title" className="auth-modal-title-container">
               <h2 className="auth-modal-title">pad<span className="auth-modal-title-dot">.ws</span></h2>
-              <span className="beta-text">(beta)</span>
             </div>
             <div className="auth-modal-separator" />
 
@@ -139,7 +138,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
             {/* Footer */}
             <div className="auth-modal-footer">
-              <a href="https://discord.com/invite/NnXSESxWpA" className="auth-modal-footer-link">
+              <a href="https://discord.com/invite/NnXSESxWpA" className="auth-modal-footer-link" target="_blank" rel="noopener noreferrer">
                 <svg
                   width="20"
                   height="20"
@@ -154,7 +153,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 </svg>
               </a>
               |
-              <a href="https://github.com/pad-ws/pad.ws" className="auth-modal-footer-link">
+              <a href="https://github.com/pad-ws/pad.ws" className="auth-modal-footer-link" target="_blank" rel="noopener noreferrer">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="20"
@@ -171,9 +170,14 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 </svg>
               </a>
               |
-              <a href="mailto:contact@pad.ws" className="auth-modal-footer-link">
+              <a href="mailto:contact@pad.ws" className="auth-modal-footer-link" target="_blank" rel="noopener noreferrer">
                 <Mail size={20} />
               </a>
+            </div>
+            
+            {/* Warning message */}
+            <div className="auth-modal-warning">
+              {warningText}
             </div>
           </div>
         </div>
