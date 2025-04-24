@@ -6,7 +6,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fadeIn 0.3s ease-out forwards;
+  animation: modalFadeIn 0.3s ease-out forwards;
 }
 
 /* Wrapper for modal and logo */
@@ -22,6 +22,7 @@
   position: absolute;
   inset: 0;
   background-color: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(0.6px);
   z-index: -1;
 }
 
@@ -35,7 +36,7 @@
   border-radius: 12px;
   background-color: #232329;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
-  animation: zoomIn 0.3s ease-out forwards;
+  animation: modalZoomIn 0.3s ease-out forwards;
   font-family: 'Roboto', sans-serif;
 }
 
@@ -195,7 +196,7 @@
 }
 
 /* Animation keyframes */
-@keyframes fadeIn {
+@keyframes modalFadeIn {
   from {
     opacity: 0;
   }
@@ -204,7 +205,7 @@
   }
 }
 
-@keyframes zoomIn {
+@keyframes modalZoomIn {
   from {
     transform: scale(0.95);
     opacity: 0;
