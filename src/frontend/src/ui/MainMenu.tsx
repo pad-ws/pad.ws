@@ -3,11 +3,12 @@ import React from 'react';
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 
-import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User } from 'lucide-react';
+import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text } from 'lucide-react';
 import { capture } from '../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
 import { useUserProfile } from "../api/hooks";
 import { queryClient } from "../api/queryClient";
+import Editor from '../pad/editors/Editor';
 
 interface MainMenuConfigProps {
   MainMenu: typeof MainMenuType;
@@ -32,8 +33,8 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     if (!excalidrawAPI) return;
     
     const htmlEditorElement = ExcalidrawElementFactory.createEmbeddableElement({
-      link: "!editor",
-      width: 1200,
+      link: "!html",
+      width: 800,
       height: 500
     });
     
@@ -70,6 +71,22 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     });
     
     ExcalidrawElementFactory.placeInScene(buttonElement, excalidrawAPI, {
+      mode: PlacementMode.NEAR_VIEWPORT_CENTER,
+      bufferPercentage: 10,
+      scrollToView: true
+    });
+  };
+  
+  const handleEditorClick = () => {
+    if (!excalidrawAPI) return;
+    
+    const editorElement = ExcalidrawElementFactory.createEmbeddableElement({
+      link: "!editor",
+      width: 800,
+      height: 500
+    });
+    
+    ExcalidrawElementFactory.placeInScene(editorElement, excalidrawAPI, {
       mode: PlacementMode.NEAR_VIEWPORT_CENTER,
       bufferPercentage: 10,
       scrollToView: true
@@ -153,6 +170,12 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
           onClick={handleHtmlEditorClick}
         >
           Insert HTML Editor
+        </MainMenu.Item>
+        <MainMenu.Item
+          icon={<Text />}
+          onClick={handleEditorClick}
+        >
+          Insert Code Editor
         </MainMenu.Item>
         <MainMenu.Item
           icon={<LayoutDashboard />}
