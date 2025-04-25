@@ -59,11 +59,11 @@ export const CanvasBackups: React.FC<CanvasBackupsProps> = ({
 
   return (
     <div className="canvas-backups">
-      <h2 className="canvas-backups__title">Recent Canvas Backups</h2>
+      <h2 className="canvas-backups__title">Canvas Backups</h2>
       
       {selectedBackup ? (
         <div className="canvas-backups__confirmation">
-          <p>Restore canvas from backup created on {formatDate(selectedBackup.timestamp)}?</p>
+          <p>Restore canvas from backup #{data.backups.findIndex(b => b.id === selectedBackup.id) + 1} created on {formatDate(selectedBackup.timestamp)}?</p>
           <p className="canvas-backups__warning">This will replace your current canvas!</p>
           <div className="canvas-backups__actions">
             <button 
@@ -82,13 +82,16 @@ export const CanvasBackups: React.FC<CanvasBackupsProps> = ({
         </div>
       ) : (
         <ul className="canvas-backups__list">
-          {data.backups.map((backup) => (
+          {data.backups.map((backup, index) => (
             <li 
               key={backup.id} 
               className="canvas-backups__item"
               onClick={() => handleBackupSelect(backup)}
             >
-              <span className="canvas-backups__timestamp">{formatDate(backup.timestamp)}</span>
+              <div className="canvas-backups__item-content">
+                <span className="canvas-backups__number">#{index + 1}</span>
+                <span className="canvas-backups__timestamp">{formatDate(backup.timestamp)}</span>
+              </div>
               <button className="canvas-backups__restore-button">Restore</button>
             </li>
           ))}
