@@ -109,14 +109,14 @@ const BackupsModal: React.FC<BackupsModalProps> = ({
         <div className="backups-modal__wrapper">
           <Dialog
             className="backups-modal"
-            size="small"
+            size="regular"
             onCloseRequest={handleClose}
             title={
               <div className="backups-modal__title-container">
                 <h2 className="backups-modal__title">Canvas Backups</h2>
               </div>
             }
-            closeOnClickOutside={false}
+            closeOnClickOutside={true}
             children={dialogContent}
           />
         </div>

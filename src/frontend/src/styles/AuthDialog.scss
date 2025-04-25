@@ -1,6 +1,14 @@
 /* Auth Modal Styles */
 
 .excalidraw .Dialog--fullscreen {
+  &.auth-modal, .auth-modal {
+    .Dialog__close {
+        display: none;
+    }
+  }
+}
+
+.excalidraw .Dialog--fullscreen {
   .auth-modal {
     &__logo-container {
       display: none;

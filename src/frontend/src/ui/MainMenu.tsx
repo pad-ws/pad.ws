@@ -4,7 +4,6 @@ import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 
 import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text, ArchiveRestore } from 'lucide-react';
-import BackupsModal from './BackupsDialog';
 import { capture } from '../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
 import { useUserProfile } from "../api/hooks";
@@ -13,11 +12,15 @@ import { queryClient } from "../api/queryClient";
 interface MainMenuConfigProps {
   MainMenu: typeof MainMenuType;
   excalidrawAPI: ExcalidrawImperativeAPI | null;
+  showBackupsModal: boolean;
+  setShowBackupsModal: (show: boolean) => void;
 }
 
 export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
   MainMenu,
   excalidrawAPI,
+  showBackupsModal,
+  setShowBackupsModal,
 }) => {
   const { data, isLoading, isError } = useUserProfile();
 
@@ -93,14 +96,8 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     });
   };
 
-  const [showBackupsModal, setShowBackupsModal] = useState(false);
-
   const handleCanvasBackupsClick = () => {
     setShowBackupsModal(true);
-  };
-
-  const handleCloseBackupsModal = () => {
-    setShowBackupsModal(false);
   };
 
   const handleGridToggle = () => {
@@ -238,12 +235,6 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
           Logout
         </MainMenu.Item>
       
-      {showBackupsModal && (
-        <BackupsModal
-          excalidrawAPI={excalidrawAPI}
-          onClose={handleCloseBackupsModal}
-        />
-      )}
     </MainMenu>
   );
 };

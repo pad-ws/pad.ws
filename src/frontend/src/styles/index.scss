@@ -55,12 +55,6 @@ body {
     font-size: 15px !important;
 }
 
-.excalidraw .Dialog--fullscreen {
-    .Dialog__close {
-        display: none;
-    }
-}
-
 .excalidraw .Modal__background {
     background-color: rgba(0, 0, 0, 0);
     backdrop-filter: blur(0px);
