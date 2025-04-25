@@ -1,4 +1,25 @@
 .backups-modal {
+  .Island {
+    padding-top: 15px !important;
+    padding-bottom: 20px !important;
+  }
+
+  &__wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    background-color: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(1px);
+  }
+
+  &__title-container {
+    display: flex;
+    align-items: center;
+  }
+
   &__content {
     padding: 20px;
     max-height: 80vh;
@@ -33,7 +54,7 @@
   }
 
   &__title {
-    margin: 0 0 1rem;
+    margin: 0;
     font-size: 1.2rem;
     font-weight: 500;
     color: #ffffff;
