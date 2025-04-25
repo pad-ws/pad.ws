@@ -123,6 +123,8 @@ export default function App({
         setExcalidrawAPI={setExcalidrawAPI}
         onChange={debouncedLogChange}
         MainMenu={MainMenu}
+        isAuthenticated={isAuthenticated}
+        isAuthLoading={isAuthLoading}
       >
         {children}
       </ExcalidrawWrapper>

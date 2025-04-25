@@ -1,7 +1,7 @@
 @import './fonts.scss';
 @import './HtmlEditor.scss';
 @import './Editor.scss';
-@import './AuthModal.scss';
+@import './AuthDialog.scss';
 @import './FeedbackButton.scss';
 @import './DiscordButton.scss';
 @import './MainMenuLabel.scss';
@@ -53,4 +53,24 @@ body {
     color: #fa8933 !important;
     margin-left: 11px !important;
     font-size: 15px !important;
+}
+
+.excalidraw .Dialog--fullscreen {
+    .Dialog__close {
+        display: none;
+    }
+}
+
+.excalidraw .Modal__background {
+    background-color: rgba(0, 0, 0, 0);
+    backdrop-filter: blur(0px);
+    animation: Modal__background__fade-in 0.3s ease-out forwards !important;
+    
+    &.animations-disabled {
+        animation: none !important;
+    }
+}
+
+.excalidraw .Modal__content {
+    animation: Modal__content_fade-in 0.3s ease-out forwards !important;
 }

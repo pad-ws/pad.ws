@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "@atyrode/excalidraw": "^0.18.0-1",
+    "@atyrode/excalidraw": "^0.18.0-2",
     "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-query": "^5.74.3",
     "@tanstack/react-query-devtools": "^5.74.3",

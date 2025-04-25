@@ -7,6 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.future import select
+from urllib.parse import quote_plus as urlquote
 
 load_dotenv()
 
@@ -18,7 +19,7 @@ DB_HOST = os.getenv('POSTGRES_HOST', 'localhost')
 DB_PORT = os.getenv('POSTGRES_PORT', '5432')
 
 # SQLAlchemy async database URL
-DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{urlquote(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Create async engine
 engine = create_async_engine(DATABASE_URL, echo=False)
