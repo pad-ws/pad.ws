@@ -14,7 +14,7 @@ interface AuthDialogProps {
 }
 
 export const AuthDialog = ({
-  description = <>Welcome to your <strong className="highlight">whiteboard IDE</strong>. <br /><br /> Open <strong className="highlight">terminals</strong>, <strong className="highlight">VSCode</strong> or <strong className="highlight">Cursor</strong> in your pad, and start coding right away.</>,
+  description = <>Welcome to your <strong className="highlight">whiteboard IDE</strong>. <br /><br /> Open <strong className="highlight">terminals</strong>, <strong className="highlight">VSCode</strong>, or <strong className="highlight">Cursor</strong> in your pad, and start coding right away.</>,
   warningText = <>This is a open-source project in beta.<br /> Backup your work!</>,
   onClose,
   children,
