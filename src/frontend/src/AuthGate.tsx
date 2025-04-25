@@ -50,11 +50,37 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, coderAuthDone]);
 
+  // State to control modal visibility and exit animation
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
+  
+  // Update showAuthModal when authentication status changes
+  useEffect(() => {
+    if (isAuthenticated === false) {
+      setShowAuthModal(true);
+      setIsExiting(false);
+    } else if (isAuthenticated === true && showAuthModal) {
+      // Start exit animation when user becomes authenticated
+      setIsExiting(true);
+      // Modal will be removed after animation completes via onExitComplete
+    }
+  }, [isAuthenticated, showAuthModal]);
+  
+  // Handle exit animation completion
+  const handleExitComplete = () => {
+    setShowAuthModal(false);
+  };
+
   // Always render children; overlay AuthModal if not authenticated
   return (
     <>
       {children}
-      {isAuthenticated === false && <AuthModal />}
+      {showAuthModal && (
+        <AuthModal 
+          isExiting={isExiting} 
+          onExitComplete={handleExitComplete} 
+        />
+      )}
     </>
   );
 }

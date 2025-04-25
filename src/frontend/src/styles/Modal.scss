@@ -7,7 +7,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: modalFadeIn 0.3s ease-out forwards;
+    /* Animation is now applied via inline style */
   }
 
   &__wrapper {
@@ -33,7 +33,7 @@
     border-radius: 12px;
     background-color: #232329;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
-    animation: modalZoomIn 0.3s ease-out forwards;
+    /* Animation is now applied via inline style */
     font-family: 'Roboto', sans-serif;
   }
 
@@ -46,9 +46,8 @@
     z-index: 0; /* Behind modal */
     pointer-events: none;
     user-select: none;
-    opacity: 0;
-    animation: fadeInSlideUp 0.3s ease-out forwards;
-    animation-delay: 1s; /* Delay appearance by 1 second */
+    opacity: 0; /* Initial state, animation will control visibility */
+    /* Animation is now applied via inline style */
   }
 }
 
@@ -64,6 +63,18 @@
   }
 }
 
+/* Animation for favicon to slide down and fade out */
+@keyframes fadeOutSlideDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+}
+
 /* Animation keyframes */
 @keyframes modalFadeIn {
   from {
@@ -71,6 +82,15 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes modalFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 
@@ -82,6 +102,17 @@
   to {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+@keyframes modalZoomOut {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.95);
+    opacity: 0;
   }
 }
 

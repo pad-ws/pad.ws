@@ -8,11 +8,15 @@ import "../styles/AuthModal.scss";
 interface AuthModalProps {
   description?: React.ReactNode;
   warningText?: string;
+  onExitComplete?: () => void;
+  isExiting?: boolean;
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({
   description = <>Welcome to your <strong className="highlight">whiteboard IDE</strong>. Open <strong className="highlight">terminals</strong> and start coding right away in your own <strong className="highlight">Ubuntu VM</strong>!</>,
   warningText = "🚧 This is a beta. Make backups! 🚧",
+  onExitComplete,
+  isExiting = false,
 }) => {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -45,6 +49,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
       logoSrc="/assets/images/favicon.png" 
       logoAlt="pad.ws logo"
       className="auth-modal"
+      isExiting={isExiting}
+      onExitComplete={onExitComplete}
     >
       <div className="auth-modal__content">
             <div id="modal-title" className="auth-modal__title-container">
