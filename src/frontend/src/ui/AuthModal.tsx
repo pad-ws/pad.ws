@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import ReactDOM from "react-dom";
 import { capture } from "../utils/posthog";
 import { Mail } from "lucide-react";
 import { queryClient } from "../api/queryClient";
+import Modal from "./Modal";
+import "../styles/AuthModal.scss";
 
 interface AuthModalProps {
   description?: React.ReactNode;
+  warningText?: string;
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({
@@ -38,40 +40,24 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isMounted) return null;
 
-  const modalContent = (
-    <div className="auth-modal-overlay">
-      {/* Backdrop with blur effect */}
-      <div className="auth-modal-backdrop" aria-hidden="true" />
-
-      {/* Wrapper for logo and modal, to position logo behind modal */}
-      <div className="auth-modal-wrapper">
-        {/* Logo behind modal */}
-        <img
-          src="/assets/images/favicon.png"
-          className="auth-modal-favicon"
-          alt="pad.ws logo"
-          aria-hidden="true"
-        />
-        {/* Modal container with animation */}
-        <div
-          className="auth-modal-container"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-title"
-        >
-          {/* Modal content */}
-          <div className="auth-modal-content">
-            <div id="modal-title" className="auth-modal-title-container">
-              <h2 className="auth-modal-title">pad<span className="auth-modal-title-dot">.ws</span></h2>
+  return (
+    <Modal 
+      logoSrc="/assets/images/favicon.png" 
+      logoAlt="pad.ws logo"
+      className="auth-modal"
+    >
+      <div className="auth-modal__content">
+            <div id="modal-title" className="auth-modal__title-container">
+              <h2 className="auth-modal__title">pad<span className="auth-modal__title-dot">.ws</span></h2>
             </div>
-            <div className="auth-modal-separator" />
+            <div className="auth-modal__separator" />
 
-            <p className="auth-modal-description">{description}</p>
+            <p className="auth-modal__description">{description}</p>
             
             {/* Sign-in buttons */}
-            <div className="auth-modal-buttons">
+            <div className="auth-modal__buttons">
               <button
-                className="auth-modal-button auth-modal-button-primary"
+                className="auth-modal__button auth-modal__button--primary"
                 onClick={() => {
                   window.open(
                     "/auth/login?kc_idp_hint=google&popup=1",
@@ -109,7 +95,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
               </button>
 
               <button
-                className="auth-modal-button auth-modal-button-outline"
+                className="auth-modal__button auth-modal__button--outline"
                 onClick={() => {
                   window.open(
                     "/auth/login?kc_idp_hint=github&popup=1",
@@ -137,8 +123,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="auth-modal-footer">
-              <a href="https://discord.com/invite/NnXSESxWpA" className="auth-modal-footer-link" target="_blank" rel="noopener noreferrer">
+            <div className="auth-modal__footer">
+              <a href="https://discord.com/invite/NnXSESxWpA" className="auth-modal__footer-link" target="_blank" rel="noopener noreferrer">
                 <svg
                   width="20"
                   height="20"
@@ -153,7 +139,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 </svg>
               </a>
               |
-              <a href="https://github.com/pad-ws/pad.ws" className="auth-modal-footer-link" target="_blank" rel="noopener noreferrer">
+              <a href="https://github.com/pad-ws/pad.ws" className="auth-modal__footer-link" target="_blank" rel="noopener noreferrer">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="20"
@@ -170,23 +156,18 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 </svg>
               </a>
               |
-              <a href="mailto:contact@pad.ws" className="auth-modal-footer-link" target="_blank" rel="noopener noreferrer">
+              <a href="mailto:contact@pad.ws" className="auth-modal__footer-link" target="_blank" rel="noopener noreferrer">
                 <Mail size={20} />
               </a>
             </div>
             
             {/* Warning message */}
-            <div className="auth-modal-warning">
+            <div className="auth-modal__warning">
               {warningText}
             </div>
-          </div>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
-
-  // Use createPortal to render the modal at the end of the document body
-  return ReactDOM.createPortal(modalContent, document.body);
 };
 
 export default AuthModal;

@@ -1,238 +1,123 @@
 /* Auth Modal Styles */
-.auth-modal-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: modalFadeIn 0.3s ease-out forwards;
-}
+@import './Modal.scss';
 
-/* Wrapper for modal and logo */
-.auth-modal-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Backdrop with blur effect */
-.auth-modal-backdrop {
-  position: absolute;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(0.6px);
-  z-index: -1;
-}
-
-/* Modal container with animation */
-.auth-modal-container {
-  padding: 18px;
-  position: relative;
-  z-index: 10;
-  width: 100%;
-  max-width: 500px;
-  border-radius: 12px;
-  background-color: #232329;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
-  animation: modalZoomIn 0.3s ease-out forwards;
-  font-family: 'Roboto', sans-serif;
-}
-
-/* Favicon behind modal, relative to wrapper */
-.auth-modal-favicon {
-  position: absolute;
-  top: -11.5%;
-  left: 8%;
-  width: 65px;
-  height: 65px;
-  z-index: 0; /* Behind modal */
-  pointer-events: none;
-  user-select: none;
-  opacity: 0;
-  animation: fadeInSlideUp 0.3s ease-out forwards;
-  animation-delay: 1s; /* Delay appearance by 1 second */
-}
-
-/* Animation for favicon to slide up and fade in */
-@keyframes fadeInSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(5px);
+.auth-modal {
+  &__content {
+    position: relative;
+    z-index: 1;
+    padding: 20px;
+    margin: 12px;
+    padding-top: 0px;
+    padding-bottom: 0px;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  &__title-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
-}
 
-/* Modal content */
-.auth-modal-content {
-  position: relative;
-  z-index: 1;
-  padding: 20px;
-  margin: 12px;
-  padding-top: 0px;
-  padding-bottom: 0px;
-}
-
-/* Modal title container */
-.auth-modal-title-container {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.auth-modal-separator {
-  width: 100%;
-  height: 1.5px;
-  background: rgba(120, 120, 120, 0.25);
-  margin: 0.75rem auto 1.5rem auto;
-  border: none;
-  border-radius: 1px;
-}
-
-/* Modal title */
-.auth-modal-title {
-  margin: 0 auto;
-  font-size: 72px;
-  font-weight: 700;
-  color: white;
-  text-align: center;
-  display: inline-block;
-  margin-bottom: 10px;
-}
-.auth-modal-title-dot {
-  color: #fa8933;
-}
-
-/* Modal description */
-.auth-modal-description {
-  margin-top: 35px;
-  margin-bottom: 35px;
-  color: #a0a0a9;
-  font-size: 16px;
-  line-height: 1.5;
-  text-align: center;
-  white-space: pre-line;
-  max-width: 270px;
-  
-  .highlight {
-    color: #cfcfcf;
-    font-weight: bold;
+  &__separator {
+    width: 100%;
+    height: 1.5px;
+    background: rgba(120, 120, 120, 0.25);
+    margin: 0.75rem auto 1.5rem auto;
+    border: none;
+    border-radius: 1px;
   }
-}
 
-/* Sign-in buttons container */
-.auth-modal-buttons {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 13px;
-  margin-top: 30px;
-  margin-bottom: 40px;
-}
-
-/* Base button styles */
-.auth-modal-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 85%;
-  height: 44px;
-  border-radius: 6px;
-  font-size: 15px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-/* Outline button style (GitHub) */
-.auth-modal-button-outline {
-  border: 1px solid #3a3a43;
-  background-color: #2a2a33;
-  color: white;
-}
-
-/* Primary button style (Google) */
-.auth-modal-button-primary {
-  border: none;
-  background-color: white;
-  color: #232329;
-}
-
-/* Footer styles */
-.auth-modal-footer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  font-size: 14px;
-  color: #6b7280;
-}
-
-.auth-modal-footer-link {
-  display: flex;
-  align-items: center;
-  color: #6b7280;
-  text-decoration: none;
-  font-size: 14px;
-  transition: color 0.15s;
-}
-
-.auth-modal-footer-link:hover {
-  color: #a0a0a0;
-}
-
-/* Warning message */
-.auth-modal-warning {
-  margin-top: 15px;
-  text-align: center;
-  color: #606060bd;
-  font-size: 12px;
-  font-weight: 400;
-}
-
-/* Animation keyframes */
-@keyframes modalFadeIn {
-  from {
-    opacity: 0;
+  &__title {
+    margin: 0 auto;
+    font-size: 72px;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    display: inline-block;
+    margin-bottom: 10px;
+    
+    &-dot {
+      color: #fa8933;
+    }
   }
-  to {
-    opacity: 1;
-  }
-}
 
-@keyframes modalZoomIn {
-  from {
-    transform: scale(0.95);
-    opacity: 0;
+  &__description {
+    margin-top: 35px;
+    margin-bottom: 35px;
+    color: #a0a0a9;
+    font-size: 16px;
+    line-height: 1.5;
+    text-align: center;
+    white-space: pre-line;
+    max-width: 270px;
+    
+    .highlight {
+      color: #cfcfcf;
+      font-weight: bold;
+    }
   }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
 
-/* Media query for screens under 700x700 */
-@media (max-width: 734px), (max-height: 700px) {
-  .auth-modal-wrapper {
-    width: 100vw;
-    height: 100vh;
+  &__buttons {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 13px;
+    margin-top: 30px;
+    margin-bottom: 40px;
   }
-  .auth-modal-container {
-    width: 100vw;
-    height: 100vh;
-    max-width: 100vw;
-    max-height: 100vh;
-    border-radius: 0;
-    margin: 0;
-    padding: 0;
-    box-shadow: none;
+
+  &__button {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
+    width: 85%;
+    height: 44px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    
+    &--outline {
+      border: 1px solid #3a3a43;
+      background-color: #2a2a33;
+      color: white;
+    }
+    
+    &--primary {
+      border: none;
+      background-color: white;
+      color: #232329;
+    }
+  }
+
+  &__footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: #6b7280;
+    
+    &-link {
+      display: flex;
+      align-items: center;
+      color: #6b7280;
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.15s;
+      
+      &:hover {
+        color: #a0a0a0;
+      }
+    }
+  }
+
+  &__warning {
+    margin-top: 15px;
+    text-align: center;
+    color: #606060bd;
+    font-size: 12px;
+    font-weight: 400;
   }
 }
