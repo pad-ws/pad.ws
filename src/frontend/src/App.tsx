@@ -50,9 +50,7 @@ export default function App({
     if ("height" in appState) {
       delete appState.height;
     }
-    if (!(appState.collaborators instanceof Map)) {
-      appState.collaborators = new Map();
-    }
+    appState.collaborators = new Map();
     return { ...data, appState };
   }
 
