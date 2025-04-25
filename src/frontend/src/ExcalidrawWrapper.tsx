@@ -7,6 +7,7 @@ import type { AppState } from '@atyrode/excalidraw/types';
 import { MainMenuConfig } from './ui/MainMenu';
 import { renderCustomEmbeddable } from './CustomEmbeddableRenderer';
 import AuthDialog from './ui/AuthDialog';
+import BackupsModal from './ui/BackupsDialog';
 
 const defaultInitialData = {
   elements: [],
@@ -44,12 +45,20 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
   // Add state for modal animation
   const [isExiting, setIsExiting] = useState(false);
   
+  // State for BackupsModal
+  const [showBackupsModal, setShowBackupsModal] = useState(false);
+  
   // Handle auth state changes
   useEffect(() => {
     if (isAuthenticated === true) {
       setIsExiting(true);
     }
   }, [isAuthenticated]);
+  
+  // Handler for closing the backups modal
+  const handleCloseBackupsModal = () => {
+    setShowBackupsModal(false);
+  };
   
   const renderExcalidraw = (children: React.ReactNode) => {
     const Excalidraw = Children.toArray(children).find(
@@ -81,10 +90,22 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
         )),
       },
       <>
-        <MainMenuConfig MainMenu={MainMenu} excalidrawAPI={excalidrawAPI} />
+        <MainMenuConfig 
+          MainMenu={MainMenu} 
+          excalidrawAPI={excalidrawAPI} 
+          showBackupsModal={showBackupsModal}
+          setShowBackupsModal={setShowBackupsModal}
+        />
         {!isAuthLoading && isAuthenticated === false && (
           <AuthDialog 
             onClose={() => {}}
+          />
+        )}
+        
+        {showBackupsModal && (
+          <BackupsModal
+            excalidrawAPI={excalidrawAPI}
+            onClose={handleCloseBackupsModal}
           />
         )}
       </>

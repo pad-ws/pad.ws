@@ -1,23 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 
-import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text } from 'lucide-react';
+import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text, ArchiveRestore } from 'lucide-react';
 import { capture } from '../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
 import { useUserProfile } from "../api/hooks";
 import { queryClient } from "../api/queryClient";
-import Editor from '../pad/editors/Editor';
 
 interface MainMenuConfigProps {
   MainMenu: typeof MainMenuType;
   excalidrawAPI: ExcalidrawImperativeAPI | null;
+  showBackupsModal: boolean;
+  setShowBackupsModal: (show: boolean) => void;
 }
 
 export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
   MainMenu,
   excalidrawAPI,
+  showBackupsModal,
+  setShowBackupsModal,
 }) => {
   const { data, isLoading, isError } = useUserProfile();
 
@@ -93,6 +96,10 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     });
   };
 
+  const handleCanvasBackupsClick = () => {
+    setShowBackupsModal(true);
+  };
+
   const handleGridToggle = () => {
     if (!excalidrawAPI) return;
     const appState = excalidrawAPI.getAppState();
@@ -136,63 +143,70 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
         <MainMenu.DefaultItems.LoadScene />
         <MainMenu.DefaultItems.Export />
         <MainMenu.DefaultItems.SaveAsImage />
-      </MainMenu.Group>
-      
-      <MainMenu.Separator />
-      
-      <MainMenu.Group title="Canvas">
         <MainMenu.Item
-          icon={<Grid2x2 />}
-          onClick={handleGridToggle}
+          icon={<ArchiveRestore />}
+          onClick={handleCanvasBackupsClick}
         >
-         Toggle Grid
-        </MainMenu.Item>
-        <MainMenu.Item
-          icon={<Eye />}
-          onClick={handleViewModeToggle}
-        >
-          View Mode
-        </MainMenu.Item>
-        <MainMenu.Item
-          icon={<Coffee />}
-          onClick={handleZenModeToggle}
-        >
-          Zen Mode
+          Load backup...
         </MainMenu.Item>
         <MainMenu.DefaultItems.ClearCanvas />
       </MainMenu.Group>
       
       <MainMenu.Separator />
-      
+    
       <MainMenu.Group title="Tools">
         <MainMenu.Item
           icon={<SquareCode />}
           onClick={handleHtmlEditorClick}
         >
-          Insert HTML Editor
+          HTML Editor
         </MainMenu.Item>
         <MainMenu.Item
           icon={<Text />}
           onClick={handleEditorClick}
         >
-          Insert Code Editor
+          Code Editor
         </MainMenu.Item>
         <MainMenu.Item
           icon={<LayoutDashboard />}
           onClick={handleDashboardButtonClick}
         >
-          Insert Dashboard
+          Dashboard
         </MainMenu.Item>
         <MainMenu.Item
           icon={<SquarePlus />}
           onClick={handleInsertButtonClick}
         >
-          Insert Button
+          Action Button
         </MainMenu.Item>
       </MainMenu.Group>
 
       <MainMenu.Separator />
+      
+      <MainMenu.Group title="View">
+        <MainMenu.Item
+          icon={<Grid2x2 />}
+          onClick={handleGridToggle}
+        >
+         Toggle grid
+        </MainMenu.Item>
+        <MainMenu.Item
+          icon={<Eye />}
+          onClick={handleViewModeToggle}
+        >
+          View mode
+        </MainMenu.Item>
+        <MainMenu.Item
+          icon={<Coffee />}
+          onClick={handleZenModeToggle}
+        >
+          Zen mode
+        </MainMenu.Item>
 
+      </MainMenu.Group>
+      
+      <MainMenu.Separator />
+      
       <MainMenu.Item
           icon={<LogOut />}
           onClick={async () => {

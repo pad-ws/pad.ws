@@ -4,6 +4,7 @@ import { ExcalidrawWrapper } from "./ExcalidrawWrapper";
 import { debounce } from "./utils/debounce";
 import { capture } from "./utils/posthog";
 import posthog from "./utils/posthog";
+import { normalizeCanvasData } from "./utils/canvasUtils";
 import { useSaveCanvas } from "./api/hooks";
 import type * as TExcalidraw from "@atyrode/excalidraw";
 import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
@@ -39,22 +40,6 @@ export default function App({
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
   useCustom(excalidrawAPI, customArgs);
   useHandleLibrary({ excalidrawAPI });
-
-  function normalizeCanvasData(data: any) {
-    if (!data) return data;
-    const appState = { ...data.appState };
-    appState.width = undefined;
-    if ("width" in appState) {
-      delete appState.width;
-    }
-    if ("height" in appState) {
-      delete appState.height;
-    }
-    if (!(appState.collaborators instanceof Map)) {
-      appState.collaborators = new Map();
-    }
-    return { ...data, appState };
-  }
 
   useEffect(() => {
     if (excalidrawAPI && canvasData) {

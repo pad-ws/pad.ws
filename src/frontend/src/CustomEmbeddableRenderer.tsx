@@ -6,7 +6,7 @@ import {
   StateIndicator,
   ControlButton,
   HtmlEditor,
-  Editor
+  Editor,
 } from './pad';
 import { ActionButton } from './pad/buttons';
 

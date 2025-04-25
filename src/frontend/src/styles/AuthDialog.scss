@@ -1,6 +1,14 @@
 /* Auth Modal Styles */
 
 .excalidraw .Dialog--fullscreen {
+  &.auth-modal {
+    .Dialog__close {
+        display: none;
+    }
+  }
+}
+
+.excalidraw .Dialog--fullscreen {
   .auth-modal {
     &__logo-container {
       display: none;
@@ -18,10 +26,12 @@
     }
   }
 
-  .Island {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+  &.auth-modal {
+    .Island {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
   }
 }
 
