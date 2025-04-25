@@ -1,0 +1,97 @@
+/* Auth Modal Styles */
+@import './Modal.scss';
+
+.auth-modal {
+  &__title-container {
+    display: flex;
+    align-items: center;
+
+  }
+
+  &__title {
+    margin: 0 auto;
+    font-size: 72px;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    display: inline-block;
+    
+    &-dot {
+      color: #fa8933;
+    }
+  }
+
+  &__description {
+    color: #a0a0a9;
+    font-size: 18px;
+    line-height: 1.5;
+    text-align: center;
+    white-space: pre-line;
+    padding: 0 90px;
+    margin-bottom: 40px;
+    margin-top: 40px;
+    
+    .highlight {
+      color: #cfcfcf;
+      font-weight: bold;
+    }
+  }
+
+  &__buttons {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 13px;
+    margin-bottom: 40px;
+
+    button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 85%;
+      height: 44px;
+      border-radius: 6px;
+      border: 1px solid #727279;
+      font-size: 15px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      background-color: #464652;
+      color: white;
+  
+      &:hover {
+        border: 1px solid #cc6d24;
+      }
+    }
+  }
+
+  &__footer {
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    color: #a0a0a0;
+    margin-bottom: 10px;
+    
+    &-link {
+      display: flex;
+      align-items: center;
+      color: #b8723c !important;
+      font-size: 14px;
+      transition: color 0.15s;
+      
+      &:hover {
+        color: #a0a0a0 !important;
+      }
+    }
+  }
+
+  &__warning {
+    text-align: center;
+    color: #606060bd;
+    font-size: 12px;
+    font-weight: 400;
+  }
+}
