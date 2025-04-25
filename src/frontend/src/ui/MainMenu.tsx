@@ -150,36 +150,13 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
           icon={<ArchiveRestore />}
           onClick={handleCanvasBackupsClick}
         >
-          Canvas Backups
-        </MainMenu.Item>
-      </MainMenu.Group>
-      
-      <MainMenu.Separator />
-      
-      <MainMenu.Group title="Canvas">
-        <MainMenu.Item
-          icon={<Grid2x2 />}
-          onClick={handleGridToggle}
-        >
-         Toggle Grid
-        </MainMenu.Item>
-        <MainMenu.Item
-          icon={<Eye />}
-          onClick={handleViewModeToggle}
-        >
-          View Mode
-        </MainMenu.Item>
-        <MainMenu.Item
-          icon={<Coffee />}
-          onClick={handleZenModeToggle}
-        >
-          Zen Mode
+          Load backup...
         </MainMenu.Item>
         <MainMenu.DefaultItems.ClearCanvas />
       </MainMenu.Group>
       
       <MainMenu.Separator />
-      
+    
       <MainMenu.Group title="Tools">
         <MainMenu.Item
           icon={<SquareCode />}
@@ -207,6 +184,30 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
         </MainMenu.Item>
       </MainMenu.Group>
 
+      <MainMenu.Separator />
+      
+      <MainMenu.Group title="View">
+        <MainMenu.Item
+          icon={<Grid2x2 />}
+          onClick={handleGridToggle}
+        >
+         Toggle grid
+        </MainMenu.Item>
+        <MainMenu.Item
+          icon={<Eye />}
+          onClick={handleViewModeToggle}
+        >
+          View mode
+        </MainMenu.Item>
+        <MainMenu.Item
+          icon={<Coffee />}
+          onClick={handleZenModeToggle}
+        >
+          Zen mode
+        </MainMenu.Item>
+
+      </MainMenu.Group>
+      
       <MainMenu.Separator />
       
       <MainMenu.Item
