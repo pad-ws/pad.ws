@@ -109,7 +109,7 @@ const BackupsModal: React.FC<BackupsModalProps> = ({
         <div className="backups-modal__wrapper">
           <Dialog
             className="backups-modal"
-            size="regular"
+            size="small"
             onCloseRequest={handleClose}
             title={
               <div className="backups-modal__title-container">
