@@ -6,7 +6,7 @@ import type { NonDeletedExcalidrawElement } from '@atyrode/excalidraw/element/ty
 import type { AppState } from '@atyrode/excalidraw/types';
 import { MainMenuConfig } from './ui/MainMenu';
 import { renderCustomEmbeddable } from './CustomEmbeddableRenderer';
-import AuthModal from './ui/AuthModal';
+import AuthDialog from './ui/AuthDialog';
 
 const defaultInitialData = {
   elements: [],
@@ -83,9 +83,8 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
       <>
         <MainMenuConfig MainMenu={MainMenu} excalidrawAPI={excalidrawAPI} />
         {!isAuthLoading && isAuthenticated === false && (
-          <AuthModal 
-            isExiting={isExiting}
-            onCloseRequest={() => {}}
+          <AuthDialog 
+            onClose={() => {}}
           />
         )}
       </>
