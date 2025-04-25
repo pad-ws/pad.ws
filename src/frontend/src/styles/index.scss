@@ -62,8 +62,8 @@ body {
 }
 
 .excalidraw .Modal__background {
-    background-color: rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(1px);
+    background-color: rgba(0, 0, 0, 0);
+    backdrop-filter: blur(0px);
     animation: Modal__background__fade-in 0.3s ease-out forwards !important;
     
     &.animations-disabled {

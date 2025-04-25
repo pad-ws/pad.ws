@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { capture } from "../utils/posthog";
 import { Mail } from "lucide-react";
 import { queryClient } from "../api/queryClient";
@@ -14,15 +14,48 @@ interface AuthDialogProps {
 }
 
 export const AuthDialog = ({
-  description = <>Welcome to your <strong className="highlight">whiteboard IDE</strong>. <br /><br /> Open <strong className="highlight">terminals</strong> and start coding right away in your own <strong className="highlight">Ubuntu VM</strong>!</>,
-  warningText = "This is a beta. Backup your work!",
+  description = <>Welcome to your <strong className="highlight">whiteboard IDE</strong>. <br /><br /> Open <strong className="highlight">terminals</strong>, <strong className="highlight">VSCode</strong> or <strong className="highlight">Cursor</strong> in your pad, and start coding right away.</>,
+  warningText = <>This is a open-source project in beta.<br /> Backup your work!</>,
   onClose,
   children,
 }: AuthDialogProps) => {
   const [modalIsShown, setModalIsShown] = useState(true);
   
+  // Array of random messages that the logo can "say"
+  const logoMessages = [
+    "Hello there!",
+    "Welcome to pad.ws!",
+    "Ready to code?",
+    "Let's build something cool!",
+    "Code, collaborate, create!",
+    "Happy coding!",
+    "Ideas become reality here!",
+    "Let's get productive!",
+    "Let's turn ideas into code!"
+  ];
+  
+  // Select a random message when component mounts
+  const randomMessage = useMemo(() => {
+    const randomIndex = Math.floor(Math.random() * logoMessages.length);
+    return logoMessages[randomIndex];
+  }, []);
+  
   useEffect(() => {
     capture("auth_modal_shown");
+    
+    // Load GitHub buttons script
+    const script = document.createElement('script');
+    script.src = 'https://buttons.github.io/buttons.js';
+    script.async = true;
+    script.defer = true;
+    document.body.appendChild(script);
+    
+    return () => {
+      // Clean up script when component unmounts
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -54,7 +87,6 @@ export const AuthDialog = ({
   // Prepare the content for the Dialog
   const dialogContent = (
     <div className="auth-modal__content">
-
       <p className="auth-modal__description">{description}</p>
       
       {/* Sign-in buttons */}
@@ -88,46 +120,55 @@ export const AuthDialog = ({
 
       {/* Footer */}
       <div className="auth-modal__footer">
-        <a href="https://discord.com/invite/NnXSESxWpA" className="auth-modal__footer-link" target="_blank" rel="noopener noreferrer">
-          <DiscordIcon />
+                {/* Warning message */}
+                <div className="auth-modal__warning">
+          {warningText}
+        </div>
+
+        {/* GitHub Star button */}
+        <a className="github-button" 
+           href="https://github.com/pad-ws/pad.ws" 
+           data-color-scheme="no-preference: dark_dimmed; light: dark_dimmed; dark: dark_dimmed;" 
+           data-icon="octicon-star" 
+           data-size="large" 
+           data-show-count="true" 
+           aria-label="Star pad-ws/pad.ws on GitHub">
+          Star
         </a>
-        |
-        <a href="https://github.com/pad-ws/pad.ws" className="auth-modal__footer-link" target="_blank" rel="noopener noreferrer">
-          <GithubIcon />
-        </a>
-        |
-        <a href="mailto:contact@pad.ws" className="auth-modal__footer-link" target="_blank" rel="noopener noreferrer">
-          <Mail size={20} />
-        </a>
+
+
       </div>
       
-      {/* Warning message */}
-      <div className="auth-modal__warning">
-        {warningText}
-      </div>
     </div>
   );
 
   return (
     <>
       {modalIsShown && (
-        <Dialog
-          className="auth-modal"
-          size="small"
-          onCloseRequest={handleClose}
-          title={
-            <div id="modal-title" className="auth-modal__title-container">
-              {/* <img 
-                src="/assets/images/favicon.png" 
-                alt="pad.ws logo" 
-                className="auth-modal__logo" 
-              /> */}
-              <h2 className="auth-modal__title">pad<span className="auth-modal__title-dot">.ws</span></h2>
+        <div className="auth-modal__wrapper">
+          <div className="auth-modal__logo-container">
+            <img 
+              src="/assets/images/favicon.png" 
+              alt="pad.ws logo" 
+              className="auth-modal__logo" 
+            />
+            <div className="auth-modal__logo-speech-bubble">
+              {randomMessage}
             </div>
-          }
-          closeOnClickOutside={false}
-          children={children || dialogContent}
-        />
+          </div>
+          <Dialog
+            className="auth-modal"
+            size="small"
+            onCloseRequest={handleClose}
+            title={
+              <div id="modal-title" className="auth-modal__title-container">
+                <h2 className="auth-modal__title">pad<span className="auth-modal__title-dot">.ws</span></h2>
+              </div>
+            }
+            closeOnClickOutside={false}
+            children={children || dialogContent}
+          />
+        </div>
       )}
     </>
   );
