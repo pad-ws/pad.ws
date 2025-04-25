@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 
 import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text, ArchiveRestore } from 'lucide-react';
+import BackupsModal from './BackupsModal';
 import { capture } from '../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
 import { useUserProfile } from "../api/hooks";
@@ -93,20 +94,20 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     });
   };
 
+  const [showBackupsModal, setShowBackupsModal] = useState(false);
+  const [isBackupsModalExiting, setIsBackupsModalExiting] = useState(false);
+
   const handleCanvasBackupsClick = () => {
-    if (!excalidrawAPI) return;
-    
-    const backupsElement = ExcalidrawElementFactory.createEmbeddableElement({
-      link: "!backups",
-      width: 400,
-      height: 500
-    });
-    
-    ExcalidrawElementFactory.placeInScene(backupsElement, excalidrawAPI, {
-      mode: PlacementMode.NEAR_VIEWPORT_CENTER,
-      bufferPercentage: 10,
-      scrollToView: true
-    });
+    setShowBackupsModal(true);
+    setIsBackupsModalExiting(false);
+  };
+
+  const handleBackupsModalExitComplete = () => {
+    setShowBackupsModal(false);
+  };
+
+  const handleCloseBackupsModal = () => {
+    setIsBackupsModalExiting(true);
   };
 
   const handleGridToggle = () => {
@@ -214,7 +215,7 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
       </MainMenu.Group>
 
       <MainMenu.Separator />
-
+      
       <MainMenu.Item
           icon={<LogOut />}
           onClick={async () => {
@@ -243,6 +244,14 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
           Logout
         </MainMenu.Item>
       
+      {showBackupsModal && (
+        <BackupsModal
+          excalidrawAPI={excalidrawAPI}
+          isExiting={isBackupsModalExiting}
+          onExitComplete={handleBackupsModalExitComplete}
+          onClose={handleCloseBackupsModal}
+        />
+      )}
     </MainMenu>
   );
 };
