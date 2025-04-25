@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { Dialog } from "@atyrode/excalidraw";
 import { useCanvasBackups, CanvasBackup } from "../api/hooks";
+import { normalizeCanvasData } from "../utils/canvasUtils";
 import "../styles/BackupsDialog.scss";
 
 interface BackupsModalProps {
@@ -24,7 +25,8 @@ const BackupsModal: React.FC<BackupsModalProps> = ({
   const handleRestoreBackup = () => {
     if (selectedBackup && excalidrawAPI) {
       // Load the backup data into the canvas
-      excalidrawAPI.updateScene(selectedBackup.data);
+      const normalizedData = normalizeCanvasData(selectedBackup.data);
+      excalidrawAPI.updateScene(normalizedData);
       setSelectedBackup(null);
       handleClose();
     }
