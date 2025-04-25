@@ -60,6 +60,7 @@ export const api = {
       // Map backend 'state' property to frontend 'status'
       return { ...result, status: result.state };
     } catch (error) {
+      // Let the error propagate to be handled by the global error handler
       throw error;
     }
   },
