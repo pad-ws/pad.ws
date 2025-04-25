@@ -1,4 +1,4 @@
-import React, { Children, cloneElement } from 'react';
+import React, { Children, cloneElement, useState, useEffect } from 'react';
 import DiscordButton from './ui/DiscordButton';
 import FeedbackButton from './ui/FeedbackButton';
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
@@ -6,6 +6,7 @@ import type { NonDeletedExcalidrawElement } from '@atyrode/excalidraw/element/ty
 import type { AppState } from '@atyrode/excalidraw/types';
 import { MainMenuConfig } from './ui/MainMenu';
 import { renderCustomEmbeddable } from './CustomEmbeddableRenderer';
+import AuthModal from './ui/AuthModal';
 
 const defaultInitialData = {
   elements: [],
@@ -25,6 +26,8 @@ interface ExcalidrawWrapperProps {
   onChange: (elements: NonDeletedExcalidrawElement[], state: AppState) => void;
   MainMenu: any;
   renderTopRightUI?: () => React.ReactNode;
+  isAuthenticated?: boolean | null;
+  isAuthLoading?: boolean;
 }
 
 export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
@@ -35,7 +38,19 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
   onChange,
   MainMenu,
   renderTopRightUI,
+  isAuthenticated = null,
+  isAuthLoading = false,
 }) => {
+  // Add state for modal animation
+  const [isExiting, setIsExiting] = useState(false);
+  
+  // Handle auth state changes
+  useEffect(() => {
+    if (isAuthenticated === true) {
+      setIsExiting(true);
+    }
+  }, [isAuthenticated]);
+  
   const renderExcalidraw = (children: React.ReactNode) => {
     const Excalidraw = Children.toArray(children).find(
       (child: any) =>
@@ -65,7 +80,15 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
           </div>
         )),
       },
-      <MainMenuConfig MainMenu={MainMenu} excalidrawAPI={excalidrawAPI} />
+      <>
+        <MainMenuConfig MainMenu={MainMenu} excalidrawAPI={excalidrawAPI} />
+        {!isAuthLoading && isAuthenticated === false && (
+          <AuthModal 
+            isExiting={isExiting}
+            onCloseRequest={() => {}}
+          />
+        )}
+      </>
     );
   };
 

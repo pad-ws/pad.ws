@@ -2,21 +2,21 @@ import React, { useState, useEffect } from "react";
 import { capture } from "../utils/posthog";
 import { Mail } from "lucide-react";
 import { queryClient } from "../api/queryClient";
-import Modal from "./Modal";
+
 import "../styles/AuthModal.scss";
+import { Dialog } from "@atyrode/excalidraw";
 
 interface AuthModalProps {
   description?: React.ReactNode;
   warningText?: string;
-  onExitComplete?: () => void;
+  onCloseRequest: () => void;
   isExiting?: boolean;
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({
   description = <>Welcome to your <strong className="highlight">whiteboard IDE</strong>. Open <strong className="highlight">terminals</strong> and start coding right away in your own <strong className="highlight">Ubuntu VM</strong>!</>,
   warningText = "🚧 This is a beta. Make backups! 🚧",
-  onExitComplete,
-  isExiting = false,
+  onCloseRequest,
 }) => {
   const [isMounted, setIsMounted] = useState(false);
 
@@ -44,18 +44,9 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isMounted) return null;
 
-  return (
-    <Modal 
-      logoSrc="/assets/images/favicon.png" 
-      logoAlt="pad.ws logo"
-      className="auth-modal"
-      isExiting={isExiting}
-      onExitComplete={onExitComplete}
-    >
-      <div className="auth-modal__content">
-            <div id="modal-title" className="auth-modal__title-container">
-              <h2 className="auth-modal__title">pad<span className="auth-modal__title-dot">.ws</span></h2>
-            </div>
+  // Prepare the content for the Dialog
+  const dialogContent = (
+    <div className="auth-modal__content">
             <div className="auth-modal__separator" />
 
             <p className="auth-modal__description">{description}</p>
@@ -172,7 +163,26 @@ const AuthModal: React.FC<AuthModalProps> = ({
               {warningText}
             </div>
       </div>
-    </Modal>
+  );
+
+  return (
+    <Dialog
+      className="auth-modal"
+      size="regular"
+      onCloseRequest={onCloseRequest}
+      title={
+        <div id="modal-title" className="auth-modal__title-container">
+          <img 
+            src="/assets/images/favicon.png" 
+            alt="pad.ws logo" 
+            className="auth-modal__logo" 
+          />
+          <h2 className="auth-modal__title">pad<span className="auth-modal__title-dot">.ws</span></h2>
+        </div>
+      }
+      closeOnClickOutside={false}
+      children={dialogContent}
+    />
   );
 };
 
