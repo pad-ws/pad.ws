@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import '../styles/index.scss';
 import { useWorkspaceState } from '../../api/hooks';
 // Import SVGs as modules - using relative paths from the action button location
 import { Terminal, Braces, Settings, Plus, ExternalLink, Monitor } from 'lucide-react';
 import { ActionType, TargetType, CodeVariant, ActionButtonProps } from './types';
-import '../styles/ActionButton.scss';
+import './ActionButton.scss';
 import { capture } from '../../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../../lib/ExcalidrawElementFactory';
 

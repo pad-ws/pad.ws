@@ -9,6 +9,7 @@ import {
   Editor,
 } from './pad';
 import { ActionButton } from './pad/buttons';
+import "./CustomEmbeddableRenderer.scss";
 
 export const renderCustomEmbeddable = (
   element: NonDeleted<ExcalidrawEmbeddableElement>,

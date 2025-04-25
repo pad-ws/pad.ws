@@ -1,6 +1,6 @@
 import React from 'react';
 import { useWorkspaceState, useStartWorkspace, useStopWorkspace } from '../../api/hooks';
-import '../styles/index.scss';
+import './ControlButton.scss';
 import { Play, Square, LoaderCircle } from 'lucide-react';
 
 export const ControlButton: React.FC = () => {

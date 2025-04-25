@@ -1,6 +1,6 @@
 import React from 'react';
 import { useWorkspaceState, useAuthCheck } from '../../api/hooks';
-import '../styles/index.scss';
+import './StateIndicator.scss';
 
 export const StateIndicator: React.FC = () => {
   const { data: isAuthenticated, isLoading: isAuthLoading } = useAuthCheck();

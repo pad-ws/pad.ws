@@ -5,8 +5,7 @@ import StateIndicator from '../controls/StateIndicator';
 import ControlButton from '../controls/ControlButton';
 import { ActionButtonGrid } from '../buttons';
 import { useWorkspaceState } from '../../api/hooks';
-import '../styles/index.scss';
-import '../styles/Dashboard.scss';
+import './Dashboard.scss';
 
 // Direct import from types
 type TargetType = 'terminal' | 'code';

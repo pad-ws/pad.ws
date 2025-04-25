@@ -3,7 +3,7 @@ import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidra
 import type { AppState } from '@atyrode/excalidraw/types';
 import Editor from './Editor';
 import { ExcalidrawElementFactory } from '../../lib/ExcalidrawElementFactory';
-import '../../styles/HtmlEditor.scss';
+import './HtmlEditor.scss';
 
 interface HtmlEditorProps {
   element: NonDeleted<ExcalidrawEmbeddableElement>;

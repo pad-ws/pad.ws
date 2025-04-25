@@ -8,7 +8,7 @@ import { capture } from '../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
 import { useUserProfile } from "../api/hooks";
 import { queryClient } from "../api/queryClient";
-
+import "./MainMenu.scss";
 interface MainMenuConfigProps {
   MainMenu: typeof MainMenuType;
   excalidrawAPI: ExcalidrawImperativeAPI | null;

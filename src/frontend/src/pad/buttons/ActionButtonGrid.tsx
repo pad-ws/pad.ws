@@ -1,7 +1,7 @@
 import React from 'react';
 import ActionButton from './ActionButton';
 import { TargetType, CodeVariant, ActionType } from './types';
-import '../styles/ActionButtonGrid.scss';
+import './ActionButtonGrid.scss';
 
 // Function to get button background color based on target and variant
 const getButtonColor = (target: TargetType, codeVariant?: CodeVariant): string => {

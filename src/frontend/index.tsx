@@ -9,7 +9,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from './src/api/queryClient';
 
 import "@atyrode/excalidraw/index.css";
-import "./src/styles/index.scss";
+import "./index.scss";
 
 import type * as TExcalidraw from "@atyrode/excalidraw";
 

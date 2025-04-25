@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import LanguageSelector from './LanguageSelector';
-import '../../styles/Editor.scss';
+import './Editor.scss';
 
 interface EditorProps {
   defaultValue?: string;

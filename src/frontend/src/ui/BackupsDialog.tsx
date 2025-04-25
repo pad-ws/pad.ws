@@ -2,7 +2,7 @@ import React, { useState, useCallback } from "react";
 import { Dialog } from "@atyrode/excalidraw";
 import { useCanvasBackups, CanvasBackup } from "../api/hooks";
 import { normalizeCanvasData } from "../utils/canvasUtils";
-import "../styles/BackupsDialog.scss";
+import "./BackupsDialog.scss";
 
 interface BackupsModalProps {
   excalidrawAPI?: any;
