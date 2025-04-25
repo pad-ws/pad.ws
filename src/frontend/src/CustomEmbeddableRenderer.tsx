@@ -6,7 +6,8 @@ import {
   StateIndicator,
   ControlButton,
   HtmlEditor,
-  Editor
+  Editor,
+  CanvasBackups
 } from './pad';
 import { ActionButton } from './pad/buttons';
 
@@ -37,6 +38,8 @@ export const renderCustomEmbeddable = (
         />;
       case 'dashboard':
         return <Dashboard element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+      case 'backups':
+        return <CanvasBackups element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
       default:
         return null;
     }

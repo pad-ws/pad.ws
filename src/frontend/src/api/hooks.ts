@@ -28,6 +28,16 @@ export interface CanvasData {
   files: any;
 }
 
+export interface CanvasBackup {
+  id: number;
+  timestamp: string;
+  data: CanvasData;
+}
+
+export interface CanvasBackupsResponse {
+  backups: CanvasBackup[];
+}
+
 // API functions
 export const api = {
   // Authentication
@@ -112,6 +122,16 @@ export const api = {
       throw error;
     }
   },
+
+  // Canvas Backups
+  getCanvasBackups: async (limit: number = 10): Promise<CanvasBackupsResponse> => {
+    try {
+      const result = await fetchApi(`/api/canvas/recent?limit=${limit}`);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  },
 };
 
 // Query hooks
@@ -162,6 +182,14 @@ export function useDefaultCanvas(options?: UseQueryOptions<CanvasData>) {
   });
 }
 
+export function useCanvasBackups(limit: number = 10, options?: UseQueryOptions<CanvasBackupsResponse>) {
+  return useQuery({
+    queryKey: ['canvasBackups', limit],
+    queryFn: () => api.getCanvasBackups(limit),
+    ...options,
+  });
+}
+
 // Mutation hooks
 export function useStartWorkspace(options?: UseMutationOptions) {
   return useMutation({
@@ -188,6 +216,10 @@ export function useStopWorkspace(options?: UseMutationOptions) {
 export function useSaveCanvas(options?: UseMutationOptions<any, Error, CanvasData>) {
   return useMutation({
     mutationFn: api.saveCanvas,
+    onSuccess: () => {
+      // Invalidate canvas backups query to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ['canvasBackups'] });
+    },
     ...options,
   });
 }
