@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import '../styles/index.scss';
 import { useWorkspaceState } from '../../api/hooks';
 // Import SVGs as modules - using relative paths from the action button location
 import { Terminal, Braces, Settings, Plus, ExternalLink, Monitor } from 'lucide-react';
 import { ActionType, TargetType, CodeVariant, ActionButtonProps } from './types';
-import '../styles/ActionButton.scss';
+import './ActionButton.scss';
 import { capture } from '../../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../../lib/ExcalidrawElementFactory';
 
@@ -212,8 +211,6 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   const [showOptions, setShowOptions] = useState<boolean>(initialShowOptions);
   const [compactMode, setCompactMode] = useState<number>(0); // 0: normal, 1: hide settings, 2: hide icon, 3: replace action text with icon, 4: ultra compact
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const buttonClassName = 'action-button';
-  
   
   useEffect(() => {
     if (!wrapperRef.current) return;
@@ -442,58 +439,58 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     }
   };
 
-  // Get the appropriate class name based on the selected target and code variant
+  // Apply custom background color if provided
+  const buttonStyle = backgroundColor ? { backgroundColor } : {};
+
+  // Get the appropriate BEM modifier class based on the selected target and code variant
   const getTypeClassName = () => {
     if (selectedTarget === 'terminal') {
-      return 'terminal-selected';
+      return 'action-button__wrapper--terminal';
     } else if (selectedTarget === 'code') {
       if (selectedCodeVariant === 'cursor') {
-        return 'cursor-selected';
+        return 'action-button__wrapper--cursor';
       } else {
-        return 'vscode-selected';
+        return 'action-button__wrapper--vscode';
       }
     }
     return '';
   };
 
-  // Apply custom background color if provided
-  const buttonStyle = backgroundColor ? { backgroundColor } : {};
-
   return (
     <div 
       ref={wrapperRef}
-      className={`action-wrapper ${getTypeClassName()} ${
-        compactMode === 1 ? 'compact-mode-1' : 
-        compactMode === 2 ? 'compact-mode-2' : 
-        compactMode === 3 ? 'compact-mode-3' : 
-        compactMode === 4 ? 'compact-mode-4' : 
-        compactMode === 5 ? 'compact-mode-5' : ''
+      className={`action-button__wrapper ${getTypeClassName()} ${
+        compactMode === 1 ? 'action-button__wrapper--compact-1' : 
+        compactMode === 2 ? 'action-button__wrapper--compact-2' : 
+        compactMode === 3 ? 'action-button__wrapper--compact-3' : 
+        compactMode === 4 ? 'action-button__wrapper--compact-4' : 
+        compactMode === 5 ? 'action-button__wrapper--compact-5' : 'action-button__wrapper--compact-0'
       }`}
     >
-      <div className="action-wrapper__main-button">
+      <div className="action-button__main">
         <button 
-          className={buttonClassName}
+          className="action-button__container"
           onClick={executeAction}
           style={buttonStyle}
         >
-          <div className="button-content">
-            <div className="button-left">
-              <span className="button-icon">
-                {selectedTarget === 'terminal' ? <Terminal className="button-icon-svg" /> : <Braces className="button-icon-svg" />}
+          <div className="action-button__content">
+            <div className="action-button__left">
+              <span className="action-button__icon">
+                {selectedTarget === 'terminal' ? <Terminal className="action-button__icon-svg" /> : <Braces className="action-button__icon-svg" />}
               </span>
-              <span className="button-text">{getButtonLabelParts().mainText}</span>
+              <span className="action-button__text">{getButtonLabelParts().mainText}</span>
             </div>
-            <div className="button-right">
-              <span className="button-action-text">{getButtonLabelParts().actionText}</span>
-              <span className="button-action-icon">
+            <div className="action-button__right">
+              <span className="action-button__action-text">{getButtonLabelParts().actionText}</span>
+              <span className="action-button__action-icon">
                 {React.createElement(getActionIcon(), {
-                  className: "action-icon-svg",
+                  className: "action-button__action-icon-svg",
                   'data-action-type': selectedAction
                 })}
               </span>
               {settingsEnabled && (
-                <span className="button-settings-icon" onClick={toggleOptions}>
-                  <Settings className="settings-icon-svg" />
+                <span className="action-button__settings-icon" onClick={toggleOptions}>
+                  <Settings className="action-button__settings-icon-svg" />
                 </span>
               )}
             </div>
@@ -502,17 +499,17 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       </div>
       
       {showOptions && (
-        <div className="action-wrapper__tabs">
+        <div className="action-tabs__container">
         {/* Target tabs (Terminal/Code) */}
-        <div className="tabs-row target-tabs">
+        <div className="action-tabs__row action-tabs__row--target">
           <div 
-            className={`tab ${isTabSelected('target', 'terminal') ? 'selected' : ''}`}
+            className={`action-tabs__item ${isTabSelected('target', 'terminal') ? 'action-tabs__item--selected' : ''}`}
             onClick={() => handleTabClick('target', 'terminal')}
           >
             Terminal
           </div>
           <div 
-            className={`tab ${isTabSelected('target', 'code') ? 'selected' : ''}`}
+            className={`action-tabs__item ${isTabSelected('target', 'code') ? 'action-tabs__item--selected' : ''}`}
             onClick={() => handleTabClick('target', 'code')}
           >
             Code
@@ -521,15 +518,15 @@ const ActionButton: React.FC<ActionButtonProps> = ({
         
         {/* Editor tabs (VSCode/Cursor) - Only shown when Code is selected */}
         {selectedTarget === 'code' && (
-          <div className="tabs-row editor-tabs">
+          <div className="action-tabs__row action-tabs__row--editor">
             <div 
-              className={`tab ${isTabSelected('editor', 'vscode') ? 'selected' : ''}`}
+              className={`action-tabs__item ${isTabSelected('editor', 'vscode') ? 'action-tabs__item--selected' : ''}`}
               onClick={() => handleTabClick('editor', 'vscode')}
             >
               VSCode
             </div>
             <div 
-              className={`tab ${isTabSelected('editor', 'cursor') ? 'selected' : ''}`}
+              className={`action-tabs__item ${isTabSelected('editor', 'cursor') ? 'action-tabs__item--selected' : ''}`}
               onClick={() => handleTabClick('editor', 'cursor')}
             >
               Cursor
@@ -538,7 +535,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
         )}
         
         {/* Action tabs (In Pad/New Tab/Desktop) */}
-        <div className="tabs-row action-tabs">
+        <div className="action-tabs__row action-tabs__row--action">
           {allowedActions.map((action) => {
             
             if (selectedTarget === 'terminal' && action === 'magnet') {
@@ -556,7 +553,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
             return (
               <div 
                 key={action}
-                className={`tab ${isTabSelected('action', action) ? 'selected' : ''}`}
+                className={`action-tabs__item ${isTabSelected('action', action) ? 'action-tabs__item--selected' : ''}`}
                 onClick={() => handleTabClick('action', action)}
               >
                 {label}
@@ -569,7 +566,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
            selectedCodeVariant === 'cursor' && 
            !allowedActions.includes('magnet') && (
             <div 
-              className={`tab ${selectedAction === 'magnet' ? 'selected' : ''}`}
+              className={`action-tabs__item ${selectedAction === 'magnet' ? 'action-tabs__item--selected' : ''}`}
               onClick={() => handleTabClick('action', 'magnet')}
             >
               Desktop

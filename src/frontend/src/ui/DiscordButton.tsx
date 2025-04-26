@@ -1,6 +1,6 @@
 import React from "react";
 import DiscordIcon from "../icons/DiscordIcon";
-
+import "./DiscordButton.scss";
 const DISCORD_URL = "https://discord.gg/NnXSESxWpA";
 
 const DiscordButton: React.FC = () => {

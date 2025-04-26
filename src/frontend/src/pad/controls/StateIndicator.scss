@@ -1,22 +1,22 @@
 .state-indicator {
+  // Block properties
   width: 100%;
   height: 100%;
-
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
   transition: background-color 0.3s ease;
   color: white;
   font-weight: bold;
-  
   position: relative;
   box-sizing: border-box;
   
+  // Element
   &__text {
     text-align: center;
   }
   
+  // Modifiers for different states
   &--running {
     background-color: #2a7d2e; // Green for running
   }
@@ -31,6 +31,14 @@
   
   &--stopped {
     background-color: #e74c3c; // Red for stopped
+  }
+  
+  &--loading {
+    background-color: #9b59b6; // Purple for loading
+  }
+  
+  &--unauthenticated {
+    background-color: #34495e; // Dark blue for unauthenticated
   }
   
   &--error {

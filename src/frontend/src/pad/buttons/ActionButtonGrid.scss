@@ -37,7 +37,7 @@
   }
   
   /* Separator styling */
-  &__item.separator {
+  &__separator {
     grid-column: 1 / span 2; /* Span across both columns */
     height: 1px;
     margin: 0;

@@ -8,7 +8,7 @@ import { capture } from '../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
 import { useUserProfile } from "../api/hooks";
 import { queryClient } from "../api/queryClient";
-
+import "./MainMenu.scss";
 interface MainMenuConfigProps {
   MainMenu: typeof MainMenuType;
   excalidrawAPI: ExcalidrawImperativeAPI | null;
@@ -131,10 +131,10 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
 
   return (
     <MainMenu>
-      <div className="main-menu-top-row">
-        <span className="main-menu-label">
+      <div className="main-menu__top-row">
+        <span className="main-menu__label">
           <User width={20} height={20} />
-          <span>{username}</span>
+          <span className="main-menu__label-username">{username}</span>
         </span>
       </div>
       <MainMenu.Separator />

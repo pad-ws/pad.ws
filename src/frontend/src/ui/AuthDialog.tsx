@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { capture } from "../utils/posthog";
-import { Mail } from "lucide-react";
 import { queryClient } from "../api/queryClient";
-import { GoogleIcon, GithubIcon, DiscordIcon } from "../icons";
+import { GoogleIcon, GithubIcon } from "../icons";
+import "./AuthDialog.scss";
 
 import { Dialog } from "@atyrode/excalidraw";
 

@@ -3,7 +3,7 @@ import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidra
 import type { AppState } from '@atyrode/excalidraw/types';
 import Editor from './Editor';
 import { ExcalidrawElementFactory } from '../../lib/ExcalidrawElementFactory';
-import '../../styles/HtmlEditor.scss';
+import './HtmlEditor.scss';
 
 interface HtmlEditorProps {
   element: NonDeleted<ExcalidrawEmbeddableElement>;
@@ -94,8 +94,8 @@ export const HtmlEditor: React.FC<HtmlEditorProps> = ({
   };
 
   return (
-    <div className="html-editor-container">
-      <div className="html-editor-content">
+    <div className="html-editor__container">
+      <div className="html-editor__content">
         <Editor
           height="100%"
           language="html"
@@ -105,9 +105,10 @@ export const HtmlEditor: React.FC<HtmlEditorProps> = ({
           element={element}
           excalidrawAPI={excalidrawAPI}
           showLanguageSelector={false}
+          className="html-editor__monaco-container"
         />
-        <div className="html-editor-controls">
-          <label>
+        <div className="html-editor__controls">
+          <label className="html-editor__label">
             <input 
               type="checkbox" 
               checked={createNew} 
@@ -115,7 +116,7 @@ export const HtmlEditor: React.FC<HtmlEditorProps> = ({
             /> 
             Create new element
           </label>
-          <button onClick={applyHtml}>
+          <button className="html-editor__button" onClick={applyHtml}>
             Apply HTML
           </button>
         </div>

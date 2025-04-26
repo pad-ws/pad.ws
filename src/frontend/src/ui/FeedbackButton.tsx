@@ -1,5 +1,6 @@
 import React from "react";
 import { capture } from "../utils/posthog";
+import "./FeedbackButton.scss";
 
 const FeedbackButton: React.FC = () => {
   const handleClick = () => {

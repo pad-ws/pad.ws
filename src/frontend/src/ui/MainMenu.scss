@@ -1,0 +1,25 @@
+.main-menu {
+  &__top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 0.5rem;
+  }
+  
+  &__label {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    font-size: 1rem;
+    cursor: default;
+    
+    &-username {
+      color: #fa8933;
+      font-weight: 1000;
+    }
+  }
+}

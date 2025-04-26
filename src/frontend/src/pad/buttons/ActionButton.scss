@@ -1,0 +1,328 @@
+.action-button {
+  &__wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: #00000000;
+    font-family: Arial, sans-serif;
+    box-sizing: border-box;
+    transition: all 0.3s ease-in-out;
+    
+    /* Default state (non-compact) - show all elements */
+    &--compact-0 .action-button {
+      &__icon,
+      &__text,
+      &__action-text,
+      &__settings-icon {
+        display: flex;
+      }
+    }
+    
+    /* Hide settings icon */
+    &--compact-1 .action-button {
+      &__icon,
+      &__text,
+      &__action-text {
+        display: flex;
+      }
+    }
+    
+    /* Hide action icon */
+    &--compact-2 .action-button {
+      &__text,
+      &__action-text {
+        display: flex;
+      }
+    }
+    
+    /* Switch from action-text to action-icon */
+    &--compact-3 .action-button {
+      &__text,
+      &__action-icon {
+        display: flex;
+      }
+    }
+    
+    /* Show action-text again, hide action-icon and change layout to vertical */
+    &--compact-4 .action-button {
+      &__text,
+      &__action-text {
+        display: flex;
+      }
+
+      &__content {
+        flex-direction: column;
+      }
+    }
+    
+    /* Only action-icon is shown */
+    &--compact-5 .action-button {
+      &__action-icon {
+        display: flex;
+      }
+
+      &__action-icon-svg {
+          /* Make the plus icon (embed action) slightly larger to compensate for optical illusion */
+          &[data-action-type="embed"] {
+            transform: scale(1.25);
+          }
+      }
+    }
+      
+    /* Unified rule for single-element modes (4 and 5) */
+    &--compact-4 .action-button,
+    &--compact-5 .action-button {
+      &__content {
+        justify-content: center;
+      }
+    }
+    
+    /* Target type modifiers */
+    &--vscode {
+      .action-tabs__item--selected {
+        &::before {
+          background-color: #6a7aff !important; /* Brighter blue for VSCode indicator */
+        }
+      }
+    }
+    
+    &--cursor {
+      .action-tabs__item--selected {
+        &::before {
+          background-color: #dc143c !important; /* Crimson for Cursor indicator */
+        }
+      }
+    }
+    
+    &--terminal {
+      .action-tabs__item--selected {
+        &::before {
+          background-color: #4caf50 !important; /* Green for Terminal indicator */
+        }
+      }
+    }
+  }
+  
+  &__main {
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+  }
+  
+  &__container {
+    width: 100%;
+    height: 100%;
+    padding: 12px 15px;
+    background-color: transparent;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0);
+      transition: background-color 0.3s ease;
+      pointer-events: none;
+      border-radius: 10px;
+    }
+    
+    &:hover::after {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    &:active::after {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    &--disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+  
+  &__content {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  &__left {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  
+  &__right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  
+  &__icon {
+    margin-right: 8px;
+    display: none; /* Hidden by default */
+    align-items: center;
+    flex-shrink: 1;
+    
+    img.action-button__icon-svg {
+      width: 100%;
+      height: 100%;
+      filter: invert(100%);
+    }
+  }
+  
+  &__text {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0; /* Prevent text from shrinking */
+    display: none; /* Hidden by default */
+  }
+  
+  &__action-text {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0; /* Prevent text from shrinking */
+    display: none; /* Hidden by default */
+  }
+  
+  &__action-icon {
+    display: none; /* Hidden by default, shown in compact modes 3 and 4 */
+    align-items: center;
+    margin-right: 0px;
+    
+    img.action-button__action-icon-svg {
+      width: 100%;
+      height: 100%;
+      filter: invert(70%);
+      transition: all 0.2s ease;
+      
+      /* Make the plus icon (embed action) slightly larger to compensate for optical illusion */
+      &[data-action-type="embed"] {
+        transform: scale(1.15);
+      }
+    }
+  }
+  
+  &__settings-icon {
+    display: none; /* Hidden by default */
+    align-items: center;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    flex-shrink: 1; /* Allow settings icon to shrink */
+    margin-left: 8px;
+    
+    img.action-button__settings-icon-svg {
+      width: 18px;
+      height: 18px;
+      filter: invert(70%);
+      transition: all 0.2s ease;
+    }
+  }
+}
+
+.action-tabs {
+  &__container {
+    background-color: #32373c;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: background-color 0.3s ease;
+    box-sizing: border-box;
+  }
+  
+  &__row {
+    display: flex;
+    width: 100%;
+    border-radius: 6px;
+    overflow: hidden;
+    
+    &--target .action-tabs__item {
+      background-color: #4a4a54;
+      
+      &--selected {
+        background-color: #202225;
+      }
+    }
+    
+    &--editor .action-tabs__item {
+      background-color: #4a4a54;
+      
+      &--selected {
+        background-color: #202225;
+      }
+    }
+    
+    &--action .action-tabs__item {
+      background-color: #4a4a54;
+      
+      &--selected {
+        background-color: #202225;
+      }
+    }
+  }
+  
+  &__item {
+    flex: 1;
+    padding: 10px 12px;
+    text-align: center;
+    background-color: #3a3a44;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0);
+      transition: background-color 0.3s ease;
+      pointer-events: none;
+    }
+    
+    &:hover::after {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    &--selected {
+      background-color: #4a4a54;
+      position: relative;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background-color: #6a6aff;
+      }
+    }
+  }
+}
