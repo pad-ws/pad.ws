@@ -131,10 +131,10 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
 
   return (
     <MainMenu>
-      <div className="main-menu-top-row">
-        <span className="main-menu-label">
+      <div className="main-menu__top-row">
+        <span className="main-menu__label">
           <User width={20} height={20} />
-          <span>{username}</span>
+          <span className="main-menu__label-username">{username}</span>
         </span>
       </div>
       <MainMenu.Separator />

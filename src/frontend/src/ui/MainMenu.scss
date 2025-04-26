@@ -1,4 +1,12 @@
-.main-menu-label {
+.main-menu {
+  &__top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 0.5rem;
+  }
+  
+  &__label {
     width: 100%;
     display: flex;
     align-items: center;
@@ -8,17 +16,10 @@
     font-weight: 500;
     font-size: 1rem;
     cursor: default;
+    
+    &-username {
+      color: #fa8933;
+      font-weight: 1000;
+    }
   }
-  
-  .main-menu-top-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-left: 0.5rem;
-  }
-  
-  .main-menu-label span:last-child {
-    color: #fa8933;
-    font-weight: 1000;
-  }
-  
+}
