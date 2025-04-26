@@ -13,51 +13,40 @@ export const StateIndicator: React.FC = () => {
     refetchInterval: isAuthenticated === true ? undefined : false,
   });
 
-  const getStateClassName = () => {
-    if (isAuthLoading || isWorkspaceLoading) return 'state-indicator state-indicator--loading';
-    if (isAuthenticated === false) return 'state-indicator state-indicator--unauthenticated';
-    if (!workspaceState) return 'state-indicator state-indicator--unknown';
+  const getState = () => {
+    if (isAuthLoading || isWorkspaceLoading) {
+      return { modifier: 'loading', text: 'Loading...' };
+    }
+    
+    if (isAuthenticated === false) {
+      return { modifier: 'unauthenticated', text: 'Not Authenticated' };
+    }
+    
+    if (!workspaceState) {
+      return { modifier: 'unknown', text: 'Unknown' };
+    }
 
     switch (workspaceState.status) {
       case 'running':
-        return 'state-indicator state-indicator--running';
+        return { modifier: 'running', text: 'Running' };
       case 'starting':
-        return 'state-indicator state-indicator--starting';
+        return { modifier: 'starting', text: 'Starting' };
       case 'stopping':
-        return 'state-indicator state-indicator--stopping';
+        return { modifier: 'stopping', text: 'Stopping' };
       case 'stopped':
-        return 'state-indicator state-indicator--stopped';
+        return { modifier: 'stopped', text: 'Stopped' };
       case 'error':
-        return 'state-indicator state-indicator--error';
+        return { modifier: 'error', text: 'Error' };
       default:
-        return 'state-indicator state-indicator--unknown';
+        return { modifier: 'unknown', text: 'Unknown' };
     }
   };
 
-  const getStateText = () => {
-    if (isAuthLoading || isWorkspaceLoading) return 'Loading...';
-    if (isAuthenticated === false) return 'Not Authenticated';
-    if (!workspaceState) return 'Unknown';
-
-    switch (workspaceState.status) {
-      case 'running':
-        return 'Running';
-      case 'starting':
-        return 'Starting';
-      case 'stopping':
-        return 'Stopping';
-      case 'stopped':
-        return 'Stopped';
-      case 'error':
-        return 'Error';
-      default:
-        return 'Unknown';
-    }
-  };
+  const { modifier, text } = getState();
 
   return (
-    <div className={getStateClassName()}>
-      <div className="state-indicator__text">{getStateText()}</div>
+    <div className={`state-indicator state-indicator--${modifier}`}>
+      <div className="state-indicator__text">{text}</div>
     </div>
   );
 };
