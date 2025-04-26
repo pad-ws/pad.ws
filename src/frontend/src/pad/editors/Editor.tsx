@@ -33,7 +33,7 @@ const Editor: React.FC<EditorProps> = ({
   onChange,
   onMount,
   onLanguageChange,
-  className = 'monaco-editor-container',
+  className = 'editor__container',
   showLanguageSelector = true,
   element,
   excalidrawAPI,
@@ -260,7 +260,7 @@ const Editor: React.FC<EditorProps> = ({
   };
 
   return (
-    <div className="editor-wrapper">
+    <div className="editor__wrapper">
       <MonacoEditor
         height={height}
         language={currentLanguage}
@@ -272,10 +272,11 @@ const Editor: React.FC<EditorProps> = ({
         className={className}
       />
       {showLanguageSelector && (
-        <div className="editor-toolbar">
+        <div className="editor__toolbar">
           <LanguageSelector 
             value={currentLanguage} 
-            onChange={handleLanguageChange} 
+            onChange={handleLanguageChange}
+            className="editor__language-selector"
           />
         </div>
       )}

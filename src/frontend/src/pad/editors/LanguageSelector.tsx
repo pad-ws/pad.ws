@@ -105,14 +105,14 @@ const languageOptions = [
 const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   value,
   onChange,
-  className = 'language-selector'
+  className = 'editor__language-selector'
 }) => {
   return (
     <div className={className}>
       <select 
         value={value} 
         onChange={(e) => onChange(e.target.value)}
-        className="language-select"
+        className="editor__language-select"
       >
         {languageOptions.map((option) => (
           <option 
