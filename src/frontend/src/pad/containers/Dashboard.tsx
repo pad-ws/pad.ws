@@ -139,7 +139,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             />
           ) : (
             <div className="dashboard__welcome-message">
-              <h1>
+              <h1 className="dashboard__welcome-message__title">
                 {workspaceState?.status === 'starting' ? 'Your workspace is starting...' :
                   workspaceState?.status === 'stopping' ? 'Your workspace is stopping...' :
                     workspaceState?.status === 'stopped' ? 'Your workspace is stopped, start it again to continue' :
