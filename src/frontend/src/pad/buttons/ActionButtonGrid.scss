@@ -37,7 +37,7 @@
   }
   
   /* Separator styling */
-  &__item.separator {
+  &__separator {
     grid-column: 1 / span 2; /* Span across both columns */
     height: 1px;
     margin: 0;
@@ -62,5 +62,51 @@
     min-width: 0;
     transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
     transform-origin: center;
+  }
+}
+
+/* Animation styles */
+.action-button-grid {
+  &__item {
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Use a nice easing for the expansion */
+  }
+  
+  &__item--expanded {
+    transform: scale(1.02); /* Slightly larger when expanded */
+    transition-delay: 0.1s; /* Small delay before expanding */
+  }
+}
+
+/* Related component animations when parent is expanded */
+.action-button-grid__item--expanded {
+  .action-button__wrapper {
+    transform: scale(1);
+    opacity: 1;
+    transition: all 0.4s ease-in-out;
+  }
+  
+  .action-tabs__container {
+    animation: fadeIn 0.4s ease-in-out 0.2s; /* Delay the animation to start after the button expands */
+    animation-fill-mode: both; /* Keep the final state */
+  }
+  
+  .action-button__container {
+    transition: all 0.4s ease-in-out;
+  }
+}
+
+/* For backward compatibility - can be removed once all code is updated */
+.action-button-grid__item.expanded {
+  @extend .action-button-grid__item--expanded;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

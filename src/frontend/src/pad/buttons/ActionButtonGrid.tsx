@@ -64,7 +64,7 @@ const ActionButtonGrid: React.FC<ActionButtonGridProps> = ({
         ))}
         
         {/* Add separator element */}
-        <div className="action-button-grid__item separator" key="separator"></div>
+        <div className="action-button-grid__separator" key="separator"></div>
         
         {/* Bottom row container with equal width buttons */}
         <div className="action-button-grid__bottom-row">
