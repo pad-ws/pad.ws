@@ -19,28 +19,37 @@ export const renderCustomEmbeddable = (
 
   if (element.link && element.link.startsWith('!')) {
     let path = element.link.split('!')[1];
+    let content;
 
     switch (path) {
       case 'html':
-        return <HtmlEditor element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+        content = <HtmlEditor element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+        break;
       case 'editor':
-        return <Editor element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+        content = <Editor element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+        break;
       case 'state':
-        return <StateIndicator />;
+        content = <StateIndicator />;
+        break;
       case 'control':
-        return <ControlButton />;
+        content = <ControlButton />;
+        break;
       case 'button':
-        return <ActionButton
+        content = <ActionButton
           target="code"
           element={element}
           excalidrawAPI={excalidrawAPI}
           settingsEnabled={true}
         />;
+        break;
       case 'dashboard':
-        return <Dashboard element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+        content = <Dashboard element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+        break;
       default:
         return null;
     }
+    
+    return <div className="custom-rendered-embeddable">{content}</div>;
   } else {
     return <iframe className="custom-rendered-embeddable" src={element.link} />;
   }

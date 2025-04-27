@@ -20,6 +20,15 @@ export function normalizeCanvasData(data: any) {
   if ("height" in appState) {
     delete appState.height;
   }
+
+  appState.pad = { 
+    moduleBorderOffset: {
+      left: 10,
+      right: 10,
+      top: 30,
+      bottom: 10,
+    },
+  };
   
   // Reset collaborators (https://github.com/excalidraw/excalidraw/issues/8637)
   appState.collaborators = new Map();
