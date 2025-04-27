@@ -106,4 +106,4 @@ const debouncedScrollEnd = debounce(() => {
   isScrolling = false;
   // Set pointer-events back to all when not scrolling
   document.documentElement.style.setProperty('--embeddable-pointer-events', 'all');
-}, 150); // 150ms debounce seems reasonable, but can be adjusted as needed
+}, 500); // 150ms debounce seems reasonable, but can be adjusted as needed
