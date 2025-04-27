@@ -53,8 +53,8 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     
     const dashboardElement = ExcalidrawElementFactory.createEmbeddableElement({
       link: "!dashboard",
-      width: 460,
-      height: 80
+      width: 360,
+      height: 360
     });
     
     ExcalidrawElementFactory.placeInScene(dashboardElement, excalidrawAPI, {
