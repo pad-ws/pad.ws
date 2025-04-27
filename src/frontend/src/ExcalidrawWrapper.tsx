@@ -5,7 +5,7 @@ import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { NonDeletedExcalidrawElement } from '@atyrode/excalidraw/element/types';
 import type { AppState } from '@atyrode/excalidraw/types';
 import { MainMenuConfig } from './ui/MainMenu';
-import { renderCustomEmbeddable } from './CustomEmbeddableRenderer';
+import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRenderer';
 import AuthDialog from './ui/AuthDialog';
 import BackupsModal from './ui/BackupsDialog';
 
@@ -25,6 +25,7 @@ interface ExcalidrawWrapperProps {
   setExcalidrawAPI: (api: ExcalidrawImperativeAPI) => void;
   initialData?: any;
   onChange: (elements: NonDeletedExcalidrawElement[], state: AppState) => void;
+  onScrollChange: (scrollX: number, scrollY: number) => void;
   MainMenu: any;
   renderTopRightUI?: () => React.ReactNode;
   isAuthenticated?: boolean | null;
@@ -37,6 +38,7 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
   setExcalidrawAPI,
   initialData,
   onChange,
+  onScrollChange,
   MainMenu,
   renderTopRightUI,
   isAuthenticated = null,
@@ -80,6 +82,7 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
         initialData: initialData ?? defaultInitialData,
         onChange: onChange,
         name: "Pad.ws",
+        onScrollChange: lockEmbeddables,
         validateEmbeddable: true,
         renderEmbeddable: (element, appState) => renderCustomEmbeddable(element, appState, excalidrawAPI),
         renderTopRightUI: renderTopRightUI ?? (() => (
