@@ -2174,7 +2174,10 @@
             "strokeWidth": 2,
             "versionNonce": 692312488,
             "boundElements": [],
-            "backgroundColor": "#e9ecef"
+            "backgroundColor": "#e9ecef",
+            "customData": {
+                "showHyperlinkIcon": false
+            }
         }
     ]
 }
