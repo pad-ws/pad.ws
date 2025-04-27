@@ -72,6 +72,7 @@ body {
 
 .excalidraw__embeddable-container__inner { /* 2nd layer */
     border-color: #525252 !important;
+    overflow: visible !important;
 }
 
 .excalidraw__embeddable__outer { /* 3rd layer */

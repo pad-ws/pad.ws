@@ -20,19 +20,23 @@ export const renderCustomEmbeddable = (
   if (element.link && element.link.startsWith('!')) {
     let path = element.link.split('!')[1];
     let content;
+    let title;
 
     switch (path) {
       case 'html':
         content = <HtmlEditor element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
-        break;
+        title = "HTML Editor";
       case 'editor':
         content = <Editor element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+        title = "Code Editor";
         break;
       case 'state':
         content = <StateIndicator />;
+        title = "State Indicator";
         break;
       case 'control':
         content = <ControlButton />;
+        title = "Control Button";
         break;
       case 'button':
         content = <ActionButton
@@ -41,16 +45,43 @@ export const renderCustomEmbeddable = (
           excalidrawAPI={excalidrawAPI}
           settingsEnabled={true}
         />;
+        title = "Action Button";
         break;
       case 'dashboard':
         content = <Dashboard element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+        title = "Dashboard";
         break;
       default:
+        title = "Untitled";
         return null;
     }
+
+    if (element.customData?.title) {
+      title = element.customData.title;
+    }
     
-    return <div className="custom-rendered-embeddable">{content}</div>;
+    return (
+      <div className="custom-embed">
+        <div className="custom-embed__title-bar">
+          <div className="custom-embed__title-bar__text">{title}</div>
+        </div>
+        <div className="custom-embed__content">
+          {content}
+        </div>
+      </div>
+    );
   } else {
-    return <iframe className="custom-rendered-embeddable" src={element.link} />;
+    const title = element.customData?.title || element.link || "Untitled";
+
+    return (
+      <div className="custom-embed">
+        <div className="custom-embed__title-bar">
+          <div className="custom-embed__title-bar__text">{title}</div>
+        </div>
+        <div className="custom-embed__content">
+          <iframe className="custom-embed__content--iframe" src={element.link} />
+        </div>
+      </div>
+    );
   }
 };

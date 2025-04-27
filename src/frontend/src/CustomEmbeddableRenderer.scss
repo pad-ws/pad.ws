@@ -1,7 +1,34 @@
-.custom-rendered-embeddable {
+.custom-embed {
     height: 100%;
     width: 100%;
     display: flex;
-    border-radius: 0px !important;
+    justify-content: center;
     border: 0px !important;
+    
+    &__title-bar {
+        position: absolute;
+        top: -30px;
+        pointer-events: none;
+        
+        &__text {
+            font-family: 'Roboto', sans-serif;
+            color: #d3d3d3;
+            pointer-events: none;
+            font-size: 18px;
+        }
+    }
+
+    &__content {
+        height: 100%;
+        width: 100%;
+
+        &--iframe {
+            height: 100%;
+            width: 100%;
+            border: 0px !important;
+            overflow: hidden;
+            border-bottom-left-radius: var(--embeddable-radius);
+            border-bottom-right-radius: var(--embeddable-radius);
+        }
+    }
 }

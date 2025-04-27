@@ -25,7 +25,7 @@ export function normalizeCanvasData(data: any) {
     moduleBorderOffset: {
       left: 10,
       right: 10,
-      top: 30,
+      top: 40,
       bottom: 10,
     },
   };
