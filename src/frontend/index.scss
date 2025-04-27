@@ -7,6 +7,11 @@
     font-display: swap;
 }
 
+/* CSS Variables */
+:root {
+    --embeddable-pointer-events: all;
+}
+
 /* Override Excalidraw styles */
 
 body {
@@ -77,6 +82,6 @@ body {
 
 .excalidraw__embeddable__outer { /* 3rd layer */
     padding: 0px !important;
-    pointer-events: all !important;
+    pointer-events: var(--embeddable-pointer-events, all) !important;
     display: flex;
 }

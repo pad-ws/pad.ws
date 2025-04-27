@@ -1,4 +1,5 @@
 import React from 'react';
+import { debounce } from './utils/debounce';
 import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidraw/element/types';
 import type { AppState } from '@atyrode/excalidraw/types';
 import {
@@ -85,3 +86,24 @@ export const renderCustomEmbeddable = (
     );
   }
 };
+
+// Track scrolling state
+let isScrolling = false;
+
+export const lockEmbeddables = () => {
+  if (!isScrolling) {
+    isScrolling = true;
+    // Set pointer-events to none during scrolling
+    document.documentElement.style.setProperty('--embeddable-pointer-events', 'none');
+  }
+  
+  // Reset the pointer-events after scrolling stops
+  debouncedScrollEnd();
+};
+
+// Create a debounced function to detect when scrolling ends
+const debouncedScrollEnd = debounce(() => {
+  isScrolling = false;
+  // Set pointer-events back to all when not scrolling
+  document.documentElement.style.setProperty('--embeddable-pointer-events', 'all');
+}, 150); // 150ms debounce seems reasonable, but can be adjusted as needed
