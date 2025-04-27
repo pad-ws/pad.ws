@@ -90,13 +90,52 @@ export const renderCustomEmbeddable = (
   }
 };
 
-// Lock icon component that shows when scrolling
+// Lock icon component that shows when scrolling with countdown timer
 const LockIndicator = () => {
   const [visible, setVisible] = useState(false);
+  const [counting, setCounting] = useState(false);
+  const debounceTime = 500; // Match the debounce time from lockEmbeddables
   
   useEffect(() => {
+    // Use polling to check the scrolling state directly
+    const checkScrollState = () => {
+      // If we're scrolling and not already visible, show the lock
+      if (isScrolling && !visible) {
+        setVisible(true);
+        setCounting(false);
+      } 
+      // If we're not scrolling but the lock is visible and not counting down
+      else if (!isScrolling && visible && !counting) {
+        // Start the countdown
+        setCounting(true);
+        
+        // After the debounce time, hide the lock
+        setTimeout(() => {
+          setVisible(false);
+          setCounting(false);
+        }, debounceTime);
+      }
+    };
+    
+    // Check the scroll state every 50ms
+    const intervalId = setInterval(checkScrollState, 50);
+    
+    // Also listen for the custom event as a backup
     const handleScrollStateChange = (event: CustomEvent<{ isScrolling: boolean }>) => {
-      setVisible(event.detail.isScrolling);
+      if (event.detail.isScrolling) {
+        // When scrolling starts, show the lock and reset countdown
+        setVisible(true);
+        setCounting(false);
+      } else if (!counting) {
+        // When scrolling stops, start the countdown
+        setCounting(true);
+        
+        // After the debounce time, hide the lock
+        setTimeout(() => {
+          setVisible(false);
+          setCounting(false);
+        }, debounceTime);
+      }
     };
     
     // Add event listener for scroll state changes
@@ -104,13 +143,35 @@ const LockIndicator = () => {
     
     // Clean up
     return () => {
+      clearInterval(intervalId);
       document.removeEventListener('scrollStateChange', handleScrollStateChange as EventListener);
     };
-  }, []);
+  }, [visible, counting]);
   
   return (
     <div className={`custom-embed__lock-icon ${visible ? 'visible' : ''}`}>
-      <Lock size={16} />
+      <div className="lock-container">
+        <Lock size={18} />
+        {counting && (
+          <div className="countdown-timer">
+            <svg viewBox="0 0 36 36" className="circular-timer">
+              <circle
+                className="timer-background"
+                cx="18"
+                cy="18"
+                r="16"
+              />
+              <circle
+                className="timer-progress"
+                cx="18"
+                cy="18"
+                r="16"
+                style={{ animationDuration: `${debounceTime}ms` }}
+              />
+            </svg>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -142,4 +203,4 @@ const debouncedScrollEnd = debounce(() => {
   // Dispatch event with updated scrolling state
   scrollStateChangeEvent.detail.isScrolling = false;
   document.dispatchEvent(scrollStateChangeEvent);
-}, 500); // 500ms debounce seems reasonable, but can be adjusted as needed
+}, 1000); // 500ms debounce seems reasonable, but can be adjusted as needed

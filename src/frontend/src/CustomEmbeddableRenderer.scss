@@ -32,6 +32,57 @@
         &.visible {
             opacity: 1;
         }
+        
+        .lock-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+        }
+        
+        .countdown-timer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 28px;
+            height: 28px;
+            z-index: -1; /* Place behind the lock icon */
+        }
+        
+        .circular-timer {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+            
+            .timer-background {
+                fill: none;
+                stroke: rgba(211, 211, 211, 0.2);
+                stroke-width: 2;
+            }
+            
+            .timer-progress {
+                fill: none;
+                stroke: #d3d3d3;
+                stroke-width: 2;
+                stroke-dasharray: 100.53; /* Circumference of circle with r=16: 2 * PI * 16 */
+                stroke-dashoffset: 0;
+                animation-name: countdown;
+                animation-timing-function: linear;
+                animation-fill-mode: forwards;
+            }
+        }
+    }
+    
+    @keyframes countdown {
+        from {
+            stroke-dashoffset: 0;
+        }
+        to {
+            stroke-dashoffset: 100.53; /* Same as stroke-dasharray */
+        }
     }
 
     &__content {
