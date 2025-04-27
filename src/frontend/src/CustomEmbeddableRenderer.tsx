@@ -90,7 +90,7 @@ export const renderCustomEmbeddable = (
 // Track scrolling state
 let isScrolling = false;
 
-export const lockEmbeddables = (appState: AppState) => {
+export const lockEmbeddables = () => {
   if (!isScrolling) {
     isScrolling = true;
     // Set pointer-events to none during scrolling
