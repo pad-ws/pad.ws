@@ -9,12 +9,28 @@
         position: absolute;
         top: -30px;
         pointer-events: none;
+        display: flex;
+        align-items: center;
         
         &__text {
             font-family: 'Roboto', sans-serif;
             color: #d3d3d3;
             pointer-events: none;
             font-size: 18px;
+            margin-right: 8px;
+        }
+    }
+    
+    &__lock-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #d3d3d3;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+        
+        &.visible {
+            opacity: 1;
         }
     }
 
