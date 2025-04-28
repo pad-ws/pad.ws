@@ -9,6 +9,7 @@ import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRende
 import AuthDialog from './ui/AuthDialog';
 import BackupsModal from './ui/BackupsDialog';
 import SettingsDialog from './ui/SettingsDialog';
+import { capture } from './utils/posthog';
 
 const defaultInitialData = {
   elements: [],
@@ -56,6 +57,7 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
   useEffect(() => {
     if (isAuthenticated === true) {
       setIsExiting(true);
+      capture('signed_in');
     }
   }, [isAuthenticated]);
   

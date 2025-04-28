@@ -4,13 +4,6 @@ import posthog from 'posthog-js';
 if (import.meta.env.VITE_PUBLIC_POSTHOG_KEY) {
   posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_KEY, {
     api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-    debug: false,
-    session_recording: {
-      recordCrossOriginIframes: true,
-      captureCanvas: {
-        recordCanvas: false,
-      }
-    },
   });
   console.debug('[pad.ws] PostHog initialized successfully');
 } else {

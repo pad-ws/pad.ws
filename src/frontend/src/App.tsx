@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useCanvas, useDefaultCanvas, useUserProfile } from "./api/hooks";
 import { ExcalidrawWrapper } from "./ExcalidrawWrapper";
 import { debounce } from "./utils/debounce";
-import { capture } from "./utils/posthog";
 import posthog from "./utils/posthog";
 import { normalizeCanvasData } from "./utils/canvasUtils";
 import { useSaveCanvas } from "./api/hooks";
@@ -55,16 +54,6 @@ export default function App({
       console.error("[pad.ws] Failed to save canvas to database:", error);
     }
   });
-
-  useEffect(() => {
-    if (excalidrawAPI) {
-      (window as any).excalidrawAPI = excalidrawAPI;
-      capture('app_loaded');
-    }
-    return () => {
-      (window as any).excalidrawAPI = null;
-    };
-  }, [excalidrawAPI]);
 
   const lastSentCanvasDataRef = useRef<string>("");
 
