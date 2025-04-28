@@ -9,6 +9,7 @@ import {
   ControlButton,
   HtmlEditor,
   Editor,
+  Terminal,
 } from './pad';
 import { ActionButton } from './pad/buttons';
 import "./CustomEmbeddableRenderer.scss";
@@ -20,6 +21,7 @@ export const renderCustomEmbeddable = (
 ) => {
 
   if (element.link && element.link.startsWith('!')) {
+
     let path = element.link.split('!')[1];
     let content;
     let title;
@@ -28,9 +30,14 @@ export const renderCustomEmbeddable = (
       case 'html':
         content = <HtmlEditor element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
         title = "HTML Editor";
+        break;
       case 'editor':
         content = <Editor element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
         title = "Code Editor";
+        break;
+      case 'terminal':
+        content = <Terminal element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+        title = "Terminal";
         break;
       case 'state':
         content = <StateIndicator />;

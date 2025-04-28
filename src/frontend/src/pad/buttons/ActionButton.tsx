@@ -280,34 +280,15 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   };
   
   
-  const getUrl = () => {
+  const getCodeUrl = () => {
     if (!workspaceState) {
-      if (selectedTarget === 'terminal') {
-        return 'https://terminal.example.dev';
-      } else {
-        return 'https://vscode.example.dev';
-      }
+      return '';
     }
     
-    if (selectedTarget === 'terminal') {
-      return `${workspaceState.base_url}/@${workspaceState.username}/${workspaceState.workspace_id}.${workspaceState.agent}/terminal`;
-    } else {
-      return `${workspaceState.base_url}/@${workspaceState.username}/${workspaceState.workspace_id}.${workspaceState.agent}/apps/code-server`;
-    }
+    return `${workspaceState.base_url}/@${workspaceState.username}/${workspaceState.workspace_id}.${workspaceState.agent}/apps/code-server`;
   };
   
   // Placement logic has been moved to ExcalidrawElementFactory.placeInScene
-
-  const createEmbeddableElement = (link: string, buttonElement: HTMLElement | null = null) => {
-    return ExcalidrawElementFactory.createEmbeddableElement({
-      link,
-      width: 600,
-      height: 400,
-      strokeColor: "#1e1e1e",
-      backgroundColor: "#ffffff",
-      roughness: 1
-    });
-  };
 
   
   const executeAction = () => {
@@ -324,36 +305,60 @@ const ActionButton: React.FC<ActionButtonProps> = ({
         return;
       }
       
-      const baseUrl = getUrl();
+      // Determine the link to use
+      let link: string;
       
-      if (!baseUrl) {
-        console.error('Could not determine URL for embedding');
-        return;
+      if (selectedTarget === 'terminal') {
+        // For terminal, use the !terminal embed link
+        link = '!terminal';
+      } else {
+        // For code, use the code URL
+        const codeUrl = getCodeUrl();
+        if (!codeUrl) {
+          console.error('Could not determine URL for embedding');
+          return;
+        }
+        link = codeUrl;
       }
       
-      // Create element with our factory
-      const buttonElement = wrapperRef.current;
-      const newElement = createEmbeddableElement(baseUrl, buttonElement);
+      // Create element directly with ExcalidrawElementFactory
+      const newElement = ExcalidrawElementFactory.createEmbeddableElement({
+        link,
+        width: 600,
+        height: 400,
+      });
       
-      // Place the element in the scene using our new placement logic
+      // Place the element in the scene
       ExcalidrawElementFactory.placeInScene(newElement, excalidrawAPI, {
         mode: PlacementMode.NEAR_VIEWPORT_CENTER,
         bufferPercentage: 10,
         scrollToView: true
       });
       
-      console.debug(`[pad.ws] Embedded ${selectedTarget} at URL: ${baseUrl}`);
+      console.debug(`[pad.ws] Embedded ${selectedTarget}`);
       
     } else if (selectedAction === 'open-tab') {
-      const baseUrl = getUrl();
-      if (!baseUrl) {
-        console.error('Could not determine URL for opening in tab');
-        return;
+      if (selectedTarget === 'terminal') {
+        // For terminal, open the terminal URL in a new tab
+        if (!workspaceState) {
+          console.error('Workspace state not available for opening terminal in tab');
+          return;
+        }
+        
+        const terminalUrl = `${workspaceState.base_url}/@${workspaceState.username}/${workspaceState.workspace_id}.${workspaceState.agent}/terminal`;
+        console.debug(`[pad.ws] Opening terminal in new tab: ${terminalUrl}`);
+        window.open(terminalUrl, '_blank');
+      } else {
+        // For code, open the code URL in a new tab
+        const codeUrl = getCodeUrl();
+        if (!codeUrl) {
+          console.error('Could not determine URL for opening in tab');
+          return;
+        }
+        
+        console.debug(`[pad.ws] Opening ${selectedTarget} in new tab: ${codeUrl}`);
+        window.open(codeUrl, '_blank');
       }
-      
-      console.debug(`[pad.ws] Opening ${selectedTarget} in new tab from ${baseUrl}`);
-      window.open(baseUrl, '_blank');
-      
     } else if (selectedAction === 'magnet') {
       if (!workspaceState) {
         console.error('Workspace state not available for magnet link');
@@ -365,14 +370,12 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       const url = workspaceState.base_url;
       const agent = workspaceState.agent;
       
-      let magnetLink = '';
-      
       if (selectedTarget === 'terminal') {
         console.error('Terminal magnet links are not supported');
         return;
       } else if (selectedTarget === 'code') {
         const prefix = selectedCodeVariant === 'cursor' ? 'cursor' : 'vscode';
-        magnetLink = `${prefix}://coder.coder-remote/open?owner=${owner}&workspace=${workspace}&url=${url}&token=&openRecent=true&agent=${agent}`;
+        const magnetLink = `${prefix}://coder.coder-remote/open?owner=${owner}&workspace=${workspace}&url=${url}&token=&openRecent=true&agent=${agent}`;
         console.debug(`[pad.ws] Opening ${selectedCodeVariant} desktop app with magnet link: ${magnetLink}`);
         window.open(magnetLink, '_blank');
       }

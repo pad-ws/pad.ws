@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 
-import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text, ArchiveRestore, Settings } from 'lucide-react';
+import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text, ArchiveRestore, Settings, Terminal } from 'lucide-react';
 import { capture } from '../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
 import { useUserProfile } from "../api/hooks";
@@ -100,6 +100,22 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
       scrollToView: true
     });
   };
+  
+  const handleTerminalClick = () => {
+    if (!excalidrawAPI) return;
+    
+    const terminalElement = ExcalidrawElementFactory.createEmbeddableElement({
+      link: "!terminal",
+      width: 800,
+      height: 500
+    });
+    
+    ExcalidrawElementFactory.placeInScene(terminalElement, excalidrawAPI, {
+      mode: PlacementMode.NEAR_VIEWPORT_CENTER,
+      bufferPercentage: 10,
+      scrollToView: true
+    });
+  };
 
   const handleCanvasBackupsClick = () => {
     setShowBackupsModal(true);
@@ -175,6 +191,12 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
           onClick={handleEditorClick}
         >
           Code Editor
+        </MainMenu.Item>
+        <MainMenu.Item
+          icon={<Terminal />}
+          onClick={handleTerminalClick}
+        >
+          Terminal
         </MainMenu.Item>
         <MainMenu.Item
           icon={<LayoutDashboard />}
