@@ -55,6 +55,16 @@ export default function App({
     }
   });
 
+
+  useEffect(() => {
+    if (excalidrawAPI) {
+      (window as any).excalidrawAPI = excalidrawAPI;
+    }
+    return () => {
+      (window as any).excalidrawAPI = null;
+    };
+  }, [excalidrawAPI]);
+
   const lastSentCanvasDataRef = useRef<string>("");
 
   const debouncedLogChange = useCallback(
