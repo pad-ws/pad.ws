@@ -59,6 +59,7 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
     }
   }, [isAuthenticated]);
   
+  
   // Handlers for closing modals
   const handleCloseBackupsModal = () => {
     setShowBackupsModal(false);
@@ -122,6 +123,7 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
         
         {showSettingsModal && (
           <SettingsDialog
+            excalidrawAPI={excalidrawAPI}
             onClose={handleCloseSettingsModal}
           />
         )}

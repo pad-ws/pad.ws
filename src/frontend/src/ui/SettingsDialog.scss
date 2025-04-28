@@ -6,8 +6,6 @@
     right: 0;
     bottom: 0;
     z-index: 1000;
-    background-color: rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(1px);
   }
 
   &__title-container {
@@ -36,5 +34,42 @@
     height: 100%;
     color: #888;
     font-style: italic;
+  }
+
+  &__section {
+    margin-bottom: 1.5rem;
+  }
+
+  &__section-title {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary-color);
+  }
+
+  &__setting {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    background-color: var(--dialog-bg-color);
+  }
+
+  &__label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-primary-color);
+  }
+
+  &__range-container {
+    margin: 1rem 0;
+  }
+
+  &__range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-primary-color);
+    opacity: 0.7;
   }
 }
