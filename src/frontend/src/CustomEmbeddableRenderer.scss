@@ -11,17 +11,20 @@
         pointer-events: none;
         display: flex;
         align-items: center;
+        width: 100%;
+        justify-content: center;
         
         &__text {
             font-family: 'Roboto', sans-serif;
             color: #d3d3d3;
             pointer-events: none;
             font-size: 18px;
-            margin-right: 8px;
         }
     }
     
     &__lock-icon {
+        position: absolute;
+        left: 1%;
         display: flex;
         align-items: center;
         justify-content: center;
