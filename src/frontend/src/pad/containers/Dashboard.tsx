@@ -93,7 +93,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Set up resize observer to check if there's enough space
   useEffect(() => {
     // Minimum height required for the ActionButtonGrid to render properly
-    const MIN_REQUIRED_HEIGHT = 240; // Adjust this value based on your design
+    const MIN_REQUIRED_HEIGHT = 200; // Adjust this value based on your design
 
     const checkSize = () => {
       if (dashboardRef.current) {
