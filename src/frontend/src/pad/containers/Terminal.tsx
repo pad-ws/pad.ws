@@ -26,6 +26,8 @@ export const Terminal: React.FC<TerminalProps> = ({
 }) => {
   const { data: workspaceState } = useWorkspaceState();
   const [terminalId, setTerminalId] = useState<string | null>(null);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [shouldRenderIframe, setShouldRenderIframe] = useState(false);
   const elementIdRef = useRef(element?.id);
   const isInitializedRef = useRef(false);
 
@@ -172,13 +174,42 @@ export const Terminal: React.FC<TerminalProps> = ({
 
   const terminalUrl = getTerminalUrl();
 
+  // Effect to delay loading the iframe
+  useEffect(() => {
+    // Set a small timeout to allow the scrolling to complete first
+    const timer = setTimeout(() => {
+      setShouldRenderIframe(true);
+    }, 500); // 300ms delay should be enough for the scroll animation to start
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Handle iframe load event
+  const handleIframeLoad = () => {
+    setIframeLoaded(true);
+    console.debug('[pad.ws] Terminal iframe loaded');
+  };
+
   return (
     <div className="terminal-container">
-      <iframe 
-        className="terminal-iframe" 
-        src={terminalUrl} 
-        title="Terminal"
-      />
+      {shouldRenderIframe ? (
+        <iframe 
+          className="terminal-iframe" 
+          src={terminalUrl} 
+          title="Terminal"
+          onLoad={handleIframeLoad}
+        />
+      ) : (
+        <div className="terminal-iframe terminal-iframe--loading">
+          <div className="terminal-loading-animation">
+            <img 
+              src="/assets/images/favicon.png" 
+              alt="pad.ws logo" 
+              className="terminal-loading-logo" 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
