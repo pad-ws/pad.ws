@@ -6,13 +6,81 @@
   overflow: hidden;
 }
 
+.terminal-iframe-wrapper {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  border-bottom-left-radius: var(--embeddable-radius);
+  border-bottom-right-radius: var(--embeddable-radius);
+  background-color: #000000;
+}
+
 .terminal-iframe {
   flex: 1;
-  background-color: #1e1e1e;
+  background-color: #000000;
   height: 100%;
   width: 100%;
   border: 0px !important;
   overflow: hidden;
   border-bottom-left-radius: var(--embeddable-radius);
   border-bottom-right-radius: var(--embeddable-radius);
+  
+  &--loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  
+  &--loading-fade {
+    opacity: 0;
+    transition: opacity 0.5s ease-in;
+  }
+  
+  &--loaded {
+    opacity: 1;
+    transition: opacity 0.5s ease-in;
+  }
+}
+
+.terminal-loading-animation {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &--fade {
+    opacity: 1;
+    transition: opacity 0.15s ease-out;
+    z-index: 1;
+    background-color: #000000;
+  }
+  
+  &--hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+.terminal-loading-logo {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  animation: terminal-logo-slide 300ms cubic-bezier(0.00, 1.26, 0.64, 0.95) forwards;
+  position: relative;
+}
+
+@keyframes terminal-logo-slide {
+  from {
+    transform: translateX(-100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
