@@ -1,0 +1,10 @@
+.tabs-bar {
+    margin-inline-start: 0.6rem;
+    height: var(--lg-button-size);
+
+    Button {
+        height: var(--lg-button-size) !important;
+        width: var(--lg-button-size) !important;
+        border: none !important;
+    }
+}
