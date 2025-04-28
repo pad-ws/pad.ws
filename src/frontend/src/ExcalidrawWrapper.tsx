@@ -89,7 +89,10 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
         initialData: initialData ?? defaultInitialData,
         onChange: onChange,
         name: "Pad.ws",
-        onScrollChange: lockEmbeddables,
+        onScrollChange: (scrollX, scrollY) => {
+          lockEmbeddables(excalidrawAPI?.getAppState());
+          if (onScrollChange) onScrollChange(scrollX, scrollY);
+        },
         validateEmbeddable: true,
         renderEmbeddable: (element, appState) => renderCustomEmbeddable(element, appState, excalidrawAPI),
         renderTopRightUI: renderTopRightUI ?? (() => (
