@@ -3,17 +3,20 @@ import React, { useState } from 'react';
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 
-import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text, ArchiveRestore } from 'lucide-react';
+import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text, ArchiveRestore, Settings } from 'lucide-react';
 import { capture } from '../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
 import { useUserProfile } from "../api/hooks";
 import { queryClient } from "../api/queryClient";
+import SettingsDialog from "./SettingsDialog";
 import "./MainMenu.scss";
 interface MainMenuConfigProps {
   MainMenu: typeof MainMenuType;
   excalidrawAPI: ExcalidrawImperativeAPI | null;
   showBackupsModal: boolean;
   setShowBackupsModal: (show: boolean) => void;
+  showSettingsModal?: boolean;
+  setShowSettingsModal?: (show: boolean) => void;
 }
 
 export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
@@ -21,6 +24,8 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
   excalidrawAPI,
   showBackupsModal,
   setShowBackupsModal,
+  showSettingsModal = false,
+  setShowSettingsModal = (show: boolean) => {},
 }) => {
   const { data, isLoading, isError } = useUserProfile();
 
@@ -98,6 +103,10 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
 
   const handleCanvasBackupsClick = () => {
     setShowBackupsModal(true);
+  };
+
+  const handleSettingsClick = () => {
+    setShowSettingsModal(true);
   };
 
   const handleGridToggle = () => {
@@ -206,6 +215,13 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
       </MainMenu.Group>
       
       <MainMenu.Separator />
+      
+      <MainMenu.Item
+          icon={<Settings />}
+          onClick={handleSettingsClick}
+        >
+          Settings
+        </MainMenu.Item>
       
       <MainMenu.Item
           icon={<LogOut />}

@@ -8,6 +8,7 @@ import { MainMenuConfig } from './ui/MainMenu';
 import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRenderer';
 import AuthDialog from './ui/AuthDialog';
 import BackupsModal from './ui/BackupsDialog';
+import SettingsDialog from './ui/SettingsDialog';
 
 const defaultInitialData = {
   elements: [],
@@ -47,8 +48,9 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
   // Add state for modal animation
   const [isExiting, setIsExiting] = useState(false);
   
-  // State for BackupsModal
+  // State for modals
   const [showBackupsModal, setShowBackupsModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   
   // Handle auth state changes
   useEffect(() => {
@@ -57,9 +59,13 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
     }
   }, [isAuthenticated]);
   
-  // Handler for closing the backups modal
+  // Handlers for closing modals
   const handleCloseBackupsModal = () => {
     setShowBackupsModal(false);
+  };
+  
+  const handleCloseSettingsModal = () => {
+    setShowSettingsModal(false);
   };
   
   const renderExcalidraw = (children: React.ReactNode) => {
@@ -98,6 +104,8 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
           excalidrawAPI={excalidrawAPI} 
           showBackupsModal={showBackupsModal}
           setShowBackupsModal={setShowBackupsModal}
+          showSettingsModal={showSettingsModal}
+          setShowSettingsModal={setShowSettingsModal}
         />
         {!isAuthLoading && isAuthenticated === false && (
           <AuthDialog 
@@ -109,6 +117,12 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
           <BackupsModal
             excalidrawAPI={excalidrawAPI}
             onClose={handleCloseBackupsModal}
+          />
+        )}
+        
+        {showSettingsModal && (
+          <SettingsDialog
+            onClose={handleCloseSettingsModal}
           />
         )}
       </>
