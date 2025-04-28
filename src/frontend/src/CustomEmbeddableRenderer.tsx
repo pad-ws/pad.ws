@@ -120,7 +120,32 @@ let isScrolling = false;
 // Create a custom event for scrolling state changes
 const scrollStateChangeEvent = new CustomEvent('scrollStateChange', { detail: { isScrolling: false } });
 
-export const lockEmbeddables = () => {
+// Memoized debounced function factory
+const getDebouncedScrollEnd = (() => {
+  let lastDebounceTime = 0;
+  let debouncedFn: ReturnType<typeof debounce> | null = null;
+  
+  return (currentDebounceTime: number) => {
+    // Only recreate if the time has changed
+    if (currentDebounceTime !== lastDebounceTime || !debouncedFn) {
+      lastDebounceTime = currentDebounceTime;
+      debouncedFn = debounce(() => {
+        isScrolling = false;
+        // Set pointer-events back to all when not scrolling
+        document.documentElement.style.setProperty('--embeddable-pointer-events', 'all');
+        // Dispatch event with updated scrolling state
+        scrollStateChangeEvent.detail.isScrolling = false;
+        document.dispatchEvent(scrollStateChangeEvent);
+      }, currentDebounceTime);
+    }
+    return debouncedFn;
+  };
+})();
+
+export const lockEmbeddables = (appState?: AppState) => {
+  // Get the debounce time from settings, with fallback to default
+  const debounceTime = appState?.pad?.userSettings?.embedLockDebounceTime || 350;
+  
   if (!isScrolling) {
     isScrolling = true;
     // Set pointer-events to none during scrolling
@@ -130,16 +155,7 @@ export const lockEmbeddables = () => {
     document.dispatchEvent(scrollStateChangeEvent);
   }
   
-  // Reset the pointer-events after scrolling stops
+  // Get the current debounced function and call it
+  const debouncedScrollEnd = getDebouncedScrollEnd(debounceTime);
   debouncedScrollEnd();
 };
-
-// Create a debounced function to detect when scrolling ends
-const debouncedScrollEnd = debounce(() => {
-  isScrolling = false;
-  // Set pointer-events back to all when not scrolling
-  document.documentElement.style.setProperty('--embeddable-pointer-events', 'all');
-  // Dispatch event with updated scrolling state
-  scrollStateChangeEvent.detail.isScrolling = false;
-  document.dispatchEvent(scrollStateChangeEvent);
-}, 350);

@@ -1,9 +1,6 @@
+import { DEFAULT_SETTINGS } from '../types/settings';
+
 /**
- * Normalizes canvas data by removing width and height properties from appState
- * and resetting collaborators to an empty Map.
- * 
- * This is necessary when loading canvas data to ensure it fits properly in the current viewport
- * and doesn't carry over collaborator information that might be stale.
  * 
  * @param data The canvas data to normalize
  * @returns Normalized canvas data
@@ -21,6 +18,11 @@ export function normalizeCanvasData(data: any) {
     delete appState.height;
   }
 
+  // Preserve existing pad settings if they exist, otherwise create new ones
+  const existingPad = appState.pad || {};
+  const existingUserSettings = existingPad.userSettings || {};
+  
+  // Merge existing user settings with default settings
   appState.pad = { 
     moduleBorderOffset: {
       left: 10,
@@ -28,6 +30,11 @@ export function normalizeCanvasData(data: any) {
       top: 40,
       bottom: 10,
     },
+    // Merge existing user settings with default settings
+    userSettings: {
+      ...DEFAULT_SETTINGS,
+      ...existingUserSettings
+    }
   };
   
   // Reset collaborators (https://github.com/excalidraw/excalidraw/issues/8637)
