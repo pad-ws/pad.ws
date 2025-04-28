@@ -40,29 +40,6 @@ async def save_canvas(data: Dict[str, Any], auth: SessionData = Depends(require_
     success = await store_canvas_data(user_id, data)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to save canvas data")
-    # PostHog analytics: capture canvas_saved event
-    try:
-        app_state = data.get("appState", {})
-        width = app_state.get("width")
-        height = app_state.get("height")
-        zoom = app_state.get("zoom", {}).get("value")
-        full_url = None
-        if request:
-            full_url = str(request.base_url).rstrip("/") + str(request.url.path)
-            full_url = full_url.replace("http://", "https://")
-        posthog.capture(
-            distinct_id=user_id,
-            event="canvas_saved",
-            properties={
-                "pad_width": width,
-                "pad_height": height,
-                "pad_zoom": zoom,
-                "$current_url": full_url,
-            }
-        )
-    except Exception as e:
-        print(f"Error capturing canvas_saved event: {str(e)}")
-        pass
     return {"status": "success"}
 
 @canvas_router.get("")

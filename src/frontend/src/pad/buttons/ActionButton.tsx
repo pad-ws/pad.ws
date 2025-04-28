@@ -311,8 +311,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
 
   
   const executeAction = () => {
-    // Track button click event with PostHog
-    capture('custom_button_clicked', {
+    capture('action_button_clicked', {
       target: selectedTarget,
       action: selectedAction,
       codeVariant: selectedTarget === 'code' ? selectedCodeVariant : null
@@ -345,11 +344,6 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       
       console.debug(`[pad.ws] Embedded ${selectedTarget} at URL: ${baseUrl}`);
       
-      // Track successful embed action
-      capture('embed_created', {
-        target: selectedTarget,
-        url: baseUrl
-      });
     } else if (selectedAction === 'open-tab') {
       const baseUrl = getUrl();
       if (!baseUrl) {
@@ -360,11 +354,6 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       console.debug(`[pad.ws] Opening ${selectedTarget} in new tab from ${baseUrl}`);
       window.open(baseUrl, '_blank');
       
-      // Track tab open action
-      capture('tab_opened', {
-        target: selectedTarget,
-        url: baseUrl
-      });
     } else if (selectedAction === 'magnet') {
       if (!workspaceState) {
         console.error('Workspace state not available for magnet link');
@@ -386,13 +375,6 @@ const ActionButton: React.FC<ActionButtonProps> = ({
         magnetLink = `${prefix}://coder.coder-remote/open?owner=${owner}&workspace=${workspace}&url=${url}&token=&openRecent=true&agent=${agent}`;
         console.debug(`[pad.ws] Opening ${selectedCodeVariant} desktop app with magnet link: ${magnetLink}`);
         window.open(magnetLink, '_blank');
-        
-        // Track desktop app open action
-        capture('desktop_app_opened', {
-          target: selectedTarget,
-          codeVariant: selectedCodeVariant,
-          workspace: workspace
-        });
       }
     }
   };
@@ -425,14 +407,6 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     e.stopPropagation(); 
     const newShowOptions = !showOptions;
     setShowOptions(newShowOptions);
-    
-    // Track settings toggle event
-    capture('custom_button_edit_settings', {
-      target: selectedTarget,
-      action: selectedAction,
-      codeVariant: selectedTarget === 'code' ? selectedCodeVariant : null,
-      showOptions: newShowOptions
-    });
     
     if (onSettingsToggle) {
       onSettingsToggle(newShowOptions);
