@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@atyrode/excalidraw@^0.18.0-4":
-  version "0.18.0-4"
-  resolved "https://registry.yarnpkg.com/@atyrode/excalidraw/-/excalidraw-0.18.0-4.tgz#3350bd09533cb424105fa615ec0e2e4e243f798e"
-  integrity sha512-MDYAXT34cNmhoc49eC7iuoweGHsirKKH0VnwDT9CJPWTjUfOrXp/NsL1PHyFIyhBu14NI1osSpGTD0qi1FPegQ==
+"@atyrode/excalidraw@^0.18.0-5":
+  version "0.18.0-5"
+  resolved "https://registry.yarnpkg.com/@atyrode/excalidraw/-/excalidraw-0.18.0-5.tgz#41ac495c315ac8000956c13ffbeb53323459f686"
+  integrity sha512-2EEPj4aWWHTrRbWGZ0QjF4Ds/pl+RTzQs1psYji78EnWSrSjFjqkEV2QNSyeB3jzD/qBkwiI0TwIHuvh0vv58w==
   dependencies:
     "@braintree/sanitize-url" "6.0.2"
     "@excalidraw/laser-pointer" "1.3.1"
