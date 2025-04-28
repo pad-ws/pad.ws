@@ -1,8 +1,4 @@
 .settings-dialog {
-
-  .control-label {
-    font-size: 0px;
-  }
   
   &__wrapper {
     position: absolute;
@@ -34,15 +30,6 @@
     flex-direction: column;
   }
 
-  &__empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: #888;
-    font-style: italic;
-  }
-
   &__section {
     margin-bottom: 1.5rem;
   }
@@ -72,11 +59,4 @@
     margin: 1rem 0;
   }
 
-  &__range-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.8rem;
-    color: var(--text-primary-color);
-    opacity: 0.7;
-  }
 }

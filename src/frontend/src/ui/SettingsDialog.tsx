@@ -35,12 +35,17 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
     }
   }, [onClose]);
 
-  const handleEmbedLockDebounceTimeChange = (value: number) => {
+  /**
+   * Updates a specific setting and syncs it with the excalidraw app state
+   * @param key The setting key to update
+   * @param value The new value for the setting
+   */
+  const updateSetting = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => {
     if (!excalidrawAPI) return;
 
     const newSettings = {
       ...settings,
-      embedLockDebounceTime: value
+      [key]: value
     };
     
     setSettings(newSettings);
@@ -72,14 +77,14 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
           <div className="settings-dialog__range-container">
           <Range
             value={Math.round(((settings.embedLockDebounceTime || 350) - 150) / 4850 * 100)}
-            onChange={(value) => handleEmbedLockDebounceTimeChange(
+            onChange={(value) => updateSetting(
+              'embedLockDebounceTime',
               // Map 0-100 range to 150-5000ms
               Math.round(150 + (value / 100) * 4850)
             )}
             min={0}
             max={100}
             step={1}
-            label="Embed Lock Time"
             minLabel="150ms"
             maxLabel="5000ms"
             showValueBubble={false}
