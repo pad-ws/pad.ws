@@ -6,6 +6,17 @@
   overflow: hidden;
 }
 
+.terminal-iframe-wrapper {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  border-bottom-left-radius: var(--embeddable-radius);
+  border-bottom-right-radius: var(--embeddable-radius);
+  background-color: #000000;
+}
+
 .terminal-iframe {
   flex: 1;
   background-color: #000000;
@@ -22,6 +33,16 @@
     justify-content: center;
     position: relative;
   }
+  
+  &--loading-fade {
+    opacity: 0;
+    transition: opacity 0.5s ease-in;
+  }
+  
+  &--loaded {
+    opacity: 1;
+    transition: opacity 0.5s ease-in;
+  }
 }
 
 .terminal-loading-animation {
@@ -31,6 +52,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  
+  &--fade {
+    opacity: 1;
+    transition: opacity 0.15s ease-out;
+    z-index: 1;
+    background-color: #000000;
+  }
+  
+  &--hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 .terminal-loading-logo {

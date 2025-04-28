@@ -179,7 +179,7 @@ export const Terminal: React.FC<TerminalProps> = ({
     // Set a small timeout to allow the scrolling to complete first
     const timer = setTimeout(() => {
       setShouldRenderIframe(true);
-    }, 500); // 300ms delay should be enough for the scroll animation to start
+    }, 500);
 
     return () => clearTimeout(timer);
   }, []);
@@ -193,12 +193,21 @@ export const Terminal: React.FC<TerminalProps> = ({
   return (
     <div className="terminal-container">
       {shouldRenderIframe ? (
-        <iframe 
-          className="terminal-iframe" 
-          src={terminalUrl} 
-          title="Terminal"
-          onLoad={handleIframeLoad}
-        />
+        <div className="terminal-iframe-wrapper">
+          <iframe 
+            className={`terminal-iframe ${iframeLoaded ? 'terminal-iframe--loaded' : 'terminal-iframe--loading-fade'}`}
+            src={terminalUrl} 
+            title="Terminal"
+            onLoad={handleIframeLoad}
+          />
+          <div className={`terminal-loading-animation terminal-loading-animation--fade ${iframeLoaded ? 'terminal-loading-animation--hidden' : ''}`}>
+            <img 
+              src="/assets/images/favicon.png" 
+              alt="pad.ws logo" 
+              className="terminal-loading-logo" 
+            />
+          </div>
+        </div>
       ) : (
         <div className="terminal-iframe terminal-iframe--loading">
           <div className="terminal-loading-animation">
