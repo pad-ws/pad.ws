@@ -79,8 +79,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
             value={Math.round(((settings.embedLockDebounceTime || 350) - 150) / 4850 * 100)}
             onChange={(value) => updateSetting(
               'embedLockDebounceTime',
-              // Map 0-100 range to 150-5000ms
-              Math.round(150 + (value / 100) * 4850)
+              // Map 0-100 range to 150-5000ms, rounded to nearest multiple of 50
+              Math.round((150 + (value / 100) * 4850) / 50) * 50
             )}
             min={0}
             max={100}
