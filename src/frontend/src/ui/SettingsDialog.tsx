@@ -72,7 +72,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
         <h3 className="settings-dialog__section-title">Embed Settings</h3>
         <div className="settings-dialog__setting">
           <label className="settings-dialog__label">
-            Embed Lock Debounce Time: {settings.embedLockDebounceTime}ms
+            Embed Lock Time: {settings.embedLockDebounceTime}ms
           </label>
           <div className="settings-dialog__range-container">
           <Range
