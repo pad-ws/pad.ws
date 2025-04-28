@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { Dialog, Range } from "@atyrode/excalidraw";
+import { Dialog } from "@atyrode/excalidraw";
+import { Range } from "./Range";
 import { UserSettings, DEFAULT_SETTINGS } from "../types/settings";
 import "./SettingsDialog.scss";
 
@@ -69,23 +70,20 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
             Embed Lock Debounce Time: {settings.embedLockDebounceTime}ms
           </label>
           <div className="settings-dialog__range-container">
-            <Range
-              updateData={(value) => handleEmbedLockDebounceTimeChange(
-                // Map 0-100 range to 150-5000ms
-                Math.round(150 + (value / 100) * 4850)
-              )}
-              appState={{
-                currentItemOpacity: 
-                  // Map 150-5000ms to 0-100 range
-                  Math.round(((settings.embedLockDebounceTime || 350) - 150) / 4850 * 100)
-              }}
-              elements={[]}
-              testId="embed-lock-debounce-time"
-            />
-          </div>
-          <div className="settings-dialog__range-labels">
-            <span>150ms</span>
-            <span>5000ms</span>
+          <Range
+            value={Math.round(((settings.embedLockDebounceTime || 350) - 150) / 4850 * 100)}
+            onChange={(value) => handleEmbedLockDebounceTimeChange(
+              // Map 0-100 range to 150-5000ms
+              Math.round(150 + (value / 100) * 4850)
+            )}
+            min={0}
+            max={100}
+            step={1}
+            label="Embed Lock Time"
+            minLabel="150ms"
+            maxLabel="5000ms"
+            showValueBubble={false}
+          />
           </div>
         </div>
       </div>
