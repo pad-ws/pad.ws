@@ -10,6 +10,8 @@ import AuthDialog from './ui/AuthDialog';
 import BackupsModal from './ui/BackupsDialog';
 import SettingsDialog from './ui/SettingsDialog';
 import { capture } from './utils/posthog';
+import { Footer } from '@atyrode/excalidraw';
+import Tabs from './ui/Tabs';
 
 const defaultInitialData = {
   elements: [],
@@ -105,6 +107,13 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
         )),
       },
       <>
+          {excalidrawAPI && (
+          <Footer>
+            <Tabs
+              excalidrawAPI={excalidrawAPI}
+            />
+          </Footer>
+        )}
         <MainMenuConfig 
           MainMenu={MainMenu} 
           excalidrawAPI={excalidrawAPI} 
