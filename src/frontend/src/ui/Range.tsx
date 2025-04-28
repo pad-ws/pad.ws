@@ -8,7 +8,6 @@ export type RangeProps = {
   min?: number;
   max?: number;
   step?: number;
-  label?: string;
   minLabel?: string;
   maxLabel?: string;
   showValueBubble?: boolean;
@@ -43,13 +42,13 @@ export const Range = ({
       
       // Calculate percentage for gradient
       const percentage = ((value - min) / (max - min)) * 100;
-      rangeElement.style.background = `linear-gradient(to right, var(--color-slider-track) 0%, var(--color-slider-track) ${percentage}%, var(--button-bg) ${percentage}%, var(--button-bg) 100%)`;
+      rangeElement.style.background = `linear-gradient(to right, var(--range-track-filled) 0%, var(--range-track-filled) ${percentage}%, var(--range-track-unfilled) ${percentage}%, var(--range-track-unfilled) 100%)`;
     }
   }, [value, min, max, showValueBubble]);
 
   return (
-    <label className="control-label">
-      <div className="range-wrapper">
+    <label className="range range__control-label">
+      <div className="range__wrapper">
         <input
           ref={rangeRef}
           type="range"
@@ -60,19 +59,19 @@ export const Range = ({
             onChange(+event.target.value);
           }}
           value={value}
-          className="range-input"
+          className="range__input"
         />
         {showValueBubble && (
-          <div className="value-bubble" ref={valueRef}>
+          <div className="range__value-bubble" ref={valueRef}>
             {value !== min ? value : null}
           </div>
         )}
         {min === 0 ? (
-          <div className="zero-label">{minLabel || min}</div>
+          <div className="range__label range__label--zero">{minLabel || min}</div>
         ) : (
-          <div className="min-label">{minLabel || min}</div>
+          <div className="range__label range__label--min">{minLabel || min}</div>
         )}
-        <div className="max-label">{maxLabel || max}</div>
+        <div className="range__label range__label--max">{maxLabel || max}</div>
       </div>
     </label>
   );
