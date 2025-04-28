@@ -2176,7 +2176,8 @@
             "boundElements": [],
             "backgroundColor": "#e9ecef",
             "customData": {
-                "showHyperlinkIcon": false
+                "showHyperlinkIcon": false,
+                "showClickableHint": false
             }
         }
     ]
