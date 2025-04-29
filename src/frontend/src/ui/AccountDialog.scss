@@ -1,0 +1,105 @@
+.account-dialog {
+  
+  &__wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    background-color: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(1px);
+  }
+
+  &__title-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+
+  &__content {
+    padding: 1rem;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__loading, &__error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    font-size: 1rem;
+    color: var(--text-primary-color);
+  }
+
+  &__error {
+    color: #e74c3c;
+  }
+
+  &__profile {
+    display: flex;
+    align-items: flex-start;
+    padding: 1.25rem;
+    border-radius: 8px;
+    background-color: var(--dialog-bg-color);
+  }
+
+  &__avatar {
+    margin-right: 1.25rem;
+  }
+
+  &__gravatar {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--text-primary-color);
+  }
+
+  &__user-info {
+    flex: 1;
+  }
+
+  &__name {
+    margin: 0 0 0 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text-primary-color);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  &__username {
+    margin: 0 0 1.5rem 0;
+    font-size: 0.95rem;
+    color: var(--text-secondary-color);
+  }
+  
+  &__user-id {
+    margin: 0;
+    font-size: 0.75rem;
+    font-family: monospace;
+    color: var(--text-secondary-color);
+    opacity: 0.7;
+  }
+
+  &__verified {
+    font-size: 0.75rem;
+    color: #2ecc71;
+    background-color: rgba(46, 204, 113, 0.1);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+  }
+}
