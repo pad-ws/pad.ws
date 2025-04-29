@@ -2,8 +2,8 @@
 set -e
 
 # Create runtime config with environment variables
-mkdir -p /app/frontend/dist/config
-cat > /app/frontend/dist/config/runtime-config.js <<EOL
+mkdir -p /app/frontend/dist/assets
+cat > /app/frontend/dist/assets/runtime-config.js <<EOL
 window.RUNTIME_CONFIG = {
   CODER_URL: "${CODER_URL}"
 };
