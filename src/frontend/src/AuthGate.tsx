@@ -21,7 +21,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     if (isAuthenticated === true && !coderAuthDone) {
       const iframe = document.createElement("iframe");
       iframe.style.display = "none";
-      iframe.src = "https://coder.pad.ws/api/v2/users/oidc/callback";
+      const coderUrl = import.meta.env.CODER_URL;
+      iframe.src = `${coderUrl}/api/v2/users/oidc/callback`;
+      console.debug(`[pad.ws] (Silently) Priming Coder OIDC session for ${coderUrl}`);
 
       // Remove iframe as soon as it loads, or after 2s fallback
       const cleanup = () => {
