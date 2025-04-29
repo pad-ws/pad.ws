@@ -1,8 +1,13 @@
+import os
 import jwt
-from fastapi import APIRouter, Depends, Request
+
 import posthog
+from fastapi import APIRouter, Depends, Request
+from dotenv import load_dotenv
 
 from dependencies import SessionData, require_auth
+
+load_dotenv()
 
 user_router = APIRouter()
 
@@ -19,21 +24,7 @@ async def get_user_info(auth: SessionData = Depends(require_auth), request: Requ
         full_url = str(request.base_url).rstrip("/") + str(request.url.path)
         full_url = full_url.replace("http://", "https://")
 
-    # Identify user in PostHog (mirrors frontend identify)
-    posthog.identify(
-        distinct_id=decoded["sub"],
-        properties={
-            "email": decoded.get("email", ""),
-            "username": decoded.get("preferred_username", ""),
-            "name": decoded.get("name", ""),
-            "given_name": decoded.get("given_name", ""),
-            "family_name": decoded.get("family_name", ""),
-            "email_verified": decoded.get("email_verified", False),
-            "$current_url": full_url
-        }
-    )
-    
-    return {
+    user_data: dict = {
         "id": decoded["sub"],  # Unique user ID
         "email": decoded.get("email", ""),
         "username": decoded.get("preferred_username", ""),
@@ -42,3 +33,9 @@ async def get_user_info(auth: SessionData = Depends(require_auth), request: Requ
         "family_name": decoded.get("family_name", ""),
         "email_verified": decoded.get("email_verified", False)
     }
+
+    if os.getenv("VITE_PUBLIC_POSTHOG_KEY"):
+        telemetry = user_data | {"$current_url": full_url}
+        posthog.identify(distinct_id=decoded["sub"], properties=telemetry)
+    
+    return user_data
