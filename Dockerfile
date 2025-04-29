@@ -41,5 +41,9 @@ ENV PYTHONUNBUFFERED=1
 # Document the port number the container will expose
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Copy startup script
+COPY scripts/startup.sh /app/
+RUN chmod +x /app/startup.sh
+
+# Run the startup script
+CMD ["/app/startup.sh"]
