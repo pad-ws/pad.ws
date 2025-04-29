@@ -147,7 +147,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
                 onClick={handleRestoreTutorialCanvas}
                 disabled={isRestoring}
               >
-                {isRestoring ? "Restoring..." : "Yes, Restore"}
+                {isRestoring ? "Restoring..." : "I'm sure"}
               </button>
               <button 
                 className="settings-dialog__button settings-dialog__button--cancel" 
