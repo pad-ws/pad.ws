@@ -148,9 +148,11 @@ const LockIndicator = ({ appState }: { appState?: AppState }) => {
   return (
     <div className={`custom-embed__lock-icon ${visible ? 'visible' : ''}`}>
       <Lock size={16} />
-      <span className={`custom-embed__lock-icon__text ${isHandToolActive ? 'visible' : ''}`}>
-        (Hand tool)
-      </span>
+      {isHandToolActive && (
+        <span className="custom-embed__lock-icon__text visible">
+          (Hand tool)
+        </span>
+      )}
     </div>
   );
 };
