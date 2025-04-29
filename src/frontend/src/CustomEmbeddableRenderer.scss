@@ -35,6 +35,15 @@
         &.visible {
             opacity: 1;
         }
+        
+        &__text {
+            margin-left: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: 'Roboto', sans-serif;
+            color: #afafaf;
+            opacity: 0.7;
+        }
     }
 
     &__content {
