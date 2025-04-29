@@ -4,12 +4,19 @@ import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 
 import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text, ArchiveRestore, Settings, Terminal } from 'lucide-react';
+import AccountDialog from './AccountDialog';
+import md5 from 'crypto-js/md5';
 import { capture } from '../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
 import { useUserProfile } from "../api/hooks";
 import { queryClient } from "../api/queryClient";
-import SettingsDialog from "./SettingsDialog";
 import "./MainMenu.scss";
+
+// Function to generate gravatar URL
+const getGravatarUrl = (email: string, size = 32) => {
+  const hash = md5(email.toLowerCase().trim()).toString();
+  return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon`;
+};
 interface MainMenuConfigProps {
   MainMenu: typeof MainMenuType;
   excalidrawAPI: ExcalidrawImperativeAPI | null;
@@ -22,20 +29,21 @@ interface MainMenuConfigProps {
 export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
   MainMenu,
   excalidrawAPI,
-  showBackupsModal,
   setShowBackupsModal,
-  showSettingsModal = false,
   setShowSettingsModal = (show: boolean) => {},
 }) => {
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const { data, isLoading, isError } = useUserProfile();
 
   let username = "";
+  let email = "";
   if (isLoading) {
     username = "Loading...";
   } else if (isError || !data?.username) {
     username = "Unknown";
   } else {
     username = data.username;
+    email = data.email || "";
   }
   const handleHtmlEditorClick = () => {
     if (!excalidrawAPI) return;
@@ -124,6 +132,10 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
   const handleSettingsClick = () => {
     setShowSettingsModal(true);
   };
+  
+  const handleAccountClick = () => {
+    setShowAccountModal(true);
+  };
 
   const handleGridToggle = () => {
     if (!excalidrawAPI) return;
@@ -155,13 +167,29 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
   };
 
   return (
-    <MainMenu>
-      <div className="main-menu__top-row">
-        <span className="main-menu__label">
-          <User width={20} height={20} />
-          <span className="main-menu__label-username">{username}</span>
-        </span>
-      </div>
+    <>
+      {showAccountModal && (
+        <AccountDialog 
+          excalidrawAPI={excalidrawAPI} 
+          onClose={() => setShowAccountModal(false)} 
+        />
+      )}
+      <MainMenu>
+        <div className="main-menu__top-row">
+          <span className="main-menu__label" style={{ gap: 0.2 }}>
+            {email && (
+              <img 
+                src={getGravatarUrl(email)} 
+                alt={username} 
+                className="main-menu__gravatar" 
+                width={20} 
+                height={20} 
+                style={{ borderRadius: '50%', marginRight: '8px' }}
+              />
+            )}
+            <span className="main-menu__label-username">{username}</span>
+          </span>
+        </div>
       <MainMenu.Separator />
 
       <MainMenu.Group title="Files">
@@ -239,6 +267,13 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
       <MainMenu.Separator />
       
       <MainMenu.Item
+          icon={<User />}
+          onClick={handleAccountClick}
+        >
+          Account
+        </MainMenu.Item>
+      
+      <MainMenu.Item
           icon={<Settings />}
           onClick={handleSettingsClick}
         >
@@ -274,5 +309,6 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
         </MainMenu.Item>
       
     </MainMenu>
+    </>
   );
 };
