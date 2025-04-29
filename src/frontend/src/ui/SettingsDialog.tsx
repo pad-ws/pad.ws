@@ -2,6 +2,9 @@ import React, { useState, useCallback, useEffect } from "react";
 import { Dialog } from "@atyrode/excalidraw";
 import { Range } from "./Range";
 import { UserSettings, DEFAULT_SETTINGS } from "../types/settings";
+import { RefreshCw } from "lucide-react";
+import { normalizeCanvasData } from "../utils/canvasUtils";
+import { capture } from "../utils/posthog";
 import "./SettingsDialog.scss";
 
 interface SettingsDialogProps {
@@ -15,6 +18,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
 }) => {
   const [modalIsShown, setModalIsShown] = useState(true);
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
+  const [showRestoreConfirmation, setShowRestoreConfirmation] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   // Get current settings from excalidrawAPI when component mounts
   useEffect(() => {
@@ -34,6 +39,43 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
       onClose();
     }
   }, [onClose]);
+
+  const handleRestoreTutorialCanvas = async () => {
+    if (!excalidrawAPI) return;
+    
+    try {
+      setIsRestoring(true);
+      capture('restore_tutorial_canvas_clicked');
+      
+      // Fetch the default canvas data from the backend
+      const response = await fetch('/api/canvas/default', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch default canvas: ${response.statusText}`);
+      }
+      
+      const defaultCanvasData = await response.json();
+      
+      // Normalize the canvas data before updating the scene
+      const normalizedData = normalizeCanvasData(defaultCanvasData);
+      
+      // Update the canvas with the normalized default data
+      excalidrawAPI.updateScene(normalizedData);
+      
+      console.log("Canvas reset to default successfully");
+      
+      // Close the dialog after successful restore
+      handleClose();
+    } catch (error) {
+      console.error("Failed to reset canvas:", error);
+    } finally {
+      setIsRestoring(false);
+      setShowRestoreConfirmation(false);
+    }
+  };
 
   /**
    * Updates a specific setting and syncs it with the excalidraw app state
@@ -91,6 +133,42 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
           />
           </div>
         </div>
+      </div>
+
+      <div className="settings-dialog__section">
+        <h3 className="settings-dialog__section-title">Canvas Management</h3>
+        {showRestoreConfirmation ? (
+          <div className="settings-dialog__confirmation">
+            <p>Are you sure you want to restore the tutorial canvas?</p>
+            <p className="settings-dialog__warning">This will replace your current canvas and cannot be undone!</p>
+            <div className="settings-dialog__actions">
+              <button 
+                className="settings-dialog__button settings-dialog__button--restore" 
+                onClick={handleRestoreTutorialCanvas}
+                disabled={isRestoring}
+              >
+                {isRestoring ? "Restoring..." : "Yes, Restore"}
+              </button>
+              <button 
+                className="settings-dialog__button settings-dialog__button--cancel" 
+                onClick={() => setShowRestoreConfirmation(false)}
+                disabled={isRestoring}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="settings-dialog__setting">
+            <button 
+              className="settings-dialog__restore-button"
+              onClick={() => setShowRestoreConfirmation(true)}
+            >
+              <RefreshCw size={16} />
+              <span>Restore Tutorial Canvas</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
