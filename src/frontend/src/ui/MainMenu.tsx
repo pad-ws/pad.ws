@@ -137,35 +137,6 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     setShowAccountModal(true);
   };
 
-  const handleGridToggle = () => {
-    if (!excalidrawAPI) return;
-    const appState = excalidrawAPI.getAppState();
-    appState.gridModeEnabled = !appState.gridModeEnabled;
-    appState.gridSize = 20;
-    appState.gridStep = 5;
-    excalidrawAPI.updateScene({
-      appState: appState
-    });
-  };
-
-  const handleZenModeToggle = () => {
-    if (!excalidrawAPI) return;
-    const appState = excalidrawAPI.getAppState();
-    appState.zenModeEnabled = !appState.zenModeEnabled;
-    excalidrawAPI.updateScene({
-      appState: appState
-    });
-  };
-
-  const handleViewModeToggle = () => {
-    if (!excalidrawAPI) return;
-    const appState = excalidrawAPI.getAppState();
-    appState.viewModeEnabled = !appState.viewModeEnabled;
-    excalidrawAPI.updateScene({
-      appState: appState
-    });
-  };
-
   const handleLogout = async () => {
     capture('logout_clicked');
     
@@ -301,30 +272,6 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
         >
           Action Button
         </MainMenu.Item>
-      </MainMenu.Group>
-
-      <MainMenu.Separator />
-      
-      <MainMenu.Group title="View">
-        <MainMenu.Item
-          icon={<Grid2x2 />}
-          onClick={handleGridToggle}
-        >
-         Toggle grid
-        </MainMenu.Item>
-        <MainMenu.Item
-          icon={<Eye />}
-          onClick={handleViewModeToggle}
-        >
-          View mode
-        </MainMenu.Item>
-        <MainMenu.Item
-          icon={<Coffee />}
-          onClick={handleZenModeToggle}
-        >
-          Zen mode
-        </MainMenu.Item>
-
       </MainMenu.Group>
       
       <MainMenu.Separator />
