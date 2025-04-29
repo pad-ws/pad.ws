@@ -21,7 +21,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     if (isAuthenticated === true && !coderAuthDone) {
       const iframe = document.createElement("iframe");
       iframe.style.display = "none";
-      const coderUrl = import.meta.env.VITE_CODER_URL;
+      const coderUrl = import.meta.env.CODER_URL;
       iframe.src = `${coderUrl}/api/v2/users/oidc/callback`;
       console.debug(`[pad.ws] (Silently) Priming Coder OIDC session for ${coderUrl}`);
 
