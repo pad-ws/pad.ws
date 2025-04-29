@@ -15,6 +15,10 @@
     "react": "19.0.0",
     "react-dom": "19.0.0"
   },
+  "resolutions": {
+    "cytoscape": "3.31.2",
+    "**/cytoscape": "3.31.2"
+  },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "typescript": "^5",
