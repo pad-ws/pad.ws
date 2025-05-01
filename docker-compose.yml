@@ -84,13 +84,15 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_HOST=localhost
       - POSTGRES_PORT=${POSTGRES_PORT}
-      - REDIS_HOST=localhost
-      - REDIS_PORT=6379
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - CODER_API_KEY=${CODER_API_KEY}
       - CODER_URL=http://localhost:${CODER_PORT}
       - CODER_TEMPLATE_ID=${CODER_TEMPLATE_ID}
       - CODER_DEFAULT_ORGANIZATION=${CODER_DEFAULT_ORGANIZATION}
+      - API_WORKERS=${API_WORKERS}
+      - FRONTEND_URL=${FRONTEND_URL}
     network_mode: host
 
 volumes:
