@@ -166,6 +166,69 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     });
   };
 
+  const handleLogout = async () => {
+    capture('logout_clicked');
+    
+    try {
+      // Call the logout endpoint and get the logout_url
+      const response = await fetch('/auth/logout', { 
+        method: 'GET',
+        credentials: 'include' 
+      });
+      const data = await response.json();
+      const keycloakLogoutUrl = data.logout_url;
+      
+      // Create a function to create an iframe and return a promise that resolves when it loads or times out
+      const createIframeLoader = (url: string, debugName: string): Promise<void> => {
+        return new Promise<void>((resolve) => {
+          const iframe = document.createElement("iframe");
+          iframe.style.display = "none";
+          iframe.src = url;
+          console.debug(`[pad.ws] (Silently) Priming ${debugName} logout for ${url}`);
+
+          const cleanup = () => {
+            if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+            resolve();
+          };
+
+          iframe.onload = cleanup;
+          // Fallback: remove iframe after 2s if onload doesn't fire
+          const timeoutId = window.setTimeout(cleanup, 2000);
+
+          // Also clean up if the iframe errors
+          iframe.onerror = () => {
+            clearTimeout(timeoutId);
+            cleanup();
+          };
+
+          // Add the iframe to the DOM
+          document.body.appendChild(iframe);
+        });
+      };
+
+      // Create a promise for Keycloak logout iframe
+      const promises = [];
+
+      // Add Keycloak logout iframe
+      promises.push(createIframeLoader(keycloakLogoutUrl, "Keycloak"));
+
+      // Wait for both iframes to complete
+      await Promise.all(promises);
+
+      // Wait for the iframe to complete
+      await Promise.all(promises);
+            
+      // Invalidate auth query to show the AuthModal
+      queryClient.invalidateQueries({ queryKey: ['auth'] });
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      
+      // No need to redirect to the logout URL since we're already handling it via iframe
+      console.log("Logged out successfully");
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
   return (
     <>
       {showAccountModal && (
@@ -282,33 +345,7 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
       
       <MainMenu.Item
           icon={<LogOut />}
-          onClick={async () => {
-            capture('logout_clicked');
-            
-            try {
-              // Call the logout endpoint and get the session_id
-              const response = await fetch('/auth/logout', { 
-                method: 'GET',
-                credentials: 'include' 
-              });
-              const data = await response.json();
-              const logoutUrl = data.logout_url;
-              
-              // Clear the session_id cookie client-side
-              document.cookie = "session_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-              
-              // Invalidate auth query to show the AuthModal
-              queryClient.invalidateQueries({ queryKey: ['auth'] });
-              queryClient.invalidateQueries({ queryKey: ['userProfile'] });
-              
-              // Redirect to the logout URL
-              window.location.replace(logoutUrl);
-
-              console.log("Logged out successfully");
-            } catch (error) {
-              console.error("Logout failed:", error);
-            }
-          }}
+          onClick={handleLogout}
         >
           Logout
         </MainMenu.Item>
