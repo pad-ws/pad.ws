@@ -21,7 +21,7 @@ services:
     volumes:
       - redis_data:/data
     restart: unless-stopped
-    command: redis-server --save 60 1 --loglevel warning
+    command: redis-server --requirepass ${REDIS_PASSWORD} --save 60 1 --loglevel warning
     network_mode: host
 
   keycloak:
@@ -86,6 +86,7 @@ services:
       - POSTGRES_PORT=${POSTGRES_PORT}
       - REDIS_HOST=localhost
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - CODER_API_KEY=${CODER_API_KEY}
       - CODER_URL=http://localhost:${CODER_PORT}
       - CODER_TEMPLATE_ID=${CODER_TEMPLATE_ID}
