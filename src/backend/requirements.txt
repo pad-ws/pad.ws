@@ -8,3 +8,4 @@ PyJWT
 requests
 sqlalchemy
 posthog
+redis

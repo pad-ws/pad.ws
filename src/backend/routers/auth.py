@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import RedirectResponse, FileResponse
 import os
 
-from config import get_auth_url, get_token_url, OIDC_CONFIG, sessions, STATIC_DIR
+from config import get_auth_url, get_token_url, OIDC_CONFIG, set_session, delete_session, STATIC_DIR
 from dependencies import SessionData, require_auth
 from coder import CoderAPI
 
@@ -48,8 +48,9 @@ async def callback(request: Request, code: str, state: str = "default"):
         if token_response.status_code != 200:
             raise HTTPException(status_code=400, detail="Auth failed")
         
-        sessions[session_id] = token_response.json()
-        access_token = token_response.json()['access_token']
+        token_data = token_response.json()
+        set_session(session_id, token_data)
+        access_token = token_data['access_token']
         user_info = jwt.decode(access_token, options={"verify_signature": False})
         
         try:
@@ -69,8 +70,8 @@ async def callback(request: Request, code: str, state: str = "default"):
 @auth_router.get("/logout")
 async def logout(request: Request):
     session_id = request.cookies.get('session_id')
-    if session_id in sessions:
-        del sessions[session_id]
+    if session_id:
+        delete_session(session_id)
     
     # Create a response that doesn't redirect but still clears the cookie
     from fastapi.responses import JSONResponse
