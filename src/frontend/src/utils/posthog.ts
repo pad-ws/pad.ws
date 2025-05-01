@@ -1,9 +1,12 @@
 import posthog from 'posthog-js';
 
+const posthogKey = window.RUNTIME_CONFIG?.VITE_PUBLIC_POSTHOG_KEY || import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
+const posthogHost = window.RUNTIME_CONFIG?.VITE_PUBLIC_POSTHOG_HOST || import.meta.env.VITE_PUBLIC_POSTHOG_HOST;
+
 // Initialize PostHog
-if (import.meta.env.VITE_PUBLIC_POSTHOG_KEY) {
-  posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_KEY, {
-    api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
+if (posthogKey) {
+  posthog.init(posthogKey, {
+    api_host: posthogHost,
   });
   console.debug('[pad.ws] PostHog initialized successfully');
 } else {

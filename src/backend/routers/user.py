@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request
 from dotenv import load_dotenv
 
 from dependencies import SessionData, require_auth
+from config import redis_client
 
 load_dotenv()
 
@@ -39,3 +40,19 @@ async def get_user_info(auth: SessionData = Depends(require_auth), request: Requ
         posthog.identify(distinct_id=decoded["sub"], properties=telemetry)
     
     return user_data
+
+@user_router.get("/count")
+async def get_user_count(auth: SessionData = Depends(require_auth)):
+    """
+    Get the count of active sessions in Redis
+    
+    Returns:
+        dict: A dictionary containing the count of active sessions
+    """
+    # Count keys that match the session pattern
+    session_count = len(redis_client.keys("session:*"))
+    
+    return {
+        "active_sessions": session_count,
+        "message": f"There are currently {session_count} active sessions in Redis"
+    }

@@ -50,7 +50,16 @@ This simplified example lets you host pad on `localhost` but is not safe for rea
     docker compose up -d postgres 
     ```
 
-### 3️⃣ Keycloak 🔑
+### 3️⃣ Redis 🔄
+> In-memory data store for caching and session management with password authentication
+
+*   Run the Redis container with password authentication
+    ```bash
+    docker compose up -d redis
+    ```
+*   The Redis password is configured in your `.env` file using the `REDIS_PASSWORD` variable
+
+### 4️⃣ Keycloak 🔑
 > OIDC provider for access and user management (within coder and pad app)
 *   Run the Keycloak container
     ```bash
@@ -78,7 +87,7 @@ This simplified example lets you host pad on `localhost` but is not safe for rea
     *   **Important:** Tick `Email verified`
     *   Go to the `Credentials` tab for the new user and set a password
 
-### 4️⃣ Coder 🧑‍💻
+### 5️⃣ Coder 🧑‍💻
 
 *   **Find Docker Group ID:** You'll need this to grant necessary permissions
     ```bash
@@ -119,7 +128,7 @@ This simplified example lets you host pad on `localhost` but is not safe for rea
         CODER_DEFAULT_ORGANIZATION=your_organization_id # Example: 70f6af06-ef3a-4b4c-a663-c03c9ee423bb
         ```
 
-### 5️⃣ Pad App 📝
+### 6️⃣ Pad App 📝
 > The fastAPI app that both serves the build frontend and the backend API to interface with Coder
 
 *   **Run the Application:**
@@ -139,8 +148,3 @@ This simplified example lets you host pad on `localhost` but is not safe for rea
 ## 🚀 Project Growth
 
 [![Star History Chart](https://api.star-history.com/svg?repos=pad-ws/pad.ws&type=Date)](https://star-history.com/#pad-ws/pad.ws&Date)
-
-
-
-
-
