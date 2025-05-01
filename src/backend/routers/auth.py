@@ -54,7 +54,8 @@ async def callback(request: Request, code: str, state: str = "default"):
             raise HTTPException(status_code=400, detail="Auth failed")
         
         token_data = token_response.json()
-        set_session(session_id, token_data)
+        expiry = token_data['expires_in']
+        set_session(session_id, token_data, expiry)
         access_token = token_data['access_token']
         user_info = jwt.decode(access_token, options={"verify_signature": False})
         
