@@ -133,7 +133,12 @@ This simplified example lets you host pad on `localhost` but is not safe for rea
 🎉 **Congratulations!**  You should now be able to access and login to your self-hosted pad at [localhost:8000](http://localhost:8000) 
 
 🚧 *Did you have any issue while following this guide?*
+
 *Please [let us know](https://github.com/pad-ws/pad.ws/issues) so we can improve the onboarding flow*
+
+## 🚀 Project Growth
+
+[![Star History Chart](https://api.star-history.com/svg?repos=pad-ws/pad.ws&type=Date)](https://star-history.com/#pad-ws/pad.ws&Date)
 
 
 
