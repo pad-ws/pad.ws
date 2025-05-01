@@ -1,25 +1,36 @@
-.feedback-button {
+.github-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 2.75rem;
   padding: 0 1rem;
   border-radius: 0.5rem;
   margin-left: 0.275rem;
-
   background: #232329;
   color: #fff;
   border: none;
   cursor: pointer;
   font-weight: 500;
   transition: background 0.15s ease-in-out, border 0.15s ease-in-out;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #c9c9c9;
+  font-family: "Roboto", sans-serif;
 
   &:hover,
   &:focus {
     background: #cc6d24;
     outline: none;
   }
+
+  .github-icon {
+    margin-right: 0.15rem;
+  }
 }
 
 @media (max-width: 730px) {
-  .feedback-button {
+  .github-button {
     display: none !important;
   }
 }

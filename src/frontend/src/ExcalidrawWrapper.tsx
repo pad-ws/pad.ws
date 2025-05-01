@@ -1,6 +1,6 @@
 import React, { Children, cloneElement, useState, useEffect } from 'react';
 import DiscordButton from './ui/DiscordButton';
-import FeedbackButton from './ui/FeedbackButton';
+import GitHubButton from './ui/GitHubButton';
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { NonDeletedExcalidrawElement } from '@atyrode/excalidraw/element/types';
 import type { AppState } from '@atyrode/excalidraw/types';
@@ -99,7 +99,7 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
         renderEmbeddable: (element, appState) => renderCustomEmbeddable(element, appState, excalidrawAPI),
         renderTopRightUI: renderTopRightUI ?? (() => (
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <FeedbackButton />
+            <GitHubButton />
             <DiscordButton />
           </div>
         )),
