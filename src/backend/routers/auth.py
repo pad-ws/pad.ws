@@ -14,13 +14,18 @@ coder_api = CoderAPI()
 
 @auth_router.get("/login")
 async def login(request: Request, kc_idp_hint: str = None, popup: str = None):
+    
     session_id = secrets.token_urlsafe(32)
+
     auth_url = get_auth_url()
     state = "popup" if popup == "1" else "default"
+
     if kc_idp_hint:
         auth_url = f"{auth_url}&kc_idp_hint={kc_idp_hint}"
+
     # Add state param to OIDC URL
     auth_url = f"{auth_url}&state={state}"
+
     response = RedirectResponse(auth_url)
     response.set_cookie('session_id', session_id)
 
