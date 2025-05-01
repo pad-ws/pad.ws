@@ -286,11 +286,13 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
             capture('logout_clicked');
             
             try {
-              // Call the logout endpoint but don't follow the redirect
-              await fetch('/auth/logout', { 
+              // Call the logout endpoint and get the session_id
+              const response = await fetch('/auth/logout', { 
                 method: 'GET',
                 credentials: 'include' 
               });
+              const data = await response.json();
+              const logoutUrl = data.logout_url;
               
               // Clear the session_id cookie client-side
               document.cookie = "session_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
@@ -299,6 +301,9 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
               queryClient.invalidateQueries({ queryKey: ['auth'] });
               queryClient.invalidateQueries({ queryKey: ['userProfile'] });
               
+              // Redirect to the logout URL
+              window.location.replace(logoutUrl);
+
               console.log("Logged out successfully");
             } catch (error) {
               console.error("Logout failed:", error);

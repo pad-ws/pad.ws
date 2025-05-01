@@ -17,7 +17,8 @@ OIDC_CONFIG = {
     'client_secret': os.getenv('OIDC_CLIENT_SECRET'),
     'server_url': os.getenv('OIDC_SERVER_URL'),
     'realm': os.getenv('OIDC_REALM'),
-    'redirect_uri': os.getenv('REDIRECT_URI')
+    'redirect_uri': os.getenv('REDIRECT_URI'),
+    'frontend_url': os.getenv('FRONTEND_URL')
 }
 
 # Redis connection
@@ -36,8 +37,8 @@ def get_session(session_id: str) -> Optional[Dict[str, Any]]:
         return json.loads(session_data)
     return None
 
-def set_session(session_id: str, data: Dict[str, Any], expiry: int = 86400) -> None:
-    """Store session data in Redis with expiry in seconds (default 24 hours)"""
+def set_session(session_id: str, data: Dict[str, Any], expiry: int) -> None:
+    """Store session data in Redis with expiry in seconds"""
     redis_client.setex(
         f"session:{session_id}", 
         expiry,
@@ -56,7 +57,8 @@ def get_auth_url() -> str:
     params = {
         'client_id': OIDC_CONFIG['client_id'],
         'response_type': 'code',
-        'redirect_uri': OIDC_CONFIG['redirect_uri']
+        'redirect_uri': OIDC_CONFIG['redirect_uri'],
+        'scope': 'openid profile email'
     }
     return f"{auth_url}?{'&'.join(f'{k}={v}' for k,v in params.items())}"
 
@@ -126,7 +128,8 @@ async def refresh_token(session_id: str, token_data: Dict[str, Any]) -> Tuple[bo
             new_token_data = refresh_response.json()
             
             # Update session with new tokens
-            set_session(session_id, new_token_data)
+            expiry = new_token_data['expires_in']
+            set_session(session_id, new_token_data, expiry)
             
             return True, new_token_data
     except Exception as e:
