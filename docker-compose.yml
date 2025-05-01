@@ -91,6 +91,7 @@ services:
       - CODER_URL=http://localhost:${CODER_PORT}
       - CODER_TEMPLATE_ID=${CODER_TEMPLATE_ID}
       - CODER_DEFAULT_ORGANIZATION=${CODER_DEFAULT_ORGANIZATION}
+      - API_WORKERS=${API_WORKERS}
     network_mode: host
 
 volumes:
