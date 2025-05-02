@@ -10,3 +10,4 @@ sqlalchemy
 posthog
 redis
 psycopg2-binary
+python-multipart
