@@ -3,13 +3,17 @@ Database connection and session management.
 """
 
 import os
+import asyncio
 from typing import AsyncGenerator
 from urllib.parse import quote_plus as urlquote
+from pathlib import Path
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.schema import CreateSchema
 from fastapi import Depends
+from alembic.config import Config
+from alembic import command
 
 from .models import Base, SCHEMA_NAME
 
@@ -35,8 +39,41 @@ async_session = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
 )
 
+async def run_migrations() -> None:
+    """Run database migrations using Alembic"""
+    # Get the path to the alembic.ini file
+    alembic_ini_path = Path(__file__).parent / "alembic.ini"
+    
+    # Create Alembic configuration
+    alembic_cfg = Config(str(alembic_ini_path))
+    
+    # Set the script_location to the correct path
+    # This ensures Alembic finds the migrations directory
+    alembic_cfg.set_main_option('script_location', str(Path(__file__).parent / "migrations"))
+    
+    # Define a function to run in a separate thread
+    def run_upgrade():
+        # Import the command module here to avoid import issues
+        from alembic import command
+        
+        # Set attributes that env.py might need
+        import sys
+        from pathlib import Path
+        
+        # Add the database directory to sys.path
+        db_dir = Path(__file__).parent
+        if str(db_dir) not in sys.path:
+            sys.path.insert(0, str(db_dir))
+        
+        # Run the upgrade command
+        command.upgrade(alembic_cfg, "head")
+    
+    # Run the migrations in a separate thread to avoid blocking the event loop
+    await asyncio.to_thread(run_upgrade)
+
 async def init_db() -> None:
     """Initialize the database with required tables"""
+    # Create schema and tables
     async with engine.begin() as conn:
         await conn.execute(CreateSchema(SCHEMA_NAME, if_not_exists=True))
         await conn.run_sync(Base.metadata.create_all)

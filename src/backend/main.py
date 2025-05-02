@@ -18,7 +18,7 @@ from routers.workspace_router import workspace_router
 from routers.pad_router import pad_router
 from routers.template_pad_router import template_pad_router
 from database.service import TemplatePadService
-from database.database import async_session
+from database.database import async_session, run_migrations
 
 # Initialize PostHog if API key is available
 if POSTHOG_API_KEY:
@@ -79,6 +79,13 @@ async def lifespan(_: FastAPI):
     # Initialize database
     await init_db()
     print("Database connection established successfully")
+    
+    # Run database migrations
+    try:
+        await run_migrations()
+        print("Database migrations completed successfully")
+    except Exception as e:
+        print(f"Warning: Failed to run migrations: {str(e)}")
     
     # Check Redis connection
     try:
