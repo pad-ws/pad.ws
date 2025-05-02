@@ -96,7 +96,7 @@ export const api = {
   // Canvas
   getCanvas: async (): Promise<CanvasData> => {
     try {
-      const result = await fetchApi('/api/canvas');
+      const result = await fetchApi('/api/pad/');
       return result;
     } catch (error) {
       throw error;
@@ -105,7 +105,7 @@ export const api = {
   
   saveCanvas: async (data: CanvasData): Promise<any> => {
     try {
-      const result = await fetchApi('/api/canvas', {
+      const result = await fetchApi('/api/pad/', {
         method: 'POST',
         body: JSON.stringify(data),
       });
@@ -117,7 +117,7 @@ export const api = {
   
   getDefaultCanvas: async (): Promise<CanvasData> => {
     try {
-      const result = await fetchApi('/api/canvas/default');
+      const result = await fetchApi('/api/pad/from-template/default');
       return result;
     } catch (error) {
       throw error;
@@ -127,7 +127,7 @@ export const api = {
   // Canvas Backups
   getCanvasBackups: async (limit: number = 10): Promise<CanvasBackupsResponse> => {
     try {
-      const result = await fetchApi(`/api/canvas/recent?limit=${limit}`);
+      const result = await fetchApi(`/api/pad/recent?limit=${limit}`);
       return result;
     } catch (error) {
       throw error;
