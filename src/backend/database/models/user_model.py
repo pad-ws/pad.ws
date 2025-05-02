@@ -1,5 +1,5 @@
 from typing import List, TYPE_CHECKING
-from sqlalchemy import Column, Index, String
+from sqlalchemy import Column, Index, String, UUID
 from sqlalchemy.orm import relationship, Mapped
 
 from .base_model import Base, BaseModel, SCHEMA_NAME
@@ -15,6 +15,9 @@ class UserModel(Base, BaseModel):
         Index("ix_users_email", "email"),
         {"schema": SCHEMA_NAME}
     )
+
+    # Override the default id column to use Keycloak's UUID
+    id = Column(UUID(as_uuid=True), primary_key=True)
 
     # User-specific fields
     username = Column(String(254), nullable=False, unique=True)
