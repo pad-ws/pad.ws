@@ -4,11 +4,10 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
-from dependencies import UserSession, require_auth
+from dependencies import UserSession, require_auth, get_coder_api
 from coder import CoderAPI
 
 workspace_router = APIRouter()
-coder_api = CoderAPI()
 
 class WorkspaceState(BaseModel):
     id: str
@@ -19,7 +18,10 @@ class WorkspaceState(BaseModel):
     agent: str
 
 @workspace_router.get("/state", response_model=WorkspaceState)
-async def get_workspace_state(user: UserSession = Depends(require_auth)):
+async def get_workspace_state(
+    user: UserSession = Depends(require_auth),
+    coder_api: CoderAPI = Depends(get_coder_api)
+):
     """
     Get the current state of the user's workspace
     """
@@ -52,12 +54,15 @@ async def get_workspace_state(user: UserSession = Depends(require_auth)):
 
 
 @workspace_router.post("/start")
-async def start_workspace(user: UserSession = Depends(require_auth)):
+async def start_workspace(
+    user: UserSession = Depends(require_auth),
+    coder_api: CoderAPI = Depends(get_coder_api)
+):
     """
     Start a workspace for the authenticated user
     """
     
-    workspace: WorkspaceState = await get_workspace_state(user)
+    workspace: WorkspaceState = await get_workspace_state(user, coder_api)
 
     try:
         response = coder_api.start_workspace(workspace.id)
@@ -67,12 +72,15 @@ async def start_workspace(user: UserSession = Depends(require_auth)):
 
 
 @workspace_router.post("/stop")
-async def stop_workspace(user: UserSession = Depends(require_auth)):
+async def stop_workspace(
+    user: UserSession = Depends(require_auth),
+    coder_api: CoderAPI = Depends(get_coder_api)
+):
     """
     Stop a workspace for the authenticated user
     """
     
-    workspace: WorkspaceState = await get_workspace_state(user)
+    workspace: WorkspaceState = await get_workspace_state(user, coder_api)
 
     try:
         response = coder_api.stop_workspace(workspace.id)

@@ -2,10 +2,11 @@ import jwt
 from typing import Optional, Dict, Any
 from uuid import UUID
 
-from fastapi import Request, HTTPException
+from fastapi import Request, HTTPException, Depends
 
 from config import get_session, is_token_expired, refresh_token
 from database.service import UserService
+from coder import CoderAPI
 
 class UserSession:
     """
@@ -130,3 +131,9 @@ class AuthDependency:
 require_auth = AuthDependency(auto_error=True)
 optional_auth = AuthDependency(auto_error=False)
 require_admin = AuthDependency(auto_error=True, require_admin=True)
+
+def get_coder_api():
+    """
+    Dependency that provides a CoderAPI instance.
+    """
+    return CoderAPI()

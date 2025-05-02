@@ -1,15 +1,15 @@
 import secrets
 import jwt
 import httpx
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import RedirectResponse, FileResponse, JSONResponse
 import os
 
 from config import get_auth_url, get_token_url, OIDC_CONFIG, set_session, delete_session, STATIC_DIR, get_session
+from dependencies import get_coder_api
 from coder import CoderAPI
 
 auth_router = APIRouter()
-coder_api = CoderAPI()
 
 @auth_router.get("/login")
 async def login(request: Request, kc_idp_hint: str = None, popup: str = None):
@@ -31,7 +31,12 @@ async def login(request: Request, kc_idp_hint: str = None, popup: str = None):
     return response
 
 @auth_router.get("/callback")
-async def callback(request: Request, code: str, state: str = "default"):
+async def callback(
+    request: Request, 
+    code: str, 
+    state: str = "default",
+    coder_api: CoderAPI = Depends(get_coder_api)
+):
     session_id = request.cookies.get('session_id')
     if not session_id:
         raise HTTPException(status_code=400, detail="No session")
