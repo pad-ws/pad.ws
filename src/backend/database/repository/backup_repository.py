@@ -8,9 +8,9 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import delete, func
+from sqlalchemy import delete, func, join
 
-from ..models import BackupModel
+from ..models import BackupModel, PadModel
 
 class BackupRepository:
     """Repository for backup-related database operations"""
@@ -89,3 +89,28 @@ class BackupRepository:
         stmt = select(func.count()).select_from(BackupModel).where(BackupModel.source_id == source_id)
         result = await self.session.execute(stmt)
         return result.scalar()
+        
+    async def get_backups_by_user(self, user_id: UUID, limit: int = 10) -> List[BackupModel]:
+        """
+        Get backups for a user's first pad directly using a join operation.
+        This eliminates the N+1 query problem by fetching the pad and its backups in a single query.
+        
+        Args:
+            user_id: The user ID to get backups for
+            limit: Maximum number of backups to return
+            
+        Returns:
+            List of backup models
+        """
+        # Create a join between PadModel and BackupModel
+        stmt = select(BackupModel).join(
+            PadModel, 
+            BackupModel.source_id == PadModel.id
+        ).where(
+            PadModel.owner_id == user_id
+        ).order_by(
+            BackupModel.created_at.desc()
+        ).limit(limit)
+        
+        result = await self.session.execute(stmt)
+        return result.scalars().all()

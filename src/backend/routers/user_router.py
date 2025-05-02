@@ -4,7 +4,7 @@ from uuid import UUID
 import posthog
 from fastapi import APIRouter, Depends, HTTPException
 
-from config import redis_client, FRONTEND_URL
+from config import get_redis_client, FRONTEND_URL
 from database import get_user_service
 from database.service import UserService
 from dependencies import UserSession, require_admin, require_auth
@@ -92,7 +92,8 @@ async def get_user_count(
     _: bool = Depends(require_admin),
 ):
     """Get the number of active sessions (admin only)"""
-    session_count = len(redis_client.keys("session:*"))
+    client = get_redis_client()
+    session_count = len(client.keys("session:*"))
     return {"active_sessions": session_count }
 
 

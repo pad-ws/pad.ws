@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from database import init_db
-from config import STATIC_DIR, ASSETS_DIR, POSTHOG_API_KEY, POSTHOG_HOST
+from config import STATIC_DIR, ASSETS_DIR, POSTHOG_API_KEY, POSTHOG_HOST, redis_client, redis_pool
 from dependencies import UserSession, optional_auth
 from routers.auth_router import auth_router
 from routers.user_router import user_router
@@ -76,14 +76,29 @@ async def load_templates():
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # Initialize database
     await init_db()
     print("Database connection established successfully")
+    
+    # Check Redis connection
+    try:
+        redis_client.ping()
+        print("Redis connection established successfully")
+    except Exception as e:
+        print(f"Warning: Redis connection failed: {str(e)}")
     
     # Load all templates from the templates directory
     await load_templates()
     print("Templates loaded successfully")
     
     yield
+    
+    # Clean up connections when shutting down
+    try:
+        redis_pool.disconnect()
+        print("Redis connections closed")
+    except Exception as e:
+        print(f"Error closing Redis connections: {str(e)}")
 
 app = FastAPI(lifespan=lifespan)
 

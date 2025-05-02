@@ -3,6 +3,7 @@ import json
 import time
 import httpx
 import redis
+from redis import ConnectionPool, Redis
 import jwt
 from jwt.jwks_client import PyJWKClient
 from typing import Optional, Dict, Any, Tuple
@@ -15,6 +16,11 @@ load_dotenv()
 STATIC_DIR = os.getenv("STATIC_DIR")
 ASSETS_DIR = os.getenv("ASSETS_DIR")
 FRONTEND_URL = os.getenv('FRONTEND_URL')
+
+MAX_BACKUPS_PER_USER = 10  # Maximum number of backups to keep per user
+MIN_INTERVAL_MINUTES = 5  # Minimum interval in minutes between backups
+DEFAULT_PAD_NAME = "Untitled"  # Default name for new pads
+DEFAULT_TEMPLATE_NAME = "default" # Template name to use when a user doesn't have a pad
 
 # ===== PostHog Configuration =====
 POSTHOG_API_KEY = os.getenv("VITE_PUBLIC_POSTHOG_KEY")
@@ -32,14 +38,25 @@ REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 
-# Redis connection
-redis_client = redis.Redis(
+# Create a Redis connection pool
+redis_pool = ConnectionPool(
     host=REDIS_HOST,
     password=REDIS_PASSWORD,
     port=REDIS_PORT,
     db=0,
-    decode_responses=True
+    decode_responses=True,
+    max_connections=10,  # Adjust based on your application's needs
+    socket_timeout=5.0,
+    socket_connect_timeout=1.0,
+    health_check_interval=30
 )
+
+# Create a Redis client that uses the connection pool
+redis_client = Redis(connection_pool=redis_pool)
+
+def get_redis_client():
+    """Get a Redis client from the connection pool"""
+    return Redis(connection_pool=redis_pool)
 
 # ===== Coder API Configuration =====
 CODER_API_KEY = os.getenv("CODER_API_KEY")
@@ -54,14 +71,16 @@ _jwks_client = None
 # Session management functions
 def get_session(session_id: str) -> Optional[Dict[str, Any]]:
     """Get session data from Redis"""
-    session_data = redis_client.get(f"session:{session_id}")
+    client = get_redis_client()
+    session_data = client.get(f"session:{session_id}")
     if session_data:
         return json.loads(session_data)
     return None
 
 def set_session(session_id: str, data: Dict[str, Any], expiry: int) -> None:
     """Store session data in Redis with expiry in seconds"""
-    redis_client.setex(
+    client = get_redis_client()
+    client.setex(
         f"session:{session_id}", 
         expiry,
         json.dumps(data)
@@ -69,7 +88,8 @@ def set_session(session_id: str, data: Dict[str, Any], expiry: int) -> None:
 
 def delete_session(session_id: str) -> None:
     """Delete session data from Redis"""
-    redis_client.delete(f"session:{session_id}")
+    client = get_redis_client()
+    client.delete(f"session:{session_id}")
 
 def get_auth_url() -> str:
     """Generate the authentication URL for Keycloak login"""

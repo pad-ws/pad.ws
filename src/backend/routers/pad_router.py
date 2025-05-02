@@ -6,12 +6,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from dependencies import UserSession, require_auth
 from database import get_pad_service, get_backup_service, get_template_pad_service
 from database.service import PadService, BackupService, TemplatePadService
-
-# Constants
-MAX_BACKUPS_PER_USER = 10  # Maximum number of backups to keep per user
-DEFAULT_PAD_NAME = "Untitled"  # Default name for new pads
-DEFAULT_TEMPLATE_NAME = "default" # Template name to use when a user doesn't have a pad
-
+from config import MAX_BACKUPS_PER_USER, MIN_INTERVAL_MINUTES, DEFAULT_PAD_NAME, DEFAULT_TEMPLATE_NAME
 pad_router = APIRouter()
 
 
@@ -39,11 +34,13 @@ async def save_canvas(
             pad = user_pads[0]  # Use the first pad (assuming one pad per user for now)
             await pad_service.update_pad_data(pad["id"], data)
             
-        # Create a backup
-        await backup_service.create_backup(pad["id"], data)
-        
-        # Manage backups (keep only the most recent ones)
-        await backup_service.manage_backups(pad["id"], MAX_BACKUPS_PER_USER)
+        # Create a backup only if needed (if none exist or latest is > 5 min old)
+        await backup_service.create_backup_if_needed(
+            source_id=pad["id"], 
+            data=data,
+            min_interval_minutes=MIN_INTERVAL_MINUTES,
+            max_backups=MAX_BACKUPS_PER_USER
+        )
         
         return {"status": "success"}
     except Exception as e:
@@ -54,7 +51,8 @@ async def save_canvas(
 async def get_canvas(
     user: UserSession = Depends(require_auth),
     pad_service: PadService = Depends(get_pad_service),
-    template_pad_service: TemplatePadService = Depends(get_template_pad_service)
+    template_pad_service: TemplatePadService = Depends(get_template_pad_service),
+    backup_service: BackupService = Depends(get_backup_service)
 ):
     """Get canvas data for the authenticated user"""
     try:
@@ -63,7 +61,14 @@ async def get_canvas(
         
         if not user_pads:
             # Return default canvas if user doesn't have a pad
-            return await create_pad_from_template(DEFAULT_TEMPLATE_NAME, DEFAULT_PAD_NAME, user, pad_service, template_pad_service)
+            return await create_pad_from_template(
+                name=DEFAULT_TEMPLATE_NAME, 
+                display_name=DEFAULT_PAD_NAME, 
+                user=user, 
+                pad_service=pad_service, 
+                template_pad_service=template_pad_service,
+                backup_service=backup_service
+            )
         
         # Return the first pad's data (assuming one pad per user for now)
         return user_pads[0]["data"]
@@ -77,7 +82,8 @@ async def create_pad_from_template(
     display_name: str = DEFAULT_PAD_NAME,
     user: UserSession = Depends(require_auth),
     pad_service: PadService = Depends(get_pad_service),
-    template_pad_service: TemplatePadService = Depends(get_template_pad_service)
+    template_pad_service: TemplatePadService = Depends(get_template_pad_service),
+    backup_service: BackupService = Depends(get_backup_service)
 ):
     """Create a new pad from a template"""
 
@@ -94,6 +100,14 @@ async def create_pad_from_template(
             data=template["data"]
         )
         
+        # Create an initial backup for the new pad
+        await backup_service.create_backup_if_needed(
+            source_id=pad["id"],
+            data=template["data"],
+            min_interval_minutes=0,  # Always create initial backup
+            max_backups=MAX_BACKUPS_PER_USER
+        )
+        
         return pad
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -105,7 +119,6 @@ async def create_pad_from_template(
 async def get_recent_canvas_backups(
     limit: int = MAX_BACKUPS_PER_USER, 
     user: UserSession = Depends(require_auth),
-    pad_service: PadService = Depends(get_pad_service),
     backup_service: BackupService = Depends(get_backup_service)
 ):
     """Get the most recent canvas backups for the authenticated user"""
@@ -114,18 +127,12 @@ async def get_recent_canvas_backups(
         limit = MAX_BACKUPS_PER_USER
     
     try:
-        # Get user's pads
-        user_pads = await pad_service.get_pads_by_owner(user.id)
-        
-        # Get the first pad's ID (assuming one pad per user for now)
-        pad_id = UUID(user_pads[0]["id"])
-        
-        # Get backups for the pad
-        backups_data = await backup_service.get_backups_by_source(pad_id)
+        # Get backups directly with a single query
+        backups_data = await backup_service.get_backups_by_user(user.id, limit)
         
         # Format backups to match the expected response format
         backups = []
-        for backup in backups_data[:limit]:
+        for backup in backups_data:
             backups.append({
                 "id": backup["id"],
                 "timestamp": backup["created_at"],
