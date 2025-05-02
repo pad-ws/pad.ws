@@ -4,7 +4,7 @@ Database models for the application.
 This module provides access to all database models used in the application.
 """
 
-from .base_model import Base, BaseModel
+from .base_model import Base, BaseModel, SCHEMA_NAME
 from .user_model import UserModel
 from .pad_model import PadModel
 from .backup_model import BackupModel
@@ -15,4 +15,5 @@ __all__ = [
     'UserModel',
     'PadModel',
     'BackupModel',
+    'SCHEMA_NAME',
 ]

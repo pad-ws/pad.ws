@@ -8,9 +8,10 @@ from urllib.parse import quote_plus as urlquote
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.schema import CreateSchema
 from fastapi import Depends
 
-from .models import Base
+from .models import Base, SCHEMA_NAME
 
 # PostgreSQL connection configuration
 DB_USER = os.getenv('POSTGRES_USER', 'postgres')
@@ -33,10 +34,7 @@ async_session = sessionmaker(
 async def init_db() -> None:
     """Initialize the database with required tables"""
     async with engine.begin() as conn:
-        # Create schema if it doesn't exist
-        await conn.execute(f"CREATE SCHEMA IF NOT EXISTS padws")
-        
-        # Create tables
+        await conn.execute(CreateSchema(SCHEMA_NAME, if_not_exists=True))
         await conn.run_sync(Base.metadata.create_all)
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

@@ -1,14 +1,17 @@
 from uuid import uuid4
 from typing import Any, Dict
 
-from sqlalchemy import Column, DateTime, UUID, func
+from sqlalchemy import Column, DateTime, UUID, func, MetaData
 from sqlalchemy.orm import DeclarativeMeta, declarative_base
 
-# Create a single shared Base for all models
-Base: DeclarativeMeta = declarative_base()
-
 # Define schema name in a central location
-SCHEMA_NAME = "padws"
+SCHEMA_NAME = "pad_ws"
+
+# Create metadata with schema
+metadata = MetaData(schema=SCHEMA_NAME)
+
+# Create a single shared Base for all models with the schema-aware metadata
+Base: DeclarativeMeta = declarative_base(metadata=metadata)
 
 class BaseModel:
     """Base model with common fields for all models"""
