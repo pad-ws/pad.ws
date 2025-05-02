@@ -7,28 +7,45 @@ import jwt
 from typing import Optional, Dict, Any, Tuple
 from dotenv import load_dotenv
 
+# Load environment variables once
 load_dotenv()
 
+# ===== Application Configuration =====
 STATIC_DIR = os.getenv("STATIC_DIR")
 ASSETS_DIR = os.getenv("ASSETS_DIR")
+FRONTEND_URL = os.getenv('FRONTEND_URL')
 
-OIDC_CONFIG = {
-    'client_id': os.getenv('OIDC_CLIENT_ID'),
-    'client_secret': os.getenv('OIDC_CLIENT_SECRET'),
-    'server_url': os.getenv('OIDC_SERVER_URL'),
-    'realm': os.getenv('OIDC_REALM'),
-    'redirect_uri': os.getenv('REDIRECT_URI'),
-    'frontend_url': os.getenv('FRONTEND_URL')
-}
+# ===== PostHog Configuration =====
+POSTHOG_API_KEY = os.getenv("VITE_PUBLIC_POSTHOG_KEY")
+POSTHOG_HOST = os.getenv("VITE_PUBLIC_POSTHOG_HOST")
+
+# ===== OIDC Configuration =====
+OIDC_CLIENT_ID = os.getenv('OIDC_CLIENT_ID')
+OIDC_CLIENT_SECRET = os.getenv('OIDC_CLIENT_SECRET')
+OIDC_SERVER_URL = os.getenv('OIDC_SERVER_URL')
+OIDC_REALM = os.getenv('OIDC_REALM')
+OIDC_REDIRECT_URI = os.getenv('REDIRECT_URI')
+
+# ===== Redis Configuration =====
+REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
+REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 
 # Redis connection
 redis_client = redis.Redis(
-    host=os.getenv('REDIS_HOST', 'localhost'),
-    password=os.getenv('REDIS_PASSWORD', None),
-    port=int(os.getenv('REDIS_PORT', 6379)),
+    host=REDIS_HOST,
+    password=REDIS_PASSWORD,
+    port=REDIS_PORT,
     db=0,
     decode_responses=True
 )
+
+# ===== Coder API Configuration =====
+CODER_API_KEY = os.getenv("CODER_API_KEY")
+CODER_URL = os.getenv("CODER_URL")
+CODER_TEMPLATE_ID = os.getenv("CODER_TEMPLATE_ID")
+CODER_DEFAULT_ORGANIZATION = os.getenv("CODER_DEFAULT_ORGANIZATION")
+CODER_WORKSPACE_NAME = os.getenv("CODER_WORKSPACE_NAME", "ubuntu")
 
 # Session management functions
 def get_session(session_id: str) -> Optional[Dict[str, Any]]:

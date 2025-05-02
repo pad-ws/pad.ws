@@ -4,7 +4,7 @@ from uuid import UUID
 import posthog
 from fastapi import APIRouter, Depends, HTTPException
 
-from config import redis_client, OIDC_CONFIG
+from config import redis_client, FRONTEND_URL
 from database import get_user_service
 from database.service import UserService
 from dependencies import UserSession, require_admin, require_auth
@@ -81,7 +81,7 @@ async def get_user_info(
         
     if os.getenv("VITE_PUBLIC_POSTHOG_KEY"):
         telemetry = user_data.copy()
-        telemetry["$current_url"] = OIDC_CONFIG["frontend_url"]
+        telemetry["$current_url"] = FRONTEND_URL
         posthog.identify(distinct_id=user_data["id"], properties=telemetry)
         
     return user

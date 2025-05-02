@@ -8,10 +8,9 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from dotenv import load_dotenv
 
 from database import init_db
-from config import STATIC_DIR, ASSETS_DIR
+from config import STATIC_DIR, ASSETS_DIR, POSTHOG_API_KEY, POSTHOG_HOST
 from dependencies import UserSession, optional_auth
 from routers.auth_router import auth_router
 from routers.user_router import user_router
@@ -21,11 +20,7 @@ from routers.template_pad_router import template_pad_router
 from database.service import TemplatePadService
 from database.database import async_session
 
-load_dotenv()
-
-POSTHOG_API_KEY = os.environ.get("VITE_PUBLIC_POSTHOG_KEY")
-POSTHOG_HOST = os.environ.get("VITE_PUBLIC_POSTHOG_HOST")
-
+# Initialize PostHog if API key is available
 if POSTHOG_API_KEY:
     posthog.project_api_key = POSTHOG_API_KEY
     posthog.host = POSTHOG_HOST
