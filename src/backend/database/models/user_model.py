@@ -1,23 +1,30 @@
-from uuid import uuid4
+from typing import List
+from sqlalchemy import Column, Index, VARCHAR
+from sqlalchemy.orm import relationship, Mapped
 
-from sqlalchemy import Column, String, DateTime, func, UUID
-from sqlalchemy.orm import DeclarativeMeta, relationship
-from sqlalchemy.ext.declarative import declarative_base
+from .base_model import Base, BaseModel
+from .pad_model import PadModel
 
-Base: DeclarativeMeta = declarative_base()
-
-class UserModel(Base):
+class UserModel(Base, BaseModel):
     """Model for users table in app schema"""
     __tablename__ = "users"
-    __table_args__ = {"schema": "padws"}
+    __table_args__ = (
+        BaseModel.get_schema(),
+        Index("ix_users_username", "username"),
+        Index("ix_users_email", "email")
+    )
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    username = Column(String, nullable=False, unique=True)
-    email = Column(String, nullable=False)
+    # User-specific fields
+    username = Column(VARCHAR(254), nullable=False, unique=True)
+    email = Column(VARCHAR(254), nullable=False)
     
-    pads = relationship("PadModel", back_populates="owner", cascade="all, delete-orphan")
+    # Relationships
+    pads: Mapped[List["PadModel"]] = relationship(
+        "PadModel", 
+        back_populates="owner", 
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<UserModel(id='{self.id}', username='{self.username}', email='{self.email}')>"

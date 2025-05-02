@@ -1,24 +1,42 @@
-from uuid import uuid4
+from typing import Dict, Any, Optional
+from uuid import UUID as UUIDType
 
-from sqlalchemy import Column, String, DateTime, func, UUID, ForeignKey
+from sqlalchemy import Column, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import DeclarativeMeta, relationship
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, Mapped
 
-Base: DeclarativeMeta = declarative_base()
+from backend.database.models.pad_model import PadModel
 
-class BackupModel(Base):
+from .base_model import Base, BaseModel
+
+class BackupModel(Base, BaseModel):
     """Model for backups table in app schema"""
     __tablename__ = "backups"
-    __table_args__ = {"schema": "padws"}
+    __table_args__ = (
+        BaseModel.get_schema(),
+        Index("ix_backups_source_id", "source_id"),
+        Index("ix_backups_created_at", "created_at")
+    )
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    source_id = Column(UUID(as_uuid=True), ForeignKey("padws.pads.id"), nullable=False)
+    # Backup-specific fields
+    source_id = Column(
+        UUIDType(as_uuid=True), 
+        ForeignKey(f"{BaseModel.get_schema()['schema']}.pads.id", ondelete="CASCADE"), 
+        nullable=False
+    )
     data = Column(JSONB, nullable=False)
     
-    pad = relationship("PadModel", back_populates="backups")
+    # Relationships
+    pad: Mapped["PadModel"] = relationship("PadModel", back_populates="backups")
 
-    def __repr__(self):
-        return f"<BackupModel(id='{self.id}')>"
+    def __repr__(self) -> str:
+        return f"<BackupModel(id='{self.id}', created_at='{self.created_at}')>"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert model instance to dictionary with additional fields"""
+        result = super().to_dict()
+        # Convert data to dict if it's not already
+        if isinstance(result["data"], str):
+            import json
+            result["data"] = json.loads(result["data"])
+        return result
