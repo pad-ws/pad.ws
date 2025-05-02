@@ -1,6 +1,9 @@
 {
     "files": {},
     "appState": {
+        "pad": {
+            "displayName": "Welcome!"
+        },
         "name": "Pad.ws",
         "zoom": {
             "value": 1
