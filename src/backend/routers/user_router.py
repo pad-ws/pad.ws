@@ -57,34 +57,34 @@ async def get_user_info(
     user: UserSession = Depends(require_auth),
     user_service: UserService = Depends(get_user_service),
 ):
-    """Get the current user's information"""
-
-    user_data = await user.get_user_data(user_service)
-
-    if not user_data:
-        try:
-            user = await user_service.create_user(
-                user_id=user.id,
-                username=user.username,
-                email=user.email,
-                email_verified=user.email_verified,
-                name=user.name,
-                given_name=user.given_name,
-                family_name=user.family_name,
-                roles=user.roles,
-            )
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error creating user: {e}"
-            )
-        
+    """Get the current user's information and sync with token data"""
+    
+    # Create token data dictionary from UserSession properties
+    token_data = {
+        "username": user.username,
+        "email": user.email,
+        "email_verified": user.email_verified,
+        "name": user.name,
+        "given_name": user.given_name,
+        "family_name": user.family_name,
+        "roles": user.roles
+    }
+    
+    try:
+        # Sync user with token data
+        user_data = await user_service.sync_user_with_token_data(user.id, token_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error syncing user data: {e}"
+        )
+    
     if os.getenv("VITE_PUBLIC_POSTHOG_KEY"):
         telemetry = user_data.copy()
         telemetry["$current_url"] = FRONTEND_URL
         posthog.identify(distinct_id=user_data["id"], properties=telemetry)
-        
-    return user
+    
+    return user_data
 
 
 @user_router.get("/count")

@@ -97,3 +97,61 @@ class UserService:
     async def delete_user(self, user_id: UUID) -> bool:
         """Delete a user"""
         return await self.repository.delete(user_id)
+    
+    async def sync_user_with_token_data(self, user_id: UUID, token_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Synchronize user data in the database with data from the authentication token.
+        If the user doesn't exist, it will be created. If it exists but has different data,
+        it will be updated to match the token data.
+        
+        Args:
+            user_id: The user's UUID
+            token_data: Dictionary containing user data from the authentication token
+            
+        Returns:
+            The user data dictionary or None if operation failed
+        """
+        # Check if user exists
+        user_data = await self.get_user(user_id)
+        
+        # If user doesn't exist, create a new one
+        if not user_data:
+            try:
+                return await self.create_user(
+                    user_id=user_id,
+                    username=token_data.get("username", ""),
+                    email=token_data.get("email", ""),
+                    email_verified=token_data.get("email_verified", False),
+                    name=token_data.get("name"),
+                    given_name=token_data.get("given_name"),
+                    family_name=token_data.get("family_name"),
+                    roles=token_data.get("roles", [])
+                )
+            except ValueError as e:
+                # Handle case where user might have been created in a race condition
+                if "already exists" in str(e):
+                    user_data = await self.get_user(user_id)
+                else:
+                    raise e
+        
+        # Check if user data needs to be updated
+        update_data = {}
+        fields_to_check = [
+            "username", "email", "email_verified", 
+            "name", "given_name", "family_name"
+        ]
+        
+        for field in fields_to_check:
+            token_value = token_data.get(field)
+            if token_value is not None and user_data.get(field) != token_value:
+                update_data[field] = token_value
+        
+        # Handle roles separately as they might have a different structure
+        if "roles" in token_data and user_data.get("roles") != token_data["roles"]:
+            update_data["roles"] = token_data["roles"]
+        
+        # Update user if any field has changed
+        if update_data:
+            return await self.update_user(user_id, update_data)
+        
+        return user_data
