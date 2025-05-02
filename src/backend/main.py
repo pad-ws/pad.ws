@@ -16,7 +16,7 @@ from config import STATIC_DIR, ASSETS_DIR
 from dependencies import UserSession, optional_auth
 from routers.auth import auth_router
 from routers.user_router import user_router
-from routers.workspace import workspace_router
+from routers.workspace_router import workspace_router
 from routers.pad_router import pad_router
 from routers.template_pad_router import template_pad_router
 from database.service import TemplatePadService

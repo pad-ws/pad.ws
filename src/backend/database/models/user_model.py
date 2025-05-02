@@ -22,7 +22,7 @@ class UserModel(Base, BaseModel):
 
     # User-specific fields
     username = Column(String(254), nullable=False, unique=True)
-    email = Column(String(254), nullable=False)
+    email = Column(String(254), nullable=False, unique=True)
     email_verified = Column(Boolean, nullable=False, default=False)
     name = Column(String(254), nullable=True)
     given_name = Column(String(254), nullable=True)
