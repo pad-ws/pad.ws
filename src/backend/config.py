@@ -71,18 +71,18 @@ provisioning_times = {}
 
 def get_auth_url() -> str:
     """Generate the authentication URL for Keycloak login"""
-    auth_url = f"{OIDC_CONFIG['server_url']}/realms/{OIDC_CONFIG['realm']}/protocol/openid-connect/auth"
+    auth_url = f"{OIDC_SERVER_URL}/realms/{OIDC_REALM}/protocol/openid-connect/auth"
     params = {
-        'client_id': OIDC_CONFIG['client_id'],
+        'client_id': OIDC_CLIENT_ID,
         'response_type': 'code',
-        'redirect_uri': OIDC_CONFIG['redirect_uri'],
+        'redirect_uri': OIDC_REDIRECT_URI,
         'scope': 'openid profile email'
     }
     return f"{auth_url}?{'&'.join(f'{k}={v}' for k,v in params.items())}"
 
 def get_token_url() -> str:
     """Get the token endpoint URL"""
-    return f"{OIDC_CONFIG['server_url']}/realms/{OIDC_CONFIG['realm']}/protocol/openid-connect/token"
+    return f"{OIDC_SERVER_URL}/realms/{OIDC_REALM}/protocol/openid-connect/token"
 
 def is_token_expired(token_data: Dict[str, Any], buffer_seconds: int = 30) -> bool:
     """
@@ -132,8 +132,8 @@ async def refresh_token(session_id: str, token_data: Dict[str, Any]) -> Tuple[bo
                 get_token_url(),
                 data={
                     'grant_type': 'refresh_token',
-                    'client_id': OIDC_CONFIG['client_id'],
-                    'client_secret': OIDC_CONFIG['client_secret'],
+                    'client_id': OIDC_CLIENT_ID,
+                    'client_secret': OIDC_CLIENT_SECRET,
                     'refresh_token': token_data['refresh_token']
                 }
             )
