@@ -1,13 +1,13 @@
 import os
 from uuid import UUID
-
+from typing import Dict, Any
 import posthog
 from fastapi import APIRouter, Depends, HTTPException
 
 from config import redis_client, OIDC_CONFIG
 from database import get_user_service
 from database.service import UserService
-from dependencies import get_current_user, require_admin
+from dependencies import UserSession, require_admin, require_auth
 
 user_router = APIRouter()
 
@@ -54,13 +54,35 @@ async def get_all_users(
 
 @user_router.get("/me")
 async def get_user_info(
-    user: dict = Depends(get_current_user),
+    user: UserSession = Depends(require_auth),
+    user_service: UserService = Depends(get_user_service),
 ):
     """Get the current user's information"""
+
+    user_data = await user.get_user_data(user_service)
+
+    if not user_data:
+        try:
+            user = await user_service.create_user(
+                user_id=user.id,
+                username=user.username,
+                email=user.email,
+                email_verified=user.email_verified,
+                name=user.name,
+                given_name=user.given_name,
+                family_name=user.family_name,
+                roles=user.roles,
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error creating user: {e}"
+            )
+        
     if os.getenv("VITE_PUBLIC_POSTHOG_KEY"):
-        telemetry = user.copy()
+        telemetry = user_data.copy()
         telemetry["$current_url"] = OIDC_CONFIG["frontend_url"]
-        posthog.identify(distinct_id=user["id"], properties=telemetry)
+        posthog.identify(distinct_id=user_data["id"], properties=telemetry)
         
     return user
 

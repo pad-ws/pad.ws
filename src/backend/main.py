@@ -13,11 +13,9 @@ from dotenv import load_dotenv
 from db import init_db
 from database import init_db as init_database
 from config import STATIC_DIR, ASSETS_DIR
-from dependencies import SessionData, optional_auth
+from dependencies import UserSession, optional_auth
 from routers.auth import auth_router
-from routers.canvas import canvas_router
-from routers.user import user_router
-from routers.user_router import user_router as user_router_v2
+from routers.user_router import user_router
 from routers.workspace import workspace_router
 from routers.pad_router import pad_router
 from routers.template_pad_router import template_pad_router
@@ -109,14 +107,12 @@ app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
-async def read_root(request: Request, auth: Optional[SessionData] = Depends(optional_auth)):
+async def read_root(request: Request, auth: Optional[UserSession] = Depends(optional_auth)):
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 # Include routers in the main app with the /api prefix
 app.include_router(auth_router, prefix="/auth")
-app.include_router(canvas_router, prefix="/api/canvas")
-app.include_router(user_router, prefix="/api/user")
-app.include_router(user_router_v2, prefix="/api/users")
+app.include_router(user_router, prefix="/api/users")
 app.include_router(workspace_router, prefix="/api/workspace")
 app.include_router(pad_router, prefix="/api/pad")
 app.include_router(template_pad_router, prefix="/api/templates")

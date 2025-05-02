@@ -2,7 +2,7 @@ from typing import Dict, Any
 
 from fastapi import APIRouter, HTTPException, Depends
 
-from dependencies import SessionData, require_auth, require_admin
+from dependencies import UserSession, require_auth, require_admin
 from database import get_template_pad_service
 from database.service import TemplatePadService
 
@@ -45,7 +45,7 @@ async def get_all_template_pads(
 @template_pad_router.get("/{name}")
 async def get_template_pad(
     name: str,
-    _: SessionData = Depends(require_auth),
+    _: UserSession = Depends(require_auth),
     template_pad_service: TemplatePadService = Depends(get_template_pad_service)
 ):
     """Get a specific template pad by name"""

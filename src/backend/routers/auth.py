@@ -6,7 +6,7 @@ from fastapi.responses import RedirectResponse, FileResponse, JSONResponse
 import os
 
 from config import get_auth_url, get_token_url, OIDC_CONFIG, set_session, delete_session, STATIC_DIR, get_session
-from dependencies import SessionData, require_auth
+from dependencies import UserSession, require_auth
 from coder import CoderAPI
 
 auth_router = APIRouter()

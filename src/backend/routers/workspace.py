@@ -2,10 +2,9 @@ from typing import Dict, Any
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-import jwt
 import os
 
-from dependencies import SessionData, require_auth
+from dependencies import UserSession, require_auth
 from coder import CoderAPI
 
 workspace_router = APIRouter()
@@ -19,13 +18,12 @@ class WorkspaceState(BaseModel):
     agent: str
 
 @workspace_router.get("/state", response_model=WorkspaceState)
-async def get_workspace_state(auth: SessionData = Depends(require_auth)):
+async def get_workspace_state(auth: UserSession = Depends(require_auth)):
     """
     Get the current state of the user's workspace
     """
-    # Get user info from token
-    access_token = auth.token_data.get("access_token")
-    decoded = jwt.decode(access_token, options={"verify_signature": False})
+    # Get user info from token data
+    decoded = auth.token_data
     username = decoded.get("preferred_username")
     email = decoded.get("email")    
     
@@ -56,13 +54,12 @@ async def get_workspace_state(auth: SessionData = Depends(require_auth)):
     )
 
 @workspace_router.post("/start")
-async def start_workspace(auth: SessionData = Depends(require_auth)):
+async def start_workspace(auth: UserSession = Depends(require_auth)):
     """
     Start a workspace for the authenticated user
     """
-    # Get user info from token
-    access_token = auth.token_data.get("access_token")
-    decoded = jwt.decode(access_token, options={"verify_signature": False})
+    # Get user info from token data
+    decoded = auth.token_data
     email = decoded.get("email")
 
     user = coder_api.get_user_by_email(email)
@@ -82,13 +79,12 @@ async def start_workspace(auth: SessionData = Depends(require_auth)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @workspace_router.post("/stop")
-async def stop_workspace(auth: SessionData = Depends(require_auth)):
+async def stop_workspace(auth: UserSession = Depends(require_auth)):
     """
     Stop a workspace for the authenticated user
     """
-    # Get user info from token
-    access_token = auth.token_data.get("access_token")
-    decoded = jwt.decode(access_token, options={"verify_signature": False})
+    # Get user info from token data
+    decoded = auth.token_data
     email = decoded.get("email")
 
     user = coder_api.get_user_by_email(email)
@@ -106,4 +102,3 @@ async def stop_workspace(auth: SessionData = Depends(require_auth)):
         return JSONResponse(content=response)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-

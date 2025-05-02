@@ -1,5 +1,6 @@
 import jwt
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
+from uuid import UUID
 
 from fastapi import Request, HTTPException, Depends
 
@@ -7,112 +8,141 @@ from config import get_session, is_token_expired, refresh_token
 from database import get_user_service
 from database.service import UserService
 
-class SessionData:
-    def __init__(self, access_token: str, token_data: dict):
+class UserSession:
+    """
+    Unified user session model that integrates authentication data with user information.
+    This provides a single interface for accessing both token data and user details.
+    """
+    def __init__(self, access_token: str, token_data: dict, user_id: UUID = None):
         self.access_token = access_token
         self.token_data = token_data
+        self._user_data = None
+        
+    @property
+    def is_authenticated(self) -> bool:
+        """Check if the session is authenticated"""
+        return bool(self.access_token and self.id)
+    
+    @property
+    def id(self) -> UUID:
+        """Get user ID from token data"""
+        return UUID(self.token_data.get("sub"))
+    
+    @property
+    def email(self) -> str:
+        """Get user email from token data"""
+        return self.token_data.get("email", "")
+    
+    @property
+    def email_verified(self) -> bool:
+        """Get email verification status from token data"""
+        return self.token_data.get("email_verified", False)
+    
+    @property
+    def username(self) -> str:
+        """Get username from token data"""
+        return self.token_data.get("preferred_username", "")
+    
+    @property
+    def name(self) -> str:
+        """Get full name from token data"""
+        return self.token_data.get("name", "")
+    
+    @property
+    def given_name(self) -> str:
+        """Get given name from token data"""
+        return self.token_data.get("given_name", "")
+    
+    @property
+    def family_name(self) -> str:
+        """Get family name from token data"""
+        return self.token_data.get("family_name", "")
+    
+    @property
+    def roles(self) -> list:
+        """Get user roles from token data"""
+        return self.token_data.get("realm_access", {}).get("roles", [])
+    
+    @property
+    def is_admin(self) -> bool:
+        """Check if user has admin role"""
+        return "admin" in self.roles
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert user session to dictionary with common user fields"""
+        return {
+            "id": str(self.id),
+            "email": self.email,
+            "username": self.username,
+            "name": self.name,
+            "given_name": self.given_name,
+            "family_name": self.family_name,
+            "email_verified": self.email_verified,
+            "roles": self.roles
+        }
+    
+    async def get_user_data(self, user_service: UserService) -> Dict[str, Any]:
+        """Get user data from database, caching the result"""
+        if self._user_data is None and self.id:
+            self._user_data = await user_service.get_user(self.id)
+        return self._user_data
 
 class AuthDependency:
-    def __init__(self, auto_error: bool = True):
+    """
+    Authentication dependency that validates session tokens and provides
+    a unified UserSession object for route handlers.
+    """
+    def __init__(self, auto_error: bool = True, require_admin: bool = False):
         self.auto_error = auto_error
+        self.require_admin = require_admin
 
-    async def __call__(self, request: Request) -> Optional[SessionData]:
+    async def __call__(self, 
+                      request: Request, 
+                      user_service: UserService = Depends(get_user_service)) -> Optional[UserSession]:
+        # Get session ID from cookies
         session_id = request.cookies.get('session_id')
         
+        # Handle missing session ID
         if not session_id:
-            if self.auto_error:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Not authenticated",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-            return None
+            return self._handle_auth_error("Not authenticated")
             
+        # Get session data from Redis
         session = get_session(session_id)
         if not session:
-            if self.auto_error:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Not authenticated",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-            return None
+            return self._handle_auth_error("Not authenticated")
             
-        # Check if token is expired and refresh if needed
+        # Handle token expiration
         if is_token_expired(session):
             # Try to refresh the token
             success, new_session = await refresh_token(session_id, session)
             if not success:
-                # Token refresh failed, user needs to re-authenticate
-                if self.auto_error:
-                    raise HTTPException(
-                        status_code=401,
-                        detail="Session expired",
-                        headers={"WWW-Authenticate": "Bearer"},
-                    )
-                return None
-            # Use the refreshed token data
+                return self._handle_auth_error("Session expired")
             session = new_session
-            
-        return SessionData(
+        
+        # Create user session object
+        user_session = UserSession(
             access_token=session.get('access_token'),
             token_data=session
         )
+        
+        # Check admin requirement if specified
+        if self.require_admin and not user_session.is_admin:
+            return self._handle_auth_error("Admin privileges required", status_code=403)
+            
+        return user_session
+        
+    def _handle_auth_error(self, detail: str, status_code: int = 401) -> Optional[None]:
+        """Handle authentication errors based on auto_error setting"""
+        if self.auto_error:
+            headers = {"WWW-Authenticate": "Bearer"} if status_code == 401 else None
+            raise HTTPException(
+                status_code=status_code,
+                detail=detail,
+                headers=headers,
+            )
+        return None
 
-# Create instances for use in route handlers
+# Create dependency instances for use in route handlers
 require_auth = AuthDependency(auto_error=True)
 optional_auth = AuthDependency(auto_error=False)
-
-# JWT token handling dependencies
-async def get_decoded_token(
-    auth: SessionData = Depends(require_auth)
-) -> Dict[str, Any]:
-
-    token_data = auth.token_data
-    access_token = token_data.get("access_token")
-
-    return jwt.decode(access_token, options={"verify_signature": False})
-
-
-async def get_current_user(
-    decoded_token: Dict[str, Any] = Depends(get_decoded_token),
-    user_service: UserService = Depends(get_user_service),
-) -> Dict[str, Any]:
-
-    user_id = decoded_token["sub"]
-    user_info = await user_service.get_user(user_id)
-
-    if not user_info:
-        try:
-            user_info = await user_service.create_user(
-                user_id=user_id,
-                username=decoded_token["preferred_username"],
-                email=decoded_token["email"],
-                email_verified=decoded_token["email_verified"],
-                name=decoded_token["name"],
-            given_name=decoded_token["given_name"],
-            family_name=decoded_token["family_name"],
-                roles=decoded_token["realm_access"]["roles"],
-            )
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error creating user: {e}"
-            )
-    
-    return user_info
-
-
-async def require_admin(
-    decoded_token: Dict[str, Any] = Depends(get_decoded_token)
-) -> bool:
-
-    roles = decoded_token.get("realm_access", {}).get("roles", [])
-
-    if "admin" not in roles:
-        raise HTTPException(
-            status_code=403, 
-            detail=f"Admin privileges required"
-        )
-    
-    return True
+require_admin = AuthDependency(auto_error=True, require_admin=True)
