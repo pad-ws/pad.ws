@@ -44,20 +44,20 @@ class TemplatePadRepository:
         result = await self.session.execute(stmt)
         return result.scalars().all()
     
-    async def update(self, template_id: UUID, data: Dict[str, Any]) -> Optional[TemplatePadModel]:
+    async def update(self, name: str, data: Dict[str, Any]) -> Optional[TemplatePadModel]:
         """Update a template pad"""
-        stmt = update(TemplatePadModel).where(TemplatePadModel.id == template_id).values(**data).returning(TemplatePadModel)
+        stmt = update(TemplatePadModel).where(TemplatePadModel.name == name).values(**data).returning(TemplatePadModel)
         result = await self.session.execute(stmt)
         await self.session.commit()
         return result.scalars().first()
     
-    async def update_data(self, template_id: UUID, template_data: Dict[str, Any]) -> Optional[TemplatePadModel]:
+    async def update_data(self, name: str, template_data: Dict[str, Any]) -> Optional[TemplatePadModel]:
         """Update just the data field of a template pad"""
-        return await self.update(template_id, {"data": template_data})
+        return await self.update(name, {"data": template_data})
     
-    async def delete(self, template_id: UUID) -> bool:
+    async def delete(self, name: str) -> bool:
         """Delete a template pad"""
-        stmt = delete(TemplatePadModel).where(TemplatePadModel.id == template_id)
+        stmt = delete(TemplatePadModel).where(TemplatePadModel.name == name)
         result = await self.session.execute(stmt)
         await self.session.commit()
         return result.rowcount > 0

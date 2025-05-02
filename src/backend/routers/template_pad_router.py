@@ -1,4 +1,3 @@
-from uuid import UUID
 from typing import Dict, Any
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -8,6 +7,7 @@ from database import get_template_pad_service
 from database.service import TemplatePadService
 
 template_pad_router = APIRouter()
+
 
 @template_pad_router.post("/")
 async def create_template_pad(
@@ -28,6 +28,7 @@ async def create_template_pad(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @template_pad_router.get("/")
 async def get_all_template_pads(
     _: bool = Depends(require_admin),
@@ -39,6 +40,7 @@ async def get_all_template_pads(
         return template_pads
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get template pads: {str(e)}")
+
 
 @template_pad_router.get("/{name}")
 async def get_template_pad(
@@ -52,6 +54,7 @@ async def get_template_pad(
         raise HTTPException(status_code=404, detail="Template pad not found")
     
     return template_pad
+
 
 @template_pad_router.put("/{name}")
 async def update_template_pad(
@@ -70,6 +73,7 @@ async def update_template_pad(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @template_pad_router.put("/{name}/data")
 async def update_template_pad_data(
     name: str,
@@ -86,6 +90,7 @@ async def update_template_pad_data(
         return updated_template
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @template_pad_router.delete("/{name}")
 async def delete_template_pad(

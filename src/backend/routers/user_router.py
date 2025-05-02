@@ -11,6 +11,7 @@ from dependencies import get_current_user, require_admin
 
 user_router = APIRouter()
 
+
 @user_router.post("/")
 async def create_user(
     user_id: UUID,
