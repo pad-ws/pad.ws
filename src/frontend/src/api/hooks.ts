@@ -5,10 +5,11 @@ import { queryClient } from './queryClient';
 // Types
 export interface WorkspaceState {
   status: 'running' | 'starting' | 'stopping' | 'stopped' | 'error';
-  workspace_id: string | null;
   username: string | null;
+  name: string | null;
   base_url: string | null;
   agent: string | null;
+  id: string | null;
   error?: string;
 }
 

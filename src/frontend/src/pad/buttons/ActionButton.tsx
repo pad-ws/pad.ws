@@ -285,7 +285,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       return '';
     }
     
-    return `${workspaceState.base_url}/@${workspaceState.username}/${workspaceState.workspace_id}.${workspaceState.agent}/apps/code-server`;
+    return `${workspaceState.base_url}/@${workspaceState.username}/${workspaceState.name}.${workspaceState.agent}/apps/code-server`;
   };
   
   // Placement logic has been moved to ExcalidrawElementFactory.placeInScene
@@ -345,7 +345,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
           return;
         }
         
-        const terminalUrl = `${workspaceState.base_url}/@${workspaceState.username}/${workspaceState.workspace_id}.${workspaceState.agent}/terminal`;
+        const terminalUrl = `${workspaceState.base_url}/@${workspaceState.username}/${workspaceState.name}.${workspaceState.agent}/terminal`;
         console.debug(`[pad.ws] Opening terminal in new tab: ${terminalUrl}`);
         window.open(terminalUrl, '_blank');
       } else {
@@ -366,7 +366,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       }
       
       const owner = workspaceState.username;
-      const workspace = workspaceState.workspace_id;
+      const workspace = workspaceState.name;
       const url = workspaceState.base_url;
       const agent = workspaceState.agent;
       
