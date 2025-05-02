@@ -1,5 +1,5 @@
 from typing import List
-from sqlalchemy import Column, Index, VARCHAR
+from sqlalchemy import Column, Index, String
 from sqlalchemy.orm import relationship, Mapped
 
 from .base_model import Base, BaseModel
@@ -15,8 +15,8 @@ class UserModel(Base, BaseModel):
     )
 
     # User-specific fields
-    username = Column(VARCHAR(254), nullable=False, unique=True)
-    email = Column(VARCHAR(254), nullable=False)
+    username = Column(String(254), nullable=False, unique=True)
+    email = Column(String(254), nullable=False)
     
     # Relationships
     pads: Mapped[List["PadModel"]] = relationship(
