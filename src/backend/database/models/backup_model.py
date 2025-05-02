@@ -1,7 +1,6 @@
 from typing import Dict, Any, TYPE_CHECKING
-from uuid import UUID as UUIDType
 
-from sqlalchemy import Column, ForeignKey, Index
+from sqlalchemy import Column, ForeignKey, Index, UUID
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, Mapped
 
@@ -21,7 +20,7 @@ class BackupModel(Base, BaseModel):
 
     # Backup-specific fields
     source_id = Column(
-        UUIDType(as_uuid=True), 
+        UUID(as_uuid=True), 
         ForeignKey(f"{SCHEMA_NAME}.pads.id", ondelete="CASCADE"), 
         nullable=False
     )

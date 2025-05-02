@@ -1,7 +1,6 @@
 from typing import List, Dict, Any, TYPE_CHECKING
-from uuid import UUID as UUIDType
 
-from sqlalchemy import Column, String, ForeignKey, Index
+from sqlalchemy import Column, String, ForeignKey, Index, UUID
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, Mapped
 
@@ -22,7 +21,7 @@ class PadModel(Base, BaseModel):
 
     # Pad-specific fields
     owner_id = Column(
-        UUIDType(as_uuid=True), 
+        UUID(as_uuid=True), 
         ForeignKey(f"{SCHEMA_NAME}.users.id", ondelete="CASCADE"), 
         nullable=False
     )
