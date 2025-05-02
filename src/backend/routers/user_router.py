@@ -12,7 +12,7 @@ from dependencies import UserSession, require_admin, require_auth
 user_router = APIRouter()
 
 
-@user_router.post("/")
+@user_router.post("")
 async def create_user(
     user_id: UUID,
     username: str, 
@@ -42,7 +42,7 @@ async def create_user(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@user_router.get("/")
+@user_router.get("")
 async def get_all_users(
     _: bool = Depends(require_admin),
     user_service: UserService = Depends(get_user_service)

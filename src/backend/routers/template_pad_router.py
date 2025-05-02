@@ -9,7 +9,7 @@ from database.service import TemplatePadService
 template_pad_router = APIRouter()
 
 
-@template_pad_router.post("/")
+@template_pad_router.post("")
 async def create_template_pad(
     data: Dict[str, Any],
     name: str,
@@ -29,7 +29,7 @@ async def create_template_pad(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@template_pad_router.get("/")
+@template_pad_router.get("")
 async def get_all_template_pads(
     _: bool = Depends(require_admin),
     template_pad_service: TemplatePadService = Depends(get_template_pad_service)

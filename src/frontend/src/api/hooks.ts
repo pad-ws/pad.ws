@@ -97,7 +97,7 @@ export const api = {
   // Canvas
   getCanvas: async (): Promise<CanvasData> => {
     try {
-      const result = await fetchApi('/api/pad/');
+      const result = await fetchApi('/api/pad');
       return result;
     } catch (error) {
       throw error;
@@ -106,7 +106,7 @@ export const api = {
   
   saveCanvas: async (data: CanvasData): Promise<any> => {
     try {
-      const result = await fetchApi('/api/pad/', {
+      const result = await fetchApi('/api/pad', {
         method: 'POST',
         body: JSON.stringify(data),
       });

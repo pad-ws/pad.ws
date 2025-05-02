@@ -4,7 +4,7 @@ Backup service for business logic related to backups.
 
 from typing import List, Optional, Dict, Any
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -149,8 +149,8 @@ class BackupService:
         # Get the latest backup
         latest_backup = await self.repository.get_latest_by_source(source_id)
         
-        # Calculate the current time
-        current_time = datetime.now()
+        # Calculate the current time with timezone information
+        current_time = datetime.now(timezone.utc)
         
         # Determine if we need to create a backup
         create_backup = False

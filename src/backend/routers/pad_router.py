@@ -10,7 +10,7 @@ from config import MAX_BACKUPS_PER_USER, MIN_INTERVAL_MINUTES, DEFAULT_PAD_NAME,
 pad_router = APIRouter()
 
 
-@pad_router.post("/")
+@pad_router.post("")
 async def save_canvas(
     data: Dict[str, Any], 
     user: UserSession = Depends(require_auth),
@@ -47,7 +47,7 @@ async def save_canvas(
         raise HTTPException(status_code=500, detail=f"Failed to save canvas data: {str(e)}")
 
 
-@pad_router.get("/")
+@pad_router.get("")
 async def get_canvas(
     user: UserSession = Depends(require_auth),
     pad_service: PadService = Depends(get_pad_service),
