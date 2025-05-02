@@ -61,6 +61,11 @@ async def get_backup_repository(session: AsyncSession = Depends(get_session)):
     from .repository import BackupRepository
     return BackupRepository(session)
 
+async def get_template_pad_repository(session: AsyncSession = Depends(get_session)):
+    """Get a template pad repository"""
+    from .repository import TemplatePadRepository
+    return TemplatePadRepository(session)
+
 # Dependency for getting services
 async def get_user_service(session: AsyncSession = Depends(get_session)):
     """Get a user service"""
@@ -76,3 +81,8 @@ async def get_backup_service(session: AsyncSession = Depends(get_session)):
     """Get a backup service"""
     from .service import BackupService
     return BackupService(session)
+
+async def get_template_pad_service(session: AsyncSession = Depends(get_session)):
+    """Get a template pad service"""
+    from .service import TemplatePadService
+    return TemplatePadService(session)

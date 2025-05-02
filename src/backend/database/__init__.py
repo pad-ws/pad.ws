@@ -10,9 +10,11 @@ from .database import (
     get_user_repository, 
     get_pad_repository, 
     get_backup_repository,
+    get_template_pad_repository,
     get_user_service,
     get_pad_service,
-    get_backup_service
+    get_backup_service,
+    get_template_pad_service
 )
 
 __all__ = [
@@ -21,7 +23,9 @@ __all__ = [
     'get_user_repository',
     'get_pad_repository',
     'get_backup_repository',
+    'get_template_pad_repository',
     'get_user_service',
     'get_pad_service',
     'get_backup_service',
+    'get_template_pad_service',
 ]

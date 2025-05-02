@@ -59,7 +59,7 @@ class TemplatePadModel(Base, BaseModel):
         {"schema": SCHEMA_NAME}
     )
 
-    name = Column(String(100), nullable=False)
+    name = Column(String(100), nullable=False, unique=True)
     display_name = Column(String(100), nullable=False)
     data = Column(JSONB, nullable=False)
 
