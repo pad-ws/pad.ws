@@ -24,6 +24,7 @@ async def create_user(
     _: bool = Depends(require_admin),
     user_service: UserService = Depends(get_user_service)
 ):
+    """Create a new user (admin only)"""
     try:
         user = await user_service.create_user(
             user_id=user_id,
@@ -45,6 +46,7 @@ async def get_all_users(
     _: bool = Depends(require_admin),
     user_service: UserService = Depends(get_user_service)
 ):
+    """Get all users (admin only)"""
     users = await user_service.get_all_users()
     return users
 
@@ -53,7 +55,7 @@ async def get_all_users(
 async def get_user_info(
     user: dict = Depends(get_current_user),
 ):
-    
+    """Get the current user's information"""
     if os.getenv("VITE_PUBLIC_POSTHOG_KEY"):
         telemetry = user.copy()
         telemetry["$current_url"] = OIDC_CONFIG["frontend_url"]
@@ -66,6 +68,7 @@ async def get_user_info(
 async def get_user_count(
     _: bool = Depends(require_admin),
 ):
+    """Get the number of active sessions (admin only)"""
     session_count = len(redis_client.keys("session:*"))
     return {"active_sessions": session_count }
 
@@ -76,6 +79,7 @@ async def get_user(
     _: bool = Depends(require_admin),
     user_service: UserService = Depends(get_user_service)
 ):
+    """Get a user by ID (admin only)"""
     user = await user_service.get_user(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
