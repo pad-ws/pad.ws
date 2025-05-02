@@ -48,3 +48,20 @@ class PadModel(Base, BaseModel):
             import json
             result["data"] = json.loads(result["data"])
         return result
+
+
+class TemplatePadModel(Base, BaseModel):
+    """Model for template pads table in app schema"""
+    __tablename__ = "template_pads"
+    __table_args__ = (
+        Index("ix_template_pads_display_name", "display_name"),
+        Index("ix_template_pads_name", "name"),
+        {"schema": SCHEMA_NAME}
+    )
+
+    name = Column(String(100), nullable=False)
+    display_name = Column(String(100), nullable=False)
+    data = Column(JSONB, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<TemplatePadModel(id='{self.id}', display_name='{self.display_name}')>"
