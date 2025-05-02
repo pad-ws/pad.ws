@@ -118,7 +118,7 @@ export const api = {
   
   getDefaultCanvas: async (): Promise<CanvasData> => {
     try {
-      const result = await fetchApi('/api/pad/from-template/default');
+      const result = await fetchApi('/api/templates/default');
       return result;
     } catch (error) {
       throw error;
