@@ -1,11 +1,10 @@
 import jwt
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any
 from uuid import UUID
 
-from fastapi import Request, HTTPException, Depends
+from fastapi import Request, HTTPException
 
 from config import get_session, is_token_expired, refresh_token
-from database import get_user_service
 from database.service import UserService
 
 class UserSession:
@@ -15,7 +14,7 @@ class UserSession:
     """
     def __init__(self, access_token: str, token_data: dict, user_id: UUID = None):
         self.access_token = access_token
-        self.token_data = token_data
+        self.token_data = jwt.decode(access_token, options={"verify_signature": False})
         self._user_data = None
         
     @property
@@ -68,19 +67,6 @@ class UserSession:
         """Check if user has admin role"""
         return "admin" in self.roles
     
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert user session to dictionary with common user fields"""
-        return {
-            "id": str(self.id),
-            "email": self.email,
-            "username": self.username,
-            "name": self.name,
-            "given_name": self.given_name,
-            "family_name": self.family_name,
-            "email_verified": self.email_verified,
-            "roles": self.roles
-        }
-    
     async def get_user_data(self, user_service: UserService) -> Dict[str, Any]:
         """Get user data from database, caching the result"""
         if self._user_data is None and self.id:
@@ -96,9 +82,7 @@ class AuthDependency:
         self.auto_error = auto_error
         self.require_admin = require_admin
 
-    async def __call__(self, 
-                      request: Request, 
-                      user_service: UserService = Depends(get_user_service)) -> Optional[UserSession]:
+    async def __call__(self, request: Request) -> Optional[UserSession]:
         # Get session ID from cookies
         session_id = request.cookies.get('session_id')
         

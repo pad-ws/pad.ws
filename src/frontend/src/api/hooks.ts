@@ -56,7 +56,7 @@ export const api = {
   // User profile
   getUserProfile: async (): Promise<UserProfile> => {
     try {
-      const result = await fetchApi('/api/user/me');
+      const result = await fetchApi('/api/users/me');
       return result;
     } catch (error) {
       throw error;

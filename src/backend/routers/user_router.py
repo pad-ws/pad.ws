@@ -1,6 +1,6 @@
 import os
 from uuid import UUID
-from typing import Dict, Any
+
 import posthog
 from fastapi import APIRouter, Depends, HTTPException
 
