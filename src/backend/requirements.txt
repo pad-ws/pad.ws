@@ -11,3 +11,4 @@ posthog
 redis
 psycopg2-binary
 python-multipart
+cryptography  # Required for JWT key handling

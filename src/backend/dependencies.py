@@ -15,8 +15,25 @@ class UserSession:
     """
     def __init__(self, access_token: str, token_data: dict, user_id: UUID = None):
         self.access_token = access_token
-        self.token_data = jwt.decode(access_token, options={"verify_signature": False})
         self._user_data = None
+
+        # Get the signing key and decode with verification
+        from config import get_jwks_client, OIDC_CLIENT_ID
+        try:
+            jwks_client = get_jwks_client()
+            signing_key = jwks_client.get_signing_key_from_jwt(access_token)
+            
+            self.token_data = jwt.decode(
+                access_token,
+                signing_key.key,
+                algorithms=["RS256"],
+                audience=OIDC_CLIENT_ID
+            )
+
+        except jwt.InvalidTokenError as e:
+            # Log the error and raise an appropriate exception
+            print(f"Invalid token: {str(e)}")
+            raise ValueError(f"Invalid authentication token: {str(e)}")
         
     @property
     def is_authenticated(self) -> bool:
