@@ -10,11 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
-from db import init_db
-from database import init_db as init_database
+from database import init_db
 from config import STATIC_DIR, ASSETS_DIR
 from dependencies import UserSession, optional_auth
-from routers.auth import auth_router
+from routers.auth_router import auth_router
 from routers.user_router import user_router
 from routers.workspace_router import workspace_router
 from routers.pad_router import pad_router
@@ -83,7 +82,6 @@ async def load_templates():
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_db()
-    await init_database()
     print("Database connection established successfully")
     
     # Load all templates from the templates directory

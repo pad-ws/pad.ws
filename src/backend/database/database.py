@@ -13,6 +13,10 @@ from fastapi import Depends
 
 from .models import Base, SCHEMA_NAME
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # PostgreSQL connection configuration
 DB_USER = os.getenv('POSTGRES_USER', 'postgres')
 DB_PASSWORD = os.getenv('POSTGRES_PASSWORD', 'postgres')
