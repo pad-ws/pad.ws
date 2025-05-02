@@ -17,24 +17,36 @@ class UserService:
         self.session = session
         self.repository = UserRepository(session)
     
-    async def create_user(self, username: str, email: str) -> Dict[str, Any]:
-        """Create a new user"""
+    async def create_user(self, user_id: UUID, username: str, email: str, 
+                         email_verified: bool = False, name: str = None, 
+                         given_name: str = None, family_name: str = None, 
+                         roles: list = None) -> Dict[str, Any]:
+        """Create a new user with specified ID and optional fields"""
         # Validate input
-        if not username or not email:
-            raise ValueError("Username and email are required")
+        if not user_id or not username or not email:
+            raise ValueError("User ID, username, and email are required")
+        
+        # Check if user_id already exists
+        existing_id = await self.repository.get_by_id(user_id)
+        if existing_id:
+            raise ValueError(f"User with ID '{user_id}' already exists")
         
         # Check if username already exists
         existing_user = await self.repository.get_by_username(username)
         if existing_user:
             raise ValueError(f"Username '{username}' is already taken")
         
-        # Check if email already exists
-        existing_email = await self.repository.get_by_email(email)
-        if existing_email:
-            raise ValueError(f"Email '{email}' is already registered")
-        
         # Create user
-        user = await self.repository.create(username, email)
+        user = await self.repository.create(
+            user_id=user_id,
+            username=username,
+            email=email,
+            email_verified=email_verified,
+            name=name,
+            given_name=given_name,
+            family_name=family_name,
+            roles=roles
+        )
         return user.to_dict()
     
     async def get_user(self, user_id: UUID) -> Optional[Dict[str, Any]]:

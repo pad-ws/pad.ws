@@ -1,5 +1,6 @@
 from typing import List, TYPE_CHECKING
-from sqlalchemy import Column, Index, String, UUID
+from sqlalchemy import Column, Index, String, UUID, Boolean
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, Mapped
 
 from .base_model import Base, BaseModel, SCHEMA_NAME
@@ -22,6 +23,11 @@ class UserModel(Base, BaseModel):
     # User-specific fields
     username = Column(String(254), nullable=False, unique=True)
     email = Column(String(254), nullable=False)
+    email_verified = Column(Boolean, nullable=False, default=False)
+    name = Column(String(254), nullable=True)
+    given_name = Column(String(254), nullable=True)
+    family_name = Column(String(254), nullable=True)
+    roles = Column(JSONB, nullable=False, default=[])
     
     # Relationships
     pads: Mapped[List["PadModel"]] = relationship(

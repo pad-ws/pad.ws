@@ -18,9 +18,20 @@ class UserRepository:
         """Initialize the repository with a database session"""
         self.session = session
     
-    async def create(self, user_id: UUID, username: str, email: str) -> UserModel:
-        """Create a new user with specified ID"""
-        user = UserModel(id=user_id, username=username, email=email)
+    async def create(self, user_id: UUID, username: str, email: str, email_verified: bool = False, 
+                    name: str = None, given_name: str = None, family_name: str = None, 
+                    roles: list = None) -> UserModel:
+        """Create a new user with specified ID and optional fields"""
+        user = UserModel(
+            id=user_id, 
+            username=username, 
+            email=email,
+            email_verified=email_verified,
+            name=name,
+            given_name=given_name,
+            family_name=family_name,
+            roles=roles or []
+        )
         self.session.add(user)
         await self.session.commit()
         await self.session.refresh(user)
