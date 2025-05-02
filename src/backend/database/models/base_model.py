@@ -1,5 +1,4 @@
 from uuid import uuid4
-from datetime import datetime
 from typing import Any, Dict
 
 from sqlalchemy import Column, DateTime, UUID, func
@@ -24,8 +23,3 @@ class BaseModel:
     def to_dict(self) -> Dict[str, Any]:
         """Convert model instance to dictionary"""
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
-    
-    @classmethod
-    def get_schema(cls) -> Dict[str, Any]:
-        """Return schema configuration for the model"""
-        return {"schema": SCHEMA_NAME}

@@ -1,27 +1,28 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, TYPE_CHECKING
 from uuid import UUID as UUIDType
 
 from sqlalchemy import Column, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, Mapped
 
-from backend.database.models.pad_model import PadModel
+from .base_model import Base, BaseModel, SCHEMA_NAME
 
-from .base_model import Base, BaseModel
+if TYPE_CHECKING:
+    from .pad_model import PadModel
 
 class BackupModel(Base, BaseModel):
     """Model for backups table in app schema"""
     __tablename__ = "backups"
     __table_args__ = (
-        BaseModel.get_schema(),
         Index("ix_backups_source_id", "source_id"),
-        Index("ix_backups_created_at", "created_at")
+        Index("ix_backups_created_at", "created_at"),
+        {"schema": SCHEMA_NAME}
     )
 
     # Backup-specific fields
     source_id = Column(
         UUIDType(as_uuid=True), 
-        ForeignKey(f"{BaseModel.get_schema()['schema']}.pads.id", ondelete="CASCADE"), 
+        ForeignKey(f"{SCHEMA_NAME}.pads.id", ondelete="CASCADE"), 
         nullable=False
     )
     data = Column(JSONB, nullable=False)

@@ -1,27 +1,29 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, TYPE_CHECKING
 from uuid import UUID as UUIDType
 
 from sqlalchemy import Column, String, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, Mapped
 
-from .base_model import Base, BaseModel
-from .backup_model import BackupModel
-from .user_model import UserModel
+from .base_model import Base, BaseModel, SCHEMA_NAME
+
+if TYPE_CHECKING:
+    from .backup_model import BackupModel
+    from .user_model import UserModel
 
 class PadModel(Base, BaseModel):
     """Model for pads table in app schema"""
     __tablename__ = "pads"
     __table_args__ = (
-        BaseModel.get_schema(),
         Index("ix_pads_owner_id", "owner_id"),
-        Index("ix_pads_display_name", "display_name")
+        Index("ix_pads_display_name", "display_name"),
+        {"schema": SCHEMA_NAME}
     )
 
     # Pad-specific fields
     owner_id = Column(
         UUIDType(as_uuid=True), 
-        ForeignKey(f"{BaseModel.get_schema()['schema']}.users.id", ondelete="CASCADE"), 
+        ForeignKey(f"{SCHEMA_NAME}.users.id", ondelete="CASCADE"), 
         nullable=False
     )
     display_name = Column(String(100), nullable=False)
