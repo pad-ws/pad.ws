@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..repository import PadRepository, UserRepository
+from .user_service import UserService
 
 class PadService:
     """Service for pad-related business logic"""
@@ -18,7 +19,7 @@ class PadService:
         self.repository = PadRepository(session)
         self.user_repository = UserRepository(session)
     
-    async def create_pad(self, owner_id: UUID, display_name: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def create_pad(self, owner_id: UUID, display_name: str, data: Dict[str, Any], token_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new pad"""
         # Validate input
         if not display_name:
@@ -27,10 +28,20 @@ class PadService:
         if not data:
             raise ValueError("Pad data is required")
         
+        if not token_data:
+            raise ValueError("Token data is required for user creation failsafe")
+        
         # Check if owner exists
         owner = await self.user_repository.get_by_id(owner_id)
         if not owner:
-            raise ValueError(f"User with ID '{owner_id}' does not exist")
+            # User doesn't exist, create a user record from token data
+            print(f"WARNING: User with ID '{owner_id}' does not exist but is trying to save a pad. Creating user as failsafe.")
+            
+            # Create a UserService instance
+            user_service = UserService(self.session)
+            
+            # Use token data to create a complete user record
+            await user_service.sync_user_with_token_data(owner_id, token_data)
         
         # Check if pad with same name already exists for this owner
         existing_pad = await self.repository.get_by_name(owner_id, display_name)
@@ -51,7 +62,9 @@ class PadService:
         # Check if owner exists
         owner = await self.user_repository.get_by_id(owner_id)
         if not owner:
-            raise ValueError(f"User with ID '{owner_id}' does not exist")
+            # Return empty list instead of raising an error
+            # This allows the pad_router to handle the case where a user doesn't exist
+            return []
         
         pads = await self.repository.get_by_owner(owner_id)
         return [pad.to_dict() for pad in pads]
