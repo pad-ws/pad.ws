@@ -40,6 +40,7 @@ async def callback(
 ):
     session_id = request.cookies.get('session_id')
     if not session_id:
+        print("No session ID found")
         raise HTTPException(status_code=400, detail="No session")
     
     # Exchange code for token

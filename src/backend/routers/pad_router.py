@@ -11,13 +11,13 @@ pad_router = APIRouter()
 
 
 @pad_router.post("")
-async def save_canvas(
+async def save_pad(
     data: Dict[str, Any], 
     user: UserSession = Depends(require_auth),
     pad_service: PadService = Depends(get_pad_service),
     backup_service: BackupService = Depends(get_backup_service),
 ):
-    """Save canvas data for the authenticated user"""
+    """Save pad data for the authenticated user"""
     try:
         # Check if user already has a pad
         user_pads = await pad_service.get_pads_by_owner(user.id)
@@ -44,17 +44,18 @@ async def save_canvas(
         
         return {"status": "success"}
     except Exception as e:
+        print(f"Error saving pad data: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to save canvas data: {str(e)}")
 
 
 @pad_router.get("")
-async def get_canvas(
+async def get_pad(
     user: UserSession = Depends(require_auth),
     pad_service: PadService = Depends(get_pad_service),
     template_pad_service: TemplatePadService = Depends(get_template_pad_service),
     backup_service: BackupService = Depends(get_backup_service)
 ):
-    """Get canvas data for the authenticated user"""
+    """Get pad data for the authenticated user"""
     try:
         # Get user's pads
         user_pads = await pad_service.get_pads_by_owner(user.id)
@@ -73,7 +74,8 @@ async def get_canvas(
         # Return the first pad's data (assuming one pad per user for now)
         return user_pads[0]["data"]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get canvas data: {str(e)}")
+        print(f"Error getting pad data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get pad data: {str(e)}")
 
 
 @pad_router.post("/from-template/{name}")
@@ -110,8 +112,10 @@ async def create_pad_from_template(
         
         return pad
     except ValueError as e:
+        print(f"Error creating pad from template: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        print(f"Error creating pad from template: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create pad from template: {str(e)}")
 
 
@@ -141,4 +145,5 @@ async def get_recent_canvas_backups(
         
         return {"backups": backups}
     except Exception as e:
+        print(f"Error getting canvas backups: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get canvas backups: {str(e)}")

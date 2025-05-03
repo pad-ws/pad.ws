@@ -137,6 +137,7 @@ class AuthDependency:
         """Handle authentication errors based on auto_error setting"""
         if self.auto_error:
             headers = {"WWW-Authenticate": "Bearer"} if status_code == 401 else None
+            print(f"Authentication error: {detail}")
             raise HTTPException(
                 status_code=status_code,
                 detail=detail,
