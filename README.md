@@ -86,7 +86,14 @@ This simplified example lets you host pad on `localhost` but is not safe for rea
     *   Fill in the details
     *   **Important:** Tick `Email verified`
     *   Go to the `Credentials` tab for the new user and set a password
-
+*   **Create an Audience:**
+    *   Navigate to `Clients` -> `[Your Client ID]` -> `Client Scopes`
+    *   Click on the dedicated scope of your Client (`[clientid]-dedicated`)
+    *   Click on `Configure a new mapper`
+    *   Then click on `Audience`
+    *   Ensure `Included Client Audience` matches your `Client ID`
+    *   Ensure `Add to access token` is On
+    
 ### 5️⃣ Coder 🧑‍💻
 
 *   **Find Docker Group ID:** You'll need this to grant necessary permissions
