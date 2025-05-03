@@ -35,34 +35,33 @@ class PadService:
         # Check if owner exists
         owner = await self.user_repository.get_by_id(owner_id)
         if not owner and user_session:
-            # User doesn't exist, create a user record from user session
-            print(f"ANOMALY DETECTED: User with ID '{owner_id}' does not exist but has valid authentication. Creating user as failsafe.")
+            # Reaching here is an anomaly, this is a failsafe
+            # User should already exist in the database
             
             # Create a UserService instance
             user_service = UserService(self.session)
             
-            # Create user with data from UserSession
+            # Create token data dictionary from UserSession properties
+            token_data = {
+                "username": user_session.username,
+                "email": user_session.email,
+                "email_verified": user_session.email_verified,
+                "name": user_session.name,
+                "given_name": user_session.given_name,
+                "family_name": user_session.family_name,
+                "roles": user_session.roles
+            }
+            
+            # Use sync_user_with_token_data which handles race conditions
             try:
-                await user_service.create_user(
-                    user_id=user_session.id,
-                    username=user_session.username,
-                    email=user_session.email,
-                    email_verified=user_session.email_verified,
-                    name=user_session.name,
-                    given_name=user_session.given_name,
-                    family_name=user_session.family_name,
-                    roles=user_session.roles
-                )
-                print(f"Successfully created user with ID '{owner_id}' as failsafe.")
-            except ValueError as e:
+                await user_service.sync_user_with_token_data(owner_id, token_data)
+                # Get the user again to confirm it exists
+                owner = await self.user_repository.get_by_id(owner_id)
+                if not owner:
+                    raise ValueError(f"Failed to create user with ID '{owner_id}'")
+            except Exception as e:
                 print(f"Error creating user as failsafe: {str(e)}")
-                # If user creation fails due to race condition, try to get the user again
-                if "already exists" in str(e):
-                    owner = await self.user_repository.get_by_id(owner_id)
-                    if not owner:
-                        raise ValueError(f"Failed to create user with ID '{owner_id}'")
-                else:
-                    raise
+                raise ValueError(f"Failed to create user with ID '{owner_id}': {str(e)}")
         
         # Check if pad with same name already exists for this owner
         existing_pad = await self.repository.get_by_name(owner_id, display_name)
