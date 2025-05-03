@@ -128,6 +128,7 @@ class UserService:
                     roles=token_data.get("roles", [])
                 )
             except ValueError as e:
+                print(f"Error creating user: {e}")
                 # Handle case where user might have been created in a race condition
                 if "already exists" in str(e):
                     user_data = await self.get_user(user_id)

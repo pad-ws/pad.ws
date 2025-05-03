@@ -26,6 +26,7 @@ async def create_template_pad(
         )
         return template_pad
     except ValueError as e:
+        print(f"Error creating template pad: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -39,6 +40,7 @@ async def get_all_template_pads(
         template_pads = await template_pad_service.get_all_templates()
         return template_pads
     except Exception as e:
+        print(f"Error getting template pads: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get template pads: {str(e)}")
 
 
@@ -51,6 +53,7 @@ async def get_template_pad(
     """Get a specific template pad by name"""
     template_pad = await template_pad_service.get_template_by_name(name)
     if not template_pad:
+        print(f"Template pad not found: {name}")
         raise HTTPException(status_code=404, detail="Template pad not found")
     
     return template_pad
@@ -67,10 +70,12 @@ async def update_template_pad(
     try:
         updated_template = await template_pad_service.update_template(name, data)
         if not updated_template:
+            print(f"Template pad not found: {name}")
             raise HTTPException(status_code=404, detail="Template pad not found")
         
         return updated_template
     except ValueError as e:
+        print(f"Error updating template pad: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -85,10 +90,12 @@ async def update_template_pad_data(
     try:
         updated_template = await template_pad_service.update_template_data(name, data)
         if not updated_template:
+            print(f"Template pad not found: {name}")
             raise HTTPException(status_code=404, detail="Template pad not found")
         
         return updated_template
     except ValueError as e:
+        print(f"Error updating template pad data: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -102,8 +109,10 @@ async def delete_template_pad(
     try:
         success = await template_pad_service.delete_template(name)
         if not success:
+            print(f"Template pad not found: {name}")
             raise HTTPException(status_code=404, detail="Template pad not found")
         
         return {"status": "success", "message": "Template pad deleted successfully"}
     except ValueError as e:
+        print(f"Error deleting template pad: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))

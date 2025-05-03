@@ -39,6 +39,7 @@ async def create_user(
         )
         return user
     except ValueError as e:
+        print(f"Error creating user: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -74,6 +75,7 @@ async def get_user_info(
         # Sync user with token data
         user_data = await user_service.sync_user_with_token_data(user.id, token_data)
     except Exception as e:
+        print(f"Error syncing user data: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Error syncing user data: {e}"
