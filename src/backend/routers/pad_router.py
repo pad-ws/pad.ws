@@ -27,7 +27,8 @@ async def save_pad(
             pad = await pad_service.create_pad(
                 owner_id=user.id,
                 display_name=DEFAULT_PAD_NAME,
-                data=data
+                data=data,
+                token_data=user.token_data
             )
         else:
             # Update existing pad
@@ -99,7 +100,8 @@ async def create_pad_from_template(
         pad = await pad_service.create_pad(
             owner_id=user.id,
             display_name=display_name,
-            data=template["data"]
+            data=template["data"],
+            token_data=user.token_data
         )
         
         # Create an initial backup for the new pad
