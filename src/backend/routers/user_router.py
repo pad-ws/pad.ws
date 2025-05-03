@@ -1,10 +1,12 @@
 import os
+import json
 from uuid import UUID
 
 import posthog
+import jwt
 from fastapi import APIRouter, Depends, HTTPException
 
-from config import get_redis_client, FRONTEND_URL
+from config import get_redis_client, get_jwks_client, OIDC_CLIENT_ID, FRONTEND_URL
 from database import get_user_service
 from database.service import UserService
 from dependencies import UserSession, require_admin, require_auth
@@ -98,6 +100,52 @@ async def get_user_count(
     session_count = len(client.keys("session:*"))
     return {"active_sessions": session_count }
 
+
+@user_router.get("/online")
+async def get_online_users(
+    _: bool = Depends(require_admin),
+    user_service: UserService = Depends(get_user_service)
+):
+    """Get all online users with their information (admin only)"""
+    client = get_redis_client()
+    
+    # Get all session keys
+    session_keys = client.keys("session:*")
+    
+    # Extract user IDs from sessions and fetch user data
+    online_users = []
+    for key in session_keys:
+        session_data = client.get(key)
+        if session_data:
+            try:
+                # Parse session data
+                session_json = json.loads(session_data)
+                
+                # Extract user ID from token
+                token_data = session_json.get('access_token')
+                if token_data:
+                    # Decode JWT token to get user ID
+                    jwks_client = get_jwks_client()
+                    signing_key = jwks_client.get_signing_key_from_jwt(token_data)
+                    decoded = jwt.decode(
+                        token_data,
+                        signing_key.key,
+                        algorithms=["RS256"],
+                        audience=OIDC_CLIENT_ID,
+                    )
+                    
+                    # Get user ID from token
+                    user_id = UUID(decoded.get('sub'))
+                    
+                    # Fetch user data from database
+                    user_data = await user_service.get_user(user_id)
+                    if user_data:
+                        online_users.append(user_data)
+            except Exception as e:
+                print(f"Error processing session {key}: {str(e)}")
+                continue
+    
+    return {"online_users": online_users, "count": len(online_users)}
 
 @user_router.get("/{user_id}")
 async def get_user(
