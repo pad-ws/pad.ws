@@ -98,43 +98,18 @@ class UserService:
         """Delete a user"""
         return await self.repository.delete(user_id)
     
-    async def sync_user_with_token_data(self, user_id: UUID, token_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def update_user_if_needed(self, user_id: UUID, token_data: Dict[str, Any], user_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Synchronize user data in the database with data from the authentication token.
-        If the user doesn't exist, it will be created. If it exists but has different data,
-        it will be updated to match the token data.
+        Update user only if data has changed
         
         Args:
             user_id: The user's UUID
             token_data: Dictionary containing user data from the authentication token
+            user_data: Current user data from the database
             
         Returns:
-            The user data dictionary or None if operation failed
+            The updated user data dictionary or the original if no update was needed
         """
-        # Check if user exists
-        user_data = await self.get_user(user_id)
-        
-        # If user doesn't exist, create a new one
-        if not user_data:
-            try:
-                return await self.create_user(
-                    user_id=user_id,
-                    username=token_data.get("username", ""),
-                    email=token_data.get("email", ""),
-                    email_verified=token_data.get("email_verified", False),
-                    name=token_data.get("name"),
-                    given_name=token_data.get("given_name"),
-                    family_name=token_data.get("family_name"),
-                    roles=token_data.get("roles", [])
-                )
-            except ValueError as e:
-                print(f"Error creating user: {e}")
-                # Handle case where user might have been created in a race condition
-                if "already exists" in str(e):
-                    user_data = await self.get_user(user_id)
-                else:
-                    raise e
-        
         # Check if user data needs to be updated
         update_data = {}
         fields_to_check = [
@@ -156,3 +131,51 @@ class UserService:
             return await self.update_user(user_id, update_data)
         
         return user_data
+    
+    async def sync_user_with_token_data(self, user_id: UUID, token_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Synchronize user data in the database with data from the authentication token.
+        If the user doesn't exist, it will be created. If it exists but has different data,
+        it will be updated to match the token data.
+        
+        Args:
+            user_id: The user's UUID
+            token_data: Dictionary containing user data from the authentication token
+            
+        Returns:
+            The user data dictionary or None if operation failed
+        """
+        # Check if user exists
+        user_data = await self.get_user(user_id)
+        
+        # If user doesn't exist, create a new one
+        if not user_data:
+            try:
+                print(f"User with ID '{user_id}' does not exist. Creating user from token data.")
+                return await self.create_user(
+                    user_id=user_id,
+                    username=token_data.get("username", ""),
+                    email=token_data.get("email", ""),
+                    email_verified=token_data.get("email_verified", False),
+                    name=token_data.get("name"),
+                    given_name=token_data.get("given_name"),
+                    family_name=token_data.get("family_name"),
+                    roles=token_data.get("roles", [])
+                )
+            except ValueError as e:
+                print(f"Error creating user: {e}")
+                # Handle case where user might have been created in a race condition
+                if "already exists" in str(e):
+                    print(f"Race condition detected: User with ID '{user_id}' was created by another process.")
+                    user_data = await self.get_user(user_id)
+                    if user_data:
+                        # User exists now, proceed with update if needed
+                        return await self.update_user_if_needed(user_id, token_data, user_data)
+                    else:
+                        # This shouldn't happen - user creation failed but user doesn't exist
+                        raise ValueError(f"Failed to create or find user with ID '{user_id}'")
+                else:
+                    raise e
+        
+        # User exists, update if needed
+        return await self.update_user_if_needed(user_id, token_data, user_data)
