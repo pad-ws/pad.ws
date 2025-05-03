@@ -2,13 +2,17 @@
 Pad service for business logic related to pads.
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..repository import PadRepository, UserRepository
 from .user_service import UserService
+
+# Use TYPE_CHECKING to avoid circular imports
+if TYPE_CHECKING:
+    from dependencies import UserSession
 
 class PadService:
     """Service for pad-related business logic"""
@@ -19,7 +23,7 @@ class PadService:
         self.repository = PadRepository(session)
         self.user_repository = UserRepository(session)
     
-    async def create_pad(self, owner_id: UUID, display_name: str, data: Dict[str, Any], token_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def create_pad(self, owner_id: UUID, display_name: str, data: Dict[str, Any], user_session: "UserSession" = None) -> Dict[str, Any]:
         """Create a new pad"""
         # Validate input
         if not display_name:
@@ -28,20 +32,37 @@ class PadService:
         if not data:
             raise ValueError("Pad data is required")
         
-        if not token_data:
-            raise ValueError("Token data is required for user creation failsafe")
-        
         # Check if owner exists
         owner = await self.user_repository.get_by_id(owner_id)
-        if not owner:
-            # User doesn't exist, create a user record from token data
-            print(f"WARNING: User with ID '{owner_id}' does not exist but is trying to save a pad. Creating user as failsafe.")
+        if not owner and user_session:
+            # User doesn't exist, create a user record from user session
+            print(f"ANOMALY DETECTED: User with ID '{owner_id}' does not exist but has valid authentication. Creating user as failsafe.")
             
             # Create a UserService instance
             user_service = UserService(self.session)
             
-            # Use token data to create a complete user record
-            await user_service.sync_user_with_token_data(owner_id, token_data)
+            # Create user with data from UserSession
+            try:
+                await user_service.create_user(
+                    user_id=user_session.id,
+                    username=user_session.username,
+                    email=user_session.email,
+                    email_verified=user_session.email_verified,
+                    name=user_session.name,
+                    given_name=user_session.given_name,
+                    family_name=user_session.family_name,
+                    roles=user_session.roles
+                )
+                print(f"Successfully created user with ID '{owner_id}' as failsafe.")
+            except ValueError as e:
+                print(f"Error creating user as failsafe: {str(e)}")
+                # If user creation fails due to race condition, try to get the user again
+                if "already exists" in str(e):
+                    owner = await self.user_repository.get_by_id(owner_id)
+                    if not owner:
+                        raise ValueError(f"Failed to create user with ID '{owner_id}'")
+                else:
+                    raise
         
         # Check if pad with same name already exists for this owner
         existing_pad = await self.repository.get_by_name(owner_id, display_name)
