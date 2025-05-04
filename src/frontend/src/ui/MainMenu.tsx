@@ -194,9 +194,9 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });
       
       // No need to redirect to the logout URL since we're already handling it via iframe
-      console.log("Logged out successfully");
+      console.debug("[pad.ws] Logged out successfully");
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error("[pad.ws] Logout failed:", error);
     }
   };
 

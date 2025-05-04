@@ -40,7 +40,7 @@ export function BuildVersionCheck() {
   useEffect(() => {
     // On first load, store the initial build hash
     if (buildInfo?.buildHash && initialBuildHash === null) {
-      console.log('Initial build hash:', buildInfo.buildHash);
+      console.debug('[pad.ws] Initial build hash:', buildInfo.buildHash);
       setInitialBuildHash(buildInfo.buildHash);
     }
     
@@ -49,7 +49,7 @@ export function BuildVersionCheck() {
         buildInfo?.buildHash && 
         initialBuildHash !== buildInfo.buildHash) {
       
-      console.log('New version detected. Current:', initialBuildHash, 'New:', buildInfo.buildHash);
+      console.debug('[pad.ws] New version detected. Current:', initialBuildHash, 'New:', buildInfo.buildHash);
       
       // Save the canvas and then refresh
       handleVersionUpdate();
