@@ -1,4 +1,6 @@
 import os
+import json
+import time
 
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
@@ -6,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from dependencies import UserSession, require_auth, get_coder_api
 from coder import CoderAPI
+from config import STATIC_DIR
 
 workspace_router = APIRouter()
 

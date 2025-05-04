@@ -39,6 +39,11 @@ export interface CanvasBackupsResponse {
   backups: CanvasBackup[];
 }
 
+export interface BuildInfo {
+  buildHash: string;
+  timestamp: number;
+}
+
 // API functions
 export const api = {
   // Authentication
@@ -134,6 +139,16 @@ export const api = {
       throw error;
     }
   },
+  
+  // Build Info
+  getBuildInfo: async (): Promise<BuildInfo> => {
+    try {
+      const result = await fetchApi('/api/app/build-info');
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  },
 };
 
 // Query hooks
@@ -188,6 +203,15 @@ export function useCanvasBackups(limit: number = 10, options?: UseQueryOptions<C
   return useQuery({
     queryKey: ['canvasBackups', limit],
     queryFn: () => api.getCanvasBackups(limit),
+    ...options,
+  });
+}
+
+export function useBuildInfo(options?: UseQueryOptions<BuildInfo>) {
+  return useQuery({
+    queryKey: ['buildInfo'],
+    queryFn: api.getBuildInfo,
+    refetchInterval: 60000, // Check every minute
     ...options,
   });
 }
