@@ -134,6 +134,8 @@ This simplified example lets you host pad on `localhost` but is not safe for rea
         ```dotenv
         CODER_DEFAULT_ORGANIZATION=your_organization_id # Example: 70f6af06-ef3a-4b4c-a663-c03c9ee423bb
         ```
+*   **If you use a custom name for your workspace:**
+    *   You need to provide the name as `CODER_WORKSPACE_NAME` in your `.env`. Otherwise, it will assume your workspace name is the default we chose: `ubuntu`.
 
 ### 6️⃣ Pad App 📝
 > The fastAPI app that both serves the build frontend and the backend API to interface with Coder
