@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useAuthCheck } from "./api/hooks";
+import { getAppConfig } from "./api/configService";
 
 /**
  * If unauthenticated, it shows the AuthModal as an overlay, but still renders the app behind it.
@@ -19,26 +20,42 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Only run the Coder OIDC priming once per session, after auth is confirmed
     if (isAuthenticated === true && !coderAuthDone) {
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      // Use runtime config if available, fall back to import.meta.env
-      const coderUrl = window.RUNTIME_CONFIG?.CODER_URL || import.meta.env.CODER_URL;
-      iframe.src = `${coderUrl}/api/v2/users/oidc/callback`;
-      console.debug(`[pad.ws] (Silently) Priming Coder OIDC session for ${coderUrl}`);
+      const setupIframe = async () => {
+        try {
+          // Get config from API
+          const config = await getAppConfig();
+          
+          if (!config.coderUrl) {
+            console.warn('[pad.ws] Coder URL not found, skipping OIDC priming');
+            setCoderAuthDone(true);
+            return;
+          }
+          
+          const iframe = document.createElement("iframe");
+          iframe.style.display = "none";
+          iframe.src = `${config.coderUrl}/api/v2/users/oidc/callback`;
+          console.debug(`[pad.ws] (Silently) Priming Coder OIDC session for ${config.coderUrl}`);
 
-      // Remove iframe as soon as it loads, or after 2s fallback
-      const cleanup = () => {
-        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-        setCoderAuthDone(true);
+          // Remove iframe as soon as it loads, or after fallback timeout
+          const cleanup = () => {
+            if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+            setCoderAuthDone(true);
+          };
+
+          iframe.onload = cleanup;
+          document.body.appendChild(iframe);
+          iframeRef.current = iframe;
+
+          // Fallback: remove iframe after 5s if onload doesn't fire
+          timeoutRef.current = window.setTimeout(cleanup, 5000);
+        } catch (error) {
+          console.error('[pad.ws] Error setting up Coder OIDC priming:', error);
+          setCoderAuthDone(true);
+        }
       };
-
-      iframe.onload = cleanup;
-      document.body.appendChild(iframe);
-      iframeRef.current = iframe;
-
-      // Fallback: remove iframe after 5s if onload doesn't fire
-      timeoutRef.current = window.setTimeout(cleanup, 5000);
-
+      
+      setupIframe();
+      
       // Cleanup on unmount or re-run
       return () => {
         if (iframeRef.current && iframeRef.current.parentNode) {

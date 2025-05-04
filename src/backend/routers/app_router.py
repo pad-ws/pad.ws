@@ -22,3 +22,14 @@ async def get_build_info():
         # Return a default response if file doesn't exist
         print(f"Error reading build-info.json: {str(e)}")
         return {"buildHash": "development", "timestamp": int(time.time())}
+
+@app_router.get("/config")
+async def get_app_config():
+    """
+    Return runtime configuration for the frontend
+    """
+    return {
+        "coderUrl": os.getenv("CODER_URL", ""),
+        "posthogKey": os.getenv("VITE_PUBLIC_POSTHOG_KEY", ""),
+        "posthogHost": os.getenv("VITE_PUBLIC_POSTHOG_HOST", "")
+    }
