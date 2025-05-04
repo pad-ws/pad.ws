@@ -56,7 +56,7 @@ export const Terminal: React.FC<TerminalProps> = ({
             terminalId,
             baseUrl: workspaceState.base_url,
             username: workspaceState.username,
-            workspaceId: workspaceState.workspace_id,
+            workspaceId: workspaceState.name,
             agent: workspaceState.agent
           };
           
@@ -162,7 +162,7 @@ export const Terminal: React.FC<TerminalProps> = ({
       return '';
     }
     
-    const baseUrl = `${workspaceState.base_url}/@${workspaceState.username}/${workspaceState.workspace_id}.${workspaceState.agent}/terminal`;
+    const baseUrl = `${workspaceState.base_url}/@${workspaceState.username}/${workspaceState.name}.${workspaceState.agent}/terminal`;
     
     // Add reconnect parameter if terminal ID exists
     if (terminalId) {

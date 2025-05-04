@@ -5,10 +5,11 @@ import { queryClient } from './queryClient';
 // Types
 export interface WorkspaceState {
   status: 'running' | 'starting' | 'stopping' | 'stopped' | 'error';
-  workspace_id: string | null;
   username: string | null;
+  name: string | null;
   base_url: string | null;
   agent: string | null;
+  id: string | null;
   error?: string;
 }
 
@@ -56,7 +57,7 @@ export const api = {
   // User profile
   getUserProfile: async (): Promise<UserProfile> => {
     try {
-      const result = await fetchApi('/api/user/me');
+      const result = await fetchApi('/api/users/me');
       return result;
     } catch (error) {
       throw error;
@@ -96,7 +97,7 @@ export const api = {
   // Canvas
   getCanvas: async (): Promise<CanvasData> => {
     try {
-      const result = await fetchApi('/api/canvas');
+      const result = await fetchApi('/api/pad');
       return result;
     } catch (error) {
       throw error;
@@ -105,7 +106,7 @@ export const api = {
   
   saveCanvas: async (data: CanvasData): Promise<any> => {
     try {
-      const result = await fetchApi('/api/canvas', {
+      const result = await fetchApi('/api/pad', {
         method: 'POST',
         body: JSON.stringify(data),
       });
@@ -117,8 +118,8 @@ export const api = {
   
   getDefaultCanvas: async (): Promise<CanvasData> => {
     try {
-      const result = await fetchApi('/api/canvas/default');
-      return result;
+      const result = await fetchApi('/api/templates/default');
+      return result.data;
     } catch (error) {
       throw error;
     }
@@ -127,7 +128,7 @@ export const api = {
   // Canvas Backups
   getCanvasBackups: async (limit: number = 10): Promise<CanvasBackupsResponse> => {
     try {
-      const result = await fetchApi(`/api/canvas/recent?limit=${limit}`);
+      const result = await fetchApi(`/api/pad/recent?limit=${limit}`);
       return result;
     } catch (error) {
       throw error;

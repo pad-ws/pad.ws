@@ -1,26 +1,22 @@
 import os
 import requests
-from dotenv import load_dotenv
+from config import CODER_API_KEY, CODER_URL, CODER_TEMPLATE_ID, CODER_DEFAULT_ORGANIZATION, CODER_WORKSPACE_NAME
 
 class CoderAPI:
     """
-    A class for interacting with the Coder API using credentials from .env file
+    A class for interacting with the Coder API using credentials from config
     """
     
     def __init__(self):
-        # Load environment variables from .env file
-        load_dotenv()
+        # Get configuration from config
+        self.api_key = CODER_API_KEY
+        self.coder_url = CODER_URL
+        self.template_id = CODER_TEMPLATE_ID
+        self.default_organization_id = CODER_DEFAULT_ORGANIZATION
         
-        # Get configuration from environment variables
-        self.api_key = os.getenv("CODER_API_KEY")
-        self.coder_url = os.getenv("CODER_URL")
-        self.user_id = os.getenv("USER_ID")
-        self.template_id = os.getenv("CODER_TEMPLATE_ID")
-        self.default_organization_id = os.getenv("CODER_DEFAULT_ORGANIZATION")
-        
-        # Check if required environment variables are set
+        # Check if required configuration variables are set
         if not self.api_key or not self.coder_url:
-            raise ValueError("CODER_API_KEY and CODER_URL must be set in .env file")
+            raise ValueError("CODER_API_KEY and CODER_URL must be set in environment variables")
             
         # Set up common headers for API requests
         self.headers = {
@@ -56,9 +52,9 @@ class CoderAPI:
         template_id = self.template_id
             
         if not template_id:
-            raise ValueError("template_id must be provided or TEMPLATE_ID must be set in .env")
+            raise ValueError("template_id must be provided or TEMPLATE_ID must be set in environment variables")
             
-        name = os.getenv("CODER_WORKSPACE_NAME", "ubuntu")
+        name = CODER_WORKSPACE_NAME
             
         # Prepare the request data
         data = {
@@ -201,7 +197,7 @@ class CoderAPI:
         Returns:
             dict: Workspace status data if found, None otherwise
         """
-        workspace_name = os.getenv("CODER_WORKSPACE_NAME", "ubuntu")
+        workspace_name = CODER_WORKSPACE_NAME
         
         endpoint = f"{self.coder_url}/api/v2/users/{username}/workspace/{workspace_name}"
         response = requests.get(endpoint, headers=self.headers)
