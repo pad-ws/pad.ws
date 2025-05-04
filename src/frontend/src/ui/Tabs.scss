@@ -4,7 +4,41 @@
 
     Button {
         height: var(--lg-button-size) !important;
-        width: var(--lg-button-size) !important;
+        width: auto !important; // Changed from fixed width to auto
+        min-width: var(--lg-button-size) !important;
         border: none !important;
+        margin-right: 0.5rem;
+        
+        &.active-pad {
+            background-color: #cc6d24 !important;
+            color: var(--color-on-primary) !important;
+            font-weight: bold;
+        }
+        
+        &.creating-pad {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    }
+    
+    .tabs-container {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        overflow-x: auto;
+        max-width: 100%;
+        padding-bottom: 5px; // Add padding to ensure scrollbar doesn't overlap content
+        
+        .loading-indicator {
+            font-size: 0.8rem;
+            color: var(--color-muted);
+            margin-right: 0.5rem;
+        }
+    }
+    
+    .new-tab-button-container {
+        Button {
+            width: var(--lg-button-size) !important;
+        }
     }
 }

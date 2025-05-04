@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..repository import PadRepository, UserRepository
 from .user_service import UserService
-
+from ..models import PadModel
 # Use TYPE_CHECKING to avoid circular imports
 if TYPE_CHECKING:
     from dependencies import UserSession
@@ -63,11 +63,6 @@ class PadService:
                 print(f"Error creating user as failsafe: {str(e)}")
                 raise ValueError(f"Failed to create user with ID '{owner_id}': {str(e)}")
         
-        # Check if pad with same name already exists for this owner
-        existing_pad = await self.repository.get_by_name(owner_id, display_name)
-        if existing_pad:
-            raise ValueError(f"Pad with name '{display_name}' already exists for this user")
-        
         # Create pad
         pad = await self.repository.create(owner_id, display_name, data)
         return pad.to_dict()
@@ -86,7 +81,7 @@ class PadService:
             # This allows the pad_router to handle the case where a user doesn't exist
             return []
         
-        pads = await self.repository.get_by_owner(owner_id)
+        pads: list[PadModel] = await self.repository.get_by_owner(owner_id)
         return [pad.to_dict() for pad in pads]
     
     async def get_pad_by_name(self, owner_id: UUID, display_name: str) -> Optional[Dict[str, Any]]:
@@ -104,12 +99,6 @@ class PadService:
         # Validate display_name if it's being updated
         if 'display_name' in data and not data['display_name']:
             raise ValueError("Display name cannot be empty")
-        
-        # Check if new display_name already exists for this owner (if being updated)
-        if 'display_name' in data and data['display_name'] != pad.display_name:
-            existing_pad = await self.repository.get_by_name(pad.owner_id, data['display_name'])
-            if existing_pad:
-                raise ValueError(f"Pad with name '{data['display_name']}' already exists for this user")
         
         # Update pad
         updated_pad = await self.repository.update(pad_id, data)

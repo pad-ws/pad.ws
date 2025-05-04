@@ -1,0 +1,52 @@
+.tab-context-menu {
+  position: fixed;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  min-width: 120px;
+  z-index: 1000;
+  
+  .menu-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    
+    &:hover {
+      background-color: #f5f5f5;
+    }
+    
+    &.delete {
+      color: #e53935;
+      
+      &:hover {
+        background-color: #ffebee;
+      }
+    }
+  }
+  
+  form {
+    padding: 8px;
+    display: flex;
+    
+    input {
+      flex: 1;
+      padding: 4px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-right: 4px;
+    }
+    
+    button {
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 4px 8px;
+      cursor: pointer;
+      
+      &:hover {
+        background-color: #3367d6;
+      }
+    }
+  }
+}

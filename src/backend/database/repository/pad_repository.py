@@ -33,8 +33,8 @@ class PadRepository:
         return result.scalars().first()
     
     async def get_by_owner(self, owner_id: UUID) -> List[PadModel]:
-        """Get all pads for a specific owner"""
-        stmt = select(PadModel).where(PadModel.owner_id == owner_id)
+        """Get all pads for a specific owner, sorted by created_at timestamp"""
+        stmt = select(PadModel).where(PadModel.owner_id == owner_id).order_by(PadModel.created_at)
         result = await self.session.execute(stmt)
         return result.scalars().all()
     

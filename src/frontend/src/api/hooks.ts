@@ -29,6 +29,15 @@ export interface CanvasData {
   files: any;
 }
 
+export interface PadData {
+  id: string;
+  owner_id: string;
+  display_name: string;
+  data: CanvasData;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CanvasBackup {
   id: number;
   timestamp: string;
@@ -99,8 +108,9 @@ export const api = {
     }
   },
   
-  // Canvas
-  getCanvas: async (): Promise<CanvasData> => {
+  // Canvas functions are now handled through getAllPads
+  
+  getAllPads: async (): Promise<PadData[]> => {
     try {
       const result = await fetchApi('/api/pad');
       return result;
@@ -111,9 +121,45 @@ export const api = {
   
   saveCanvas: async (data: CanvasData): Promise<any> => {
     try {
-      const result = await fetchApi('/api/pad', {
+      // Get the active pad ID from the global variable
+      const activePadId = (window as any).activePadId;
+      
+      // We must have an active pad ID to save
+      if (!activePadId) {
+        throw new Error("No active pad ID found. Cannot save canvas.");
+      }
+      
+      // Use the specific pad endpoint
+      const endpoint = `/api/pad/${activePadId}`;
+      
+      const result = await fetchApi(endpoint, {
         method: 'POST',
         body: JSON.stringify(data),
+      });
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  renamePad: async (padId: string, newName: string): Promise<any> => {
+    try {
+      const endpoint = `/api/pad/${padId}`;
+      const result = await fetchApi(endpoint, {
+        method: 'PATCH',
+        body: JSON.stringify({ display_name: newName }),
+      });
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  deletePad: async (padId: string): Promise<any> => {
+    try {
+      const endpoint = `/api/pad/${padId}`;
+      const result = await fetchApi(endpoint, {
+        method: 'DELETE',
       });
       return result;
     } catch (error) {
@@ -183,18 +229,10 @@ export function useWorkspaceState(options?: UseQueryOptions<WorkspaceState>) {
   });
 }
 
-export function useCanvas(options?: UseQueryOptions<CanvasData>) {
+export function useAllPads(options?: UseQueryOptions<PadData[]>) {
   return useQuery({
-    queryKey: ['canvas'],
-    queryFn: api.getCanvas,
-    ...options,
-  });
-}
-
-export function useDefaultCanvas(options?: UseQueryOptions<CanvasData>) {
-  return useQuery({
-    queryKey: ['defaultCanvas'],
-    queryFn: api.getDefaultCanvas,
+    queryKey: ['allPads'],
+    queryFn: api.getAllPads,
     ...options,
   });
 }
@@ -246,6 +284,22 @@ export function useSaveCanvas(options?: UseMutationOptions<any, Error, CanvasDat
       // Invalidate canvas backups query to trigger refetch
       queryClient.invalidateQueries({ queryKey: ['canvasBackups'] });
     },
+    ...options,
+  });
+}
+
+export function useRenamePad(options?: UseMutationOptions<any, Error, { padId: string, newName: string }>) {
+  return useMutation({
+    mutationFn: ({ padId, newName }) => api.renamePad(padId, newName),
+    // No automatic invalidation - we'll update the cache manually
+    ...options,
+  });
+}
+
+export function useDeletePad(options?: UseMutationOptions<any, Error, string>) {
+  return useMutation({
+    mutationFn: (padId) => api.deletePad(padId),
+    // No automatic invalidation - we'll update the cache manually
     ...options,
   });
 }
