@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@atyrode/excalidraw@^0.18.0-8":
-  version "0.18.0-8"
-  resolved "https://registry.yarnpkg.com/@atyrode/excalidraw/-/excalidraw-0.18.0-8.tgz#878db7be3725ecde5d7f9d92c14cb57bba92d3e7"
-  integrity sha512-0/HzS6unGQI9EY/mtwoCFfZaFOShUkD4VzqHnXbMxyktcDZ+xxHHE+fgWYt+p/ijXF3MN4ofY7LD8FVGn/Hn5Q==
+"@atyrode/excalidraw@^0.18.0-9":
+  version "0.18.0-9"
+  resolved "https://registry.yarnpkg.com/@atyrode/excalidraw/-/excalidraw-0.18.0-9.tgz#6a69b5d0b44b902c10ba9b27e46803231a628d95"
+  integrity sha512-Wej+UFAemSTHrLTcOOYCYxnZ4DTsYgRmE+NKMLtCOXLAI69nCQ7eyIMeKdI01rfNetjzT7OOZLHi/AIhx6GYGg==
   dependencies:
     "@braintree/sanitize-url" "6.0.2"
     "@excalidraw/laser-pointer" "1.3.1"
@@ -680,6 +680,11 @@ clsx@1.1.1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/clsx/-/clsx-1.1.1.tgz#98b3134f9abbdf23b2663491ace13c5c03a73188"
   integrity sha512-6/bPho624p3S2pMyvP5kKBPXnI3ufHLObBFCfgx+LkeR5lg2XYy2hqZqUf45ypD8COn2bhgGJSUE+l5dhNBieA==
+
+clsx@^2.1.1:
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/clsx/-/clsx-2.1.1.tgz#eed397c9fd8bd882bfb18deab7102049a2f32999"
+  integrity sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==
 
 commander@7:
   version "7.2.0"
