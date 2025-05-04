@@ -17,7 +17,7 @@ from datetime import datetime
 
 # revision identifiers, used by Alembic.
 revision = 'migrate_canvas_data'
-down_revision = None
+down_revision = 'create_schema'  # This migration depends on the schema creation
 branch_labels = None
 depends_on = None
 

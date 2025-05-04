@@ -184,9 +184,8 @@ async def run_migrations() -> None:
 
 async def init_db() -> None:
     """Initialize the database with required tables"""
-    # Create schema and tables
+    # Only create tables, let Alembic handle schema creation
     async with engine.begin() as conn:
-        await conn.execute(CreateSchema(SCHEMA_NAME, if_not_exists=True))
         await conn.run_sync(Base.metadata.create_all)
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
