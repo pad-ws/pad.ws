@@ -17,6 +17,7 @@ from routers.user_router import user_router
 from routers.workspace_router import workspace_router
 from routers.pad_router import pad_router
 from routers.template_pad_router import template_pad_router
+from routers.app_router import app_router
 from database.service import TemplatePadService
 from database.database import async_session, run_migrations_with_lock
 
@@ -140,6 +141,7 @@ app.include_router(user_router, prefix="/api/users")
 app.include_router(workspace_router, prefix="/api/workspace")
 app.include_router(pad_router, prefix="/api/pad")
 app.include_router(template_pad_router, prefix="/api/templates")
+app.include_router(app_router, prefix="/api/app")
     
 if __name__ == "__main__":
     import uvicorn

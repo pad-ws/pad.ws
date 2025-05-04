@@ -15,6 +15,7 @@ import type * as TExcalidraw from "@atyrode/excalidraw";
 
 import App from "./src/App";
 import AuthGate from "./src/AuthGate";
+import { BuildVersionCheck } from "./src/BuildVersionCheck";
 
 
 declare global {
@@ -31,6 +32,7 @@ async function initApp() {
     <StrictMode>
         <PostHogProvider client={posthog}>
           <QueryClientProvider client={queryClient}>
+            <BuildVersionCheck />
             <AuthGate>
               <App
                 useCustom={(api: any, args?: any[]) => { }}
