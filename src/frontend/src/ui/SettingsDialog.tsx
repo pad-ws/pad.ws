@@ -50,7 +50,8 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
       
       // Use the API function from hooks.ts to fetch the default canvas
       const defaultCanvasData = await api.getDefaultCanvas();
-      console.log("Default canvas data:", defaultCanvasData);
+      
+      console.debug("Default canvas data:", defaultCanvasData);
       
       // Normalize the canvas data before updating the scene
       const normalizedData = normalizeCanvasData(defaultCanvasData);
@@ -58,7 +59,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
       // Update the canvas with the normalized default data
       excalidrawAPI.updateScene(normalizedData);
       
-      console.log("Canvas reset to default successfully");
+      console.debug("Canvas reset to default successfully");
       
       // Close the dialog after successful restore
       handleClose();

@@ -119,7 +119,7 @@ export const api = {
   getDefaultCanvas: async (): Promise<CanvasData> => {
     try {
       const result = await fetchApi('/api/templates/default');
-      return result;
+      return result.data;
     } catch (error) {
       throw error;
     }
