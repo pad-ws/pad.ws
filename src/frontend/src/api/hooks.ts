@@ -46,6 +46,7 @@ export interface CanvasBackup {
 
 export interface CanvasBackupsResponse {
   backups: CanvasBackup[];
+  pad_name?: string;
 }
 
 export interface BuildInfo {
@@ -186,6 +187,15 @@ export const api = {
     }
   },
   
+  getPadBackups: async (padId: string, limit: number = 10): Promise<CanvasBackupsResponse> => {
+    try {
+      const result = await fetchApi(`/api/pad/${padId}/backups?limit=${limit}`);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
   // Build Info
   getBuildInfo: async (): Promise<BuildInfo> => {
     try {
@@ -245,6 +255,15 @@ export function useCanvasBackups(limit: number = 10, options?: UseQueryOptions<C
   });
 }
 
+export function usePadBackups(padId: string | null, limit: number = 10, options?: UseQueryOptions<CanvasBackupsResponse>) {
+  return useQuery({
+    queryKey: ['padBackups', padId, limit],
+    queryFn: () => padId ? api.getPadBackups(padId, limit) : Promise.reject('No pad ID provided'),
+    enabled: !!padId, // Only run the query if padId is provided
+    ...options,
+  });
+}
+
 export function useBuildInfo(options?: UseQueryOptions<BuildInfo>) {
   return useQuery({
     queryKey: ['buildInfo'],
@@ -281,8 +300,14 @@ export function useSaveCanvas(options?: UseMutationOptions<any, Error, CanvasDat
   return useMutation({
     mutationFn: api.saveCanvas,
     onSuccess: () => {
-      // Invalidate canvas backups query to trigger refetch
+      // Get the active pad ID from the global variable
+      const activePadId = (window as any).activePadId;
+      
+      // Invalidate canvas backups queries to trigger refetch
       queryClient.invalidateQueries({ queryKey: ['canvasBackups'] });
+      if (activePadId) {
+        queryClient.invalidateQueries({ queryKey: ['padBackups', activePadId] });
+      }
     },
     ...options,
   });

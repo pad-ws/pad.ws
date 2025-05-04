@@ -237,6 +237,52 @@ async def create_pad_from_template(
         raise HTTPException(status_code=500, detail=f"Failed to create pad from template: {str(e)}")
 
 
+@pad_router.get("/{pad_id}/backups")
+async def get_pad_backups(
+    pad_id: UUID,
+    limit: int = MAX_BACKUPS_PER_USER, 
+    user: UserSession = Depends(require_auth),
+    pad_service: PadService = Depends(get_pad_service),
+    backup_service: BackupService = Depends(get_backup_service)
+):
+    """Get backups for a specific pad"""
+    # Limit the number of backups to the maximum configured value
+    if limit > MAX_BACKUPS_PER_USER:
+        limit = MAX_BACKUPS_PER_USER
+    
+    try:
+        # Get the pad to verify ownership
+        pad = await pad_service.get_pad(pad_id)
+        
+        if not pad:
+            raise HTTPException(status_code=404, detail="Pad not found")
+            
+        # Verify the user owns this pad
+        if str(pad["owner_id"]) != str(user.id):
+            raise HTTPException(status_code=403, detail="You don't have permission to access this pad's backups")
+        
+        # Get backups for this specific pad
+        backups_data = await backup_service.get_backups_by_source(pad_id)
+        
+        # Limit the number of backups if needed
+        if len(backups_data) > limit:
+            backups_data = backups_data[:limit]
+        
+        # Format backups to match the expected response format
+        backups = []
+        for backup in backups_data:
+            backups.append({
+                "id": backup["id"],
+                "timestamp": backup["created_at"],
+                "data": backup["data"]
+            })
+        
+        return {"backups": backups, "pad_name": pad["display_name"]}
+    except Exception as e:
+        print(f"Error getting pad backups: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get pad backups: {str(e)}")
+
+
 @pad_router.get("/recent")
 async def get_recent_canvas_backups(
     limit: int = MAX_BACKUPS_PER_USER, 

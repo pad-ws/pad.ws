@@ -95,10 +95,10 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
       ) : (
         <>
           <div className="menu-item" onClick={handleRenameClick}>
-            Rename
+            <span className="menu-item__label">Rename</span>
           </div>
           <div className="menu-item delete" onClick={handleDeleteClick}>
-            Delete
+            <span className="menu-item__label">Delete</span>
           </div>
         </>
       )}

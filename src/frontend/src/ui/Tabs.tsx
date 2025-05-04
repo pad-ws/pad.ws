@@ -5,13 +5,10 @@ import { Stack, Button, Section, Tooltip } from "@atyrode/excalidraw";
 import { FilePlus2 } from "lucide-react";
 import { useAllPads, useSaveCanvas, useRenamePad, useDeletePad, PadData } from "../api/hooks";
 import { queryClient } from "../api/queryClient";
-import { fetchApi } from "../api/apiUtils";
 import { 
-  normalizeCanvasData, 
   getPadData, 
   storePadData, 
   setActivePad, 
-  getActivePad,
   getStoredActivePad,
   loadPadData,
   saveCurrentPadBeforeSwitching,
@@ -29,7 +26,7 @@ const Tabs: React.FC<TabsProps> = ({
 }: {
   excalidrawAPI: ExcalidrawImperativeAPI;
 }) => {
-    const { data: pads, isLoading, refetch: refetchPads } = useAllPads();
+    const { data: pads, isLoading } = useAllPads();
     const appState = excalidrawAPI.getAppState();
     const [isCreatingPad, setIsCreatingPad] = useState(false);
     const [activePadId, setActivePadId] = useState<string | null>(null);
