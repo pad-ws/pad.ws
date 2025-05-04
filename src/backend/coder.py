@@ -1,4 +1,3 @@
-import os
 import requests
 from config import CODER_API_KEY, CODER_URL, CODER_TEMPLATE_ID, CODER_DEFAULT_ORGANIZATION, CODER_WORKSPACE_NAME
 
@@ -24,63 +23,6 @@ class CoderAPI:
             'Coder-Session-Token': self.api_key
         }
     
-    def get_users(self):
-        """
-        Get all users from the Coder API
-        """
-        endpoint = f"{self.coder_url}/api/v2/users"
-        response = requests.get(endpoint, headers=self.headers)
-        response.raise_for_status()  # Raise exception for 4XX/5XX responses
-        return response.json()['users']
-    
-    
-    def create_workspace(self, user_id, parameter_values=None):
-        """
-        Create a new workspace for a user using a template
-        
-        Args:
-            user_id (str, optional): User ID to create the workspace for. Defaults to USER_ID from .env.
-            name (str, optional): Name for the new workspace. Defaults to a generated name.
-            template_id (str, optional): Template ID to use. Defaults to TEMPLATE_ID from .env.
-            parameter_values (list, optional): List of template parameter values. Example:
-                [{"name": "param_name", "value": "param_value"}]
-        
-        Returns:
-            dict: Created workspace data
-        """
-            
-        template_id = self.template_id
-            
-        if not template_id:
-            raise ValueError("template_id must be provided or TEMPLATE_ID must be set in environment variables")
-            
-        name = CODER_WORKSPACE_NAME
-            
-        # Prepare the request data
-        data = {
-            "name": name,
-            "template_id": template_id
-        }
-        
-        # Add rich_parameter_values if provided
-        if parameter_values:
-            data["rich_parameter_values"] = parameter_values
-            
-        # Set headers for JSON content
-        headers = self.headers.copy()
-        headers['Content-Type'] = 'application/json'
-        
-        # Create the workspace
-        print("Creating workspace for user", user_id)
-        endpoint = f"{self.coder_url}/api/v2/users/{user_id}/workspaces"
-        response = requests.post(endpoint, headers=headers, json=data)
-
-        response.raise_for_status()
-        return response.json()
-
-
-
-        
     def _get_all_templates(self): 
         """
         Get all templates from the Coder API
@@ -89,6 +31,16 @@ class CoderAPI:
         response = requests.get(endpoint, headers=self.headers)
         response.raise_for_status()
         return response.json()
+    
+
+    def get_users(self):
+        """
+        Get all users from the Coder API
+        """
+        endpoint = f"{self.coder_url}/api/v2/users"
+        response = requests.get(endpoint, headers=self.headers)
+        response.raise_for_status()  # Raise exception for 4XX/5XX responses
+        return response.json()['users']
 
     def get_user_by_email(self, email):
         """
@@ -186,6 +138,14 @@ class CoderAPI:
         new_user = self.create_user(username, email, name)
         return new_user, True
     
+
+    def get_workspace_metadata(self, workspace_id):
+        """
+        Get the metadata of a workspace
+        """
+        endpoint = f"{self.coder_url}/api/v2/workspaces/{workspace_id}"
+        response = requests.get(endpoint, headers=self.headers)
+        return response.json()
     
     def get_workspace_status_for_user(self, username):
         """
@@ -227,6 +187,14 @@ class CoderAPI:
         Returns:
             dict: Response from the API
         """
+
+        # First check if the workspace is dormant
+        if self.is_workspace_dormant(workspace_id):
+            print("Workspace is dormant, setting to not dormant")
+            self.set_workspace_dormancy(workspace_id, False)
+        else:
+            print("Workspace is not dormant")
+
         # First get the workspace to get its template version
         workspace_endpoint = f"{self.coder_url}/api/v2/workspaces/{workspace_id}"
         workspace_response = requests.get(workspace_endpoint, headers=self.headers)
@@ -279,3 +247,76 @@ class CoderAPI:
         response = requests.post(endpoint, headers=headers, json=data)
         response.raise_for_status()
         return response.json()
+    
+    def create_workspace(self, user_id, parameter_values=None):
+        """
+        Create a new workspace for a user using a template
+        
+        Args:
+            user_id (str, optional): User ID to create the workspace for. Defaults to USER_ID from .env.
+            name (str, optional): Name for the new workspace. Defaults to a generated name.
+            template_id (str, optional): Template ID to use. Defaults to TEMPLATE_ID from .env.
+            parameter_values (list, optional): List of template parameter values. Example:
+                [{"name": "param_name", "value": "param_value"}]
+        
+        Returns:
+            dict: Created workspace data
+        """
+            
+        template_id = self.template_id
+            
+        if not template_id:
+            raise ValueError("template_id must be provided or TEMPLATE_ID must be set in environment variables")
+            
+        name = CODER_WORKSPACE_NAME
+            
+        # Prepare the request data
+        data = {
+            "name": name,
+            "template_id": template_id
+        }
+        
+        # Add rich_parameter_values if provided
+        if parameter_values:
+            data["rich_parameter_values"] = parameter_values
+            
+        # Set headers for JSON content
+        headers = self.headers.copy()
+        headers['Content-Type'] = 'application/json'
+        
+        # Create the workspace
+        print("Creating workspace for user", user_id)
+        endpoint = f"{self.coder_url}/api/v2/users/{user_id}/workspaces"
+        response = requests.post(endpoint, headers=headers, json=data)
+
+        response.raise_for_status()
+        return response.json()
+    
+    def is_workspace_dormant(self, workspace_id) -> bool:
+        """
+        Check if a workspace is dormant
+        """
+        state = self.get_workspace_metadata(workspace_id)
+        if state["dormant_at"]:
+            return True
+        return False
+
+    def set_workspace_dormancy(self, workspace_id, dormant: bool):
+        """
+        Set a workspace to be dormant or not
+        """
+        endpoint = f"{self.coder_url}/api/v2/workspaces/{workspace_id}/dormant"
+        data = {"dormant": dormant}
+        headers = self.headers.copy()
+        headers['Content-Type'] = 'application/json'
+        response = requests.put(endpoint, headers=headers, json=data)
+        response.raise_for_status()
+        return response.json()
+    
+
+if __name__ == "__main__":
+    coder = CoderAPI()
+    workspace_id = coder.get_workspace_status_for_user("alex")["id"]
+    coder.set_workspace_dormancy(workspace_id, True)
+    state = coder.get_workspace_status_for_user("alex")
+    print(state)

@@ -69,6 +69,7 @@ async def start_workspace(
 
     try:
         response = coder_api.start_workspace(workspace.id)
+        print(response)
         return JSONResponse(content=response)
     except Exception as e:
         print(f"Error starting workspace: {str(e)}")
