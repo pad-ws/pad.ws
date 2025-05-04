@@ -190,10 +190,8 @@ class CoderAPI:
 
         # First check if the workspace is dormant
         if self.is_workspace_dormant(workspace_id):
-            print("Workspace is dormant, setting to not dormant")
+            print("Workspace was dormant, setting to not dormant")
             self.set_workspace_dormancy(workspace_id, False)
-        else:
-            print("Workspace is not dormant")
 
         # First get the workspace to get its template version
         workspace_endpoint = f"{self.coder_url}/api/v2/workspaces/{workspace_id}"
@@ -306,6 +304,7 @@ class CoderAPI:
         Set a workspace to be dormant or not
         """
         endpoint = f"{self.coder_url}/api/v2/workspaces/{workspace_id}/dormant"
+
         data = {"dormant": dormant}
         headers = self.headers.copy()
         headers['Content-Type'] = 'application/json'
