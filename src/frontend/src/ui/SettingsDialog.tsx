@@ -5,6 +5,7 @@ import { UserSettings, DEFAULT_SETTINGS } from "../types/settings";
 import { RefreshCw } from "lucide-react";
 import { normalizeCanvasData } from "../utils/canvasUtils";
 import { capture } from "../utils/posthog";
+import { api } from "../api/hooks";
 import "./SettingsDialog.scss";
 
 interface SettingsDialogProps {
@@ -47,17 +48,10 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
       setIsRestoring(true);
       capture('restore_tutorial_canvas_clicked');
       
-      // Fetch the default canvas data from the backend
-      const response = await fetch('/api/canvas/default', {
-        method: 'GET',
-        credentials: 'include'
-      });
+      // Use the API function from hooks.ts to fetch the default canvas
+      const defaultCanvasData = await api.getDefaultCanvas();
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch default canvas: ${response.statusText}`);
-      }
-      
-      const defaultCanvasData = await response.json();
+      console.debug("Default canvas data:", defaultCanvasData);
       
       // Normalize the canvas data before updating the scene
       const normalizedData = normalizeCanvasData(defaultCanvasData);
@@ -65,7 +59,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
       // Update the canvas with the normalized default data
       excalidrawAPI.updateScene(normalizedData);
       
-      console.log("Canvas reset to default successfully");
+      console.debug("Canvas reset to default successfully");
       
       // Close the dialog after successful restore
       handleClose();
