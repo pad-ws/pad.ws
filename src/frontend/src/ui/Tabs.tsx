@@ -210,13 +210,22 @@ const Tabs: React.FC<TabsProps> = ({
                                             });
                                         }}
                                     >
-                                        <Tooltip label={pad.display_name} children={
+                                        {/* Only show tooltip if name is longer than 32 characters */}
+                                        {pad.display_name.length > 32 ? (
+                                            <Tooltip label={pad.display_name} children={
+                                                <Button
+                                                    onSelect={() => handlePadSelect(pad)}
+                                                    children={`${pad.display_name.substring(0, 32)}...`}
+                                                    className={activePadId === pad.id ? "active-pad" : ""}
+                                                />
+                                            } />
+                                        ) : (
                                             <Button
                                                 onSelect={() => handlePadSelect(pad)}
                                                 children={pad.display_name}
                                                 className={activePadId === pad.id ? "active-pad" : ""}
                                             />
-                                        } />
+                                        )}
                                     </div>
                                 ))}
                                 

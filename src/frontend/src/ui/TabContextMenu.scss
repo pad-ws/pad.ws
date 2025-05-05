@@ -1,4 +1,8 @@
-.tab-context-menu {
+/* Unified context menu styles */
+
+/* Base context menu container */
+.tab-context-menu,
+.context-menu {
   position: fixed;
   border-radius: 4px;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
@@ -13,11 +17,20 @@
   cursor: default;
 }
 
+/* Context menu list */
+.context-menu {
+  padding: 0;
+  margin: 0;
+}
+
+/* Button text color */
 .tab-context-menu button {
   color: var(--popup-text-color, #333);
 }
 
-.tab-context-menu .menu-item {
+/* Menu items */
+.tab-context-menu .menu-item,
+.context-menu-item {
   position: relative;
   width: 100%;
   min-width: 9.5rem;
@@ -30,73 +43,118 @@
   white-space: nowrap;
   font-family: inherit;
   cursor: pointer;
+}
 
+/* Menu item layout for tab context menu */
+.tab-context-menu .menu-item {
   display: grid;
   grid-template-columns: 1fr 0.2fr;
   align-items: center;
-
-  .menu-item__label {
-    justify-self: start;
-    margin-inline-end: 20px;
-  }
-  
-  &.delete {
-    .menu-item__label {
-      color: #e53935;
-    }
-  }
 }
 
-.tab-context-menu .menu-item:hover {
+/* Menu item layout for context menu */
+.context-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Menu item label */
+.tab-context-menu .menu-item .menu-item__label {
+  justify-self: start;
+  margin-inline-end: 20px;
+}
+
+.context-menu-item__label {
+  flex: 1;
+}
+
+/* Delete item styling */
+.tab-context-menu .menu-item.delete .menu-item__label,
+.context-menu-item.dangerous {
+  color: #e53935;
+}
+
+/* Hover states */
+.tab-context-menu .menu-item:hover,
+.context-menu-item:hover {
   color: var(--popup-bg-color, #fff);
   background-color: var(--select-highlight-color, #f5f5f5);
-
-  &.delete {
-    .menu-item__label {
-      color: var(--popup-bg-color, #fff);
-    }
-    background-color: #e53935;
-  }
 }
 
+/* Dangerous hover states */
+.tab-context-menu .menu-item.delete:hover,
+.context-menu-item.dangerous:hover {
+  background-color: #e53935;
+}
+
+.tab-context-menu .menu-item.delete:hover .menu-item__label,
+.context-menu-item.dangerous:hover {
+  color: var(--popup-bg-color, #fff);
+}
+
+/* Focus state */
 .tab-context-menu .menu-item:focus {
   z-index: 1;
 }
 
-@media (max-width: 640px) {
-  .tab-context-menu .menu-item {
-    display: block;
-
-    .menu-item__label {
-      margin-inline-end: 0;
-    }
-  }
+/* Separator */
+.context-menu-item-separator {
+  margin: 0.25rem 0;
+  border: none;
+  border-top: 1px solid var(--button-gray-3, #ccc);
 }
 
+/* Shortcut display */
+.context-menu-item__shortcut {
+  margin-left: 1rem;
+  color: var(--text-color-secondary, #666);
+  font-size: 0.8rem;
+}
+
+/* Checkmark for selected items */
+.context-menu-item.checkmark::before {
+  content: "✓";
+  position: absolute;
+  left: 0.5rem;
+}
+
+/* Form styling for rename functionality */
 .tab-context-menu form {
   padding: 0.5rem 1rem;
   display: flex;
-  
-  input {
-    flex: 1;
-    padding: 0.25rem 0.5rem;
-    border: 1px solid var(--button-gray-3, #ccc);
-    border-radius: 4px;
-    margin-right: 0.25rem;
-    background-color: var(--input-bg-color, #fff);
-    color: var(--text-color-primary, #333);
+}
+
+.tab-context-menu form input {
+  flex: 1;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--button-gray-3, #ccc);
+  border-radius: 4px;
+  margin-right: 0.25rem;
+  background-color: var(--input-bg-color, #fff);
+  color: var(--text-color-primary, #333);
+}
+
+.tab-context-menu form button {
+  background-color: var(--color-surface-primary-container, #4285f4);
+  color: var(--color-on-primary-container, white);
+  border: none;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+
+.tab-context-menu form button:hover {
+  background-color: var(--color-primary-light, #3367d6);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .tab-context-menu .menu-item {
+    display: block;
   }
   
-  button {
-    background-color: var(--color-surface-primary-container, #4285f4);
-    color: var(--color-on-primary-container, white);
-    border: none;
-    border-radius: 4px;
-    padding: 0.25rem 0.5rem;
-    cursor: pointer;
-    
-    &:hover {
-      background-color: var(--color-primary-light, #3367d6);
-    }
+  .tab-context-menu .menu-item .menu-item__label {
+    margin-inline-end: 0;
   }
 }
