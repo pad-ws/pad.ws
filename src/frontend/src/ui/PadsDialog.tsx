@@ -119,11 +119,11 @@ const PadsDialog: React.FC<PadsDialogProps> = ({
       padName: pad.display_name
     });
     
-    // If deleting the active pad, switch to another pad first
+    // If deleting the active pad, switch to another pad first but keep dialog open
     if (pad.id === activePadId && pads) {
       const otherPad = pads.find(p => p.id !== pad.id);
       if (otherPad && excalidrawAPI) {
-        handleLoadPad(otherPad);
+        handleLoadPad(otherPad, true); // Pass true to keep dialog open
       }
     }
     
@@ -131,7 +131,7 @@ const PadsDialog: React.FC<PadsDialogProps> = ({
     deletePad(pad.id);
   };
 
-  const handleLoadPad = (pad: PadData) => {
+  const handleLoadPad = (pad: PadData, keepDialogOpen: boolean = false) => {
     if (!excalidrawAPI) return;
     
     // Save the current canvas before switching tabs
@@ -147,8 +147,10 @@ const PadsDialog: React.FC<PadsDialogProps> = ({
     // Load the pad data
     loadPadData(excalidrawAPI, pad.id, pad.data);
     
-    // Close the dialog
-    handleClose();
+    // Close the dialog only if keepDialogOpen is false
+    if (!keepDialogOpen) {
+      handleClose();
+    }
   };
 
   // Format date function
