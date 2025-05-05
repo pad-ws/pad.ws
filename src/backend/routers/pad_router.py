@@ -2,6 +2,7 @@ from uuid import UUID
 from typing import Dict, Any
 
 from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.responses import JSONResponse
 
 from dependencies import UserSession, require_auth
 from database import get_pad_service, get_backup_service, get_template_pad_service
@@ -32,6 +33,73 @@ def ensure_pad_metadata(data: Dict[str, Any], pad_id: str, display_name: str) ->
     data["appState"]["pad"]["displayName"] = display_name
     
     return data
+
+
+@pad_router.post("")
+async def update_first_pad(
+    data: Dict[str, Any],
+    user: UserSession = Depends(require_auth),
+    pad_service: PadService = Depends(get_pad_service),
+    backup_service: BackupService = Depends(get_backup_service),
+    template_pad_service: TemplatePadService = Depends(get_template_pad_service),
+):
+    """
+    Update the first pad for the authenticated user.
+    
+    This is a backward compatibility endpoint that assumes the user is trying to update their first pad.
+    It will be deprecated in the future. Please use POST /api/pad/{pad_id} instead.
+    """
+    try:
+        # Get user's pads
+        user_pads = await pad_service.get_pads_by_owner(user.id)
+        
+        # If user has no pads, create a default one
+        if not user_pads:
+            new_pad = await create_pad_from_template(
+                name=DEFAULT_TEMPLATE_NAME, 
+                display_name=DEFAULT_PAD_NAME, 
+                user=user, 
+                pad_service=pad_service, 
+                template_pad_service=template_pad_service,
+                backup_service=backup_service
+            )
+            pad_id = new_pad["id"]
+        else:
+            # Use the first pad
+            pad_id = user_pads[0]["id"]
+        
+        # Get the pad to verify ownership
+        pad = await pad_service.get_pad(pad_id)
+        
+        if not pad:
+            raise HTTPException(status_code=404, detail="Pad not found")
+            
+        # Verify the user owns this pad
+        if str(pad["owner_id"]) != str(user.id):
+            raise HTTPException(status_code=403, detail="You don't have permission to update this pad")
+        
+        # Ensure the uniqueId and displayName are set in the data
+        data = ensure_pad_metadata(data, str(pad_id), pad["display_name"])
+        
+        # Update the pad
+        await pad_service.update_pad_data(pad_id, data)
+        
+        # Create a backup if needed
+        await backup_service.create_backup_if_needed(
+            source_id=pad_id, 
+            data=data,
+            min_interval_minutes=MIN_INTERVAL_MINUTES,
+            max_backups=MAX_BACKUPS_PER_USER
+        )
+        
+        # Return success with deprecation notice
+        return JSONResponse(
+            content={"status": "success", "message": "This endpoint is deprecated. Please use POST /api/pad/{pad_id} instead."},
+            headers={"Deprecation": "true", "Sunset": "Mon, 10 May 2025 00:00:00 GMT"}
+        )
+    except Exception as e:
+        print(f"Error updating pad: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update pad: {str(e)}")
 
 
 @pad_router.post("/{pad_id}")
