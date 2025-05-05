@@ -188,6 +188,25 @@ const Tabs: React.FC<TabsProps> = ({
             
             // Set the active pad ID in the component state
             setActivePadId(newPad.id);
+            
+            // Get the current pads from the query cache
+            const currentPads = queryClient.getQueryData<PadData[]>(['allPads']);
+            
+            if (currentPads) {
+                // Find the index of the newly created pad
+                const newPadIndex = currentPads.findIndex(pad => pad.id === newPad.id);
+                
+                if (newPadIndex !== -1) {
+                    // Calculate the appropriate startPadIndex to ensure the new pad is visible
+                    // We want to position the view so that the new pad is visible
+                    // Ideally, we want the new pad to be the last visible pad in the view
+                    const newStartIndex = Math.max(0, Math.min(newPadIndex - PADS_PER_PAGE + 1, currentPads.length - PADS_PER_PAGE));
+                    
+                    // Update both the component state and the stored value
+                    setStartPadIndex(newStartIndex);
+                    setScrollIndex(newStartIndex);
+                }
+            }
         } catch (error) {
             console.error('Error creating new pad:', error);
         } finally {
@@ -320,14 +339,14 @@ const Tabs: React.FC<TabsProps> = ({
                                         }}
                                     >
                                         {/* Only show tooltip if name is likely to be truncated (more than ~15 characters) */}
-                                        {pad.display_name.length > 8 ? (
+                                        {pad.display_name.length > 11 ? (
                                             <Tooltip label={pad.display_name} children={
                                                 <Button
                                                     onSelect={() => handlePadSelect(pad)}
                                                     className={activePadId === pad.id ? "active-pad" : ""}
                                                     children={
                                                         <div className="tab-content">
-                                                            {pad.display_name}
+                                                            {pad.display_name.length > 8 ? `${pad.display_name.substring(0, 11)}...` : pad.display_name}
                                                             <span className="tab-position">{startPadIndex + pads.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).indexOf(pad) + 1}</span>
                                                         </div>
                                                     }
