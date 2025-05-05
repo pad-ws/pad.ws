@@ -7,7 +7,6 @@
         height: var(--lg-button-size) !important;
         width: 100px !important;
         min-width: 100px !important;
-        border: none !important;
         margin-right: 0.6rem;
         text-overflow: ellipsis;
         overflow: hidden;
@@ -17,6 +16,7 @@
             background-color: #cc6d24 !important;
             color: var(--color-on-primary) !important;
             font-weight: bold;
+            border: 1px solid #cccccc !important;
 
             .tab-position {
                 color: var(--color-on-primary) !important;
@@ -35,6 +35,7 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
+
             
             .tab-position {
                 position: absolute;
@@ -114,6 +115,7 @@
     
     .new-tab-button-container {
         Button {
+            border: none !important;
             min-width: auto !important;
             width: var(--lg-button-size) !important;
         }
