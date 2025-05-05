@@ -53,6 +53,7 @@ export function normalizeCanvasData(data: any) {
 // Local storage keys
 export const LOCAL_STORAGE_PADS_KEY = 'pad_ws_pads';
 export const LOCAL_STORAGE_ACTIVE_PAD_KEY = 'pad_ws_active_pad';
+export const LOCAL_STORAGE_SCROLL_INDEX_KEY = 'pad_ws_scroll_index';
 
 /**
  * Stores pad data in local storage
@@ -135,6 +136,33 @@ export function getStoredActivePad(): string | null {
   } catch (error) {
     console.error('[pad.ws] Error getting active pad ID from local storage:', error);
     return null;
+  }
+}
+
+/**
+ * Sets the scroll index in local storage
+ * @param index The scroll index to store
+ */
+export function setScrollIndex(index: number): void {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_SCROLL_INDEX_KEY, index.toString());
+    console.debug(`[pad.ws] Stored scroll index ${index} in local storage`);
+  } catch (error) {
+    console.error('[pad.ws] Error storing scroll index in local storage:', error);
+  }
+}
+
+/**
+ * Gets the stored scroll index from local storage
+ * @returns The stored scroll index or 0 if not found
+ */
+export function getStoredScrollIndex(): number {
+  try {
+    const storedScrollIndex = localStorage.getItem(LOCAL_STORAGE_SCROLL_INDEX_KEY);
+    return storedScrollIndex ? parseInt(storedScrollIndex, 10) : 0;
+  } catch (error) {
+    console.error('[pad.ws] Error getting scroll index from local storage:', error);
+    return 0;
   }
 }
 

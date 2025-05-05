@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from "react";
 
 import type { ExcalidrawImperativeAPI } from "@atyrode/excalidraw/types";
 import { Stack, Button, Section, Tooltip } from "@atyrode/excalidraw";
-import { FilePlus2 } from "lucide-react";
+import { FilePlus2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAllPads, useSaveCanvas, useRenamePad, useDeletePad, PadData } from "../api/hooks";
 import { queryClient } from "../api/queryClient";
 import { 
@@ -12,7 +12,9 @@ import {
   getStoredActivePad,
   loadPadData,
   saveCurrentPadBeforeSwitching,
-  createNewPad
+  createNewPad,
+  setScrollIndex,
+  getStoredScrollIndex
 } from "../utils/canvasUtils";
 import TabContextMenu from "./TabContextMenu";
 import "./Tabs.scss";
@@ -30,6 +32,8 @@ const Tabs: React.FC<TabsProps> = ({
     const appState = excalidrawAPI.getAppState();
     const [isCreatingPad, setIsCreatingPad] = useState(false);
     const [activePadId, setActivePadId] = useState<string | null>(null);
+    const [startPadIndex, setStartPadIndex] = useState(getStoredScrollIndex());
+    const PADS_PER_PAGE = 5; // Show 5 pads at a time
     
     // Context menu state
     const [contextMenu, setContextMenu] = useState<{
@@ -99,6 +103,16 @@ const Tabs: React.FC<TabsProps> = ({
                 
                 // Update the query cache with the new data
                 queryClient.setQueryData(['allPads'], updatedPads);
+                
+                // Recompute the startPadIndex to avoid visual artifacts
+                // If deleting a pad would result in an empty space at the end of the tab bar
+                if (startPadIndex > 0 && startPadIndex + PADS_PER_PAGE > updatedPads.length) {
+                    // Calculate the new index that ensures the tab bar is filled properly
+                    // but never goes below 0
+                    const newIndex = Math.max(0, updatedPads.length - PADS_PER_PAGE);
+                    setStartPadIndex(newIndex);
+                    setScrollIndex(newIndex);
+                }
             }
         },
         onError: (error) => {
@@ -181,22 +195,117 @@ const Tabs: React.FC<TabsProps> = ({
         }
     };
 
+    // Navigation functions - move by 1 pad at a time
+    const showPreviousPads = () => {
+        const newIndex = Math.max(0, startPadIndex - 1);
+        setStartPadIndex(newIndex);
+        setScrollIndex(newIndex);
+    };
+
+    const showNextPads = () => {
+        if (pads) {
+            const newIndex = Math.min(startPadIndex + 1, Math.max(0, pads.length - PADS_PER_PAGE));
+            setStartPadIndex(newIndex);
+            setScrollIndex(newIndex);
+        }
+    };
+
+    // Create a dependency that only changes when the number of pads changes or pad IDs change
+    const padStructure = React.useMemo(() => {
+        return pads ? pads.map(pad => pad.id) : [];
+    }, [pads]);
+
+    // We've removed the auto-centering feature that would automatically position the active pad in the middle of the tab bar
+    
+    // Create a ref for the tabs wrapper to handle wheel events
+    const tabsWrapperRef = useRef<HTMLDivElement>(null);
+    
+    // Track last wheel event time to throttle scrolling
+    const lastWheelTimeRef = useRef<number>(0);
+    const wheelThrottleMs = 70; // Minimum time between wheel actions in milliseconds
+    
+    // Set up wheel event listener with passive: false to properly prevent default behavior
+    useLayoutEffect(() => {
+        const handleWheel = (e: WheelEvent) => {
+            // Always prevent default to stop page navigation
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Throttle wheel events to prevent too rapid scrolling
+            const now = Date.now();
+            if (now - lastWheelTimeRef.current < wheelThrottleMs) {
+                return;
+            }
+            
+            // Update last wheel time
+            lastWheelTimeRef.current = now;
+            
+            // Prioritize horizontal scrolling (deltaX) if present
+            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                // Horizontal scrolling
+                if (e.deltaX > 0 && pads && startPadIndex < pads.length - PADS_PER_PAGE) {
+                    showNextPads();
+                } else if (e.deltaX < 0 && startPadIndex > 0) {
+                    showPreviousPads();
+                }
+            } else {
+                // Vertical scrolling - treat down as right, up as left (common convention)
+                if (e.deltaY > 0 && pads && startPadIndex < pads.length - PADS_PER_PAGE) {
+                    showNextPads();
+                } else if (e.deltaY < 0 && startPadIndex > 0) {
+                    showPreviousPads();
+                }
+            }
+        };
+        
+        const tabsWrapper = tabsWrapperRef.current;
+        if (tabsWrapper) {
+            // Add wheel event listener with passive: false option
+            tabsWrapper.addEventListener('wheel', handleWheel, { passive: false });
+            
+            // Clean up the event listener when component unmounts
+            return () => {
+                tabsWrapper.removeEventListener('wheel', handleWheel);
+            };
+        }
+    }, [pads, startPadIndex, PADS_PER_PAGE]);  // Dependencies needed for boundary checks
+
     return (
         <>
             <div className="tabs-bar">
                 <Stack.Col gap={2}>
                     <Section heading="canvasActions">
                         {!appState.viewModeEnabled && (
-                            <div className="tabs-container">
-                                {/* Loading indicator */}
-                                {isLoading && (
-                                    <div className="loading-indicator">
-                                        Loading pads...
+                            <>
+                                <div 
+                                    className="tabs-wrapper"
+                                    ref={tabsWrapperRef}
+                                >
+                                    {/* New pad button - moved to the beginning */}
+                                    <div className="new-tab-button-container">
+                                        <Tooltip label={isCreatingPad ? "Creating new pad..." : "New pad"} children={
+                                            <Button
+                                                onSelect={isCreatingPad ? () => {} : handleCreateNewPad}
+                                                className={isCreatingPad ? "creating-pad" : ""}
+                                                children={
+                                                    <div className="ToolIcon__icon">
+                                                        <FilePlus2 />
+                                                    </div>
+                                                }
+                                            />
+                                        } />
                                     </div>
-                                )}
+                                    
+                                    <div className="tabs-container">
+                                    {/* Loading indicator */}
+                                    {isLoading && (
+                                        <div className="loading-indicator">
+                                            Loading pads...
+                                        </div>
+                                    )}
                                 
-                                {/* List all pads */}
-                                {!isLoading && pads && pads.map((pad) => (
+                                    {/* List visible pads (5 at a time) */}
+                                    {!isLoading && pads && pads.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).map((pad) => (
                                     <div 
                                         key={pad.id}
                                         onContextMenu={(e) => {
@@ -210,40 +319,76 @@ const Tabs: React.FC<TabsProps> = ({
                                             });
                                         }}
                                     >
-                                        {/* Only show tooltip if name is longer than 32 characters */}
-                                        {pad.display_name.length > 32 ? (
+                                        {/* Only show tooltip if name is likely to be truncated (more than ~15 characters) */}
+                                        {pad.display_name.length > 8 ? (
                                             <Tooltip label={pad.display_name} children={
                                                 <Button
                                                     onSelect={() => handlePadSelect(pad)}
-                                                    children={`${pad.display_name.substring(0, 32)}...`}
                                                     className={activePadId === pad.id ? "active-pad" : ""}
+                                                    children={
+                                                        <div className="tab-content">
+                                                            {pad.display_name}
+                                                            <span className="tab-position">{startPadIndex + pads.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).indexOf(pad) + 1}</span>
+                                                        </div>
+                                                    }
                                                 />
                                             } />
                                         ) : (
                                             <Button
                                                 onSelect={() => handlePadSelect(pad)}
-                                                children={pad.display_name}
                                                 className={activePadId === pad.id ? "active-pad" : ""}
+                                                children={
+                                                    <div className="tab-content">
+                                                        {pad.display_name}
+                                                        <span className="tab-position">{startPadIndex + pads.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).indexOf(pad) + 1}</span>
+                                                    </div>
+                                                }
                                             />
                                         )}
                                     </div>
-                                ))}
-                                
-                                {/* New pad button */}
-                                <div className="new-tab-button-container">
-                                    <Tooltip label={isCreatingPad ? "Creating new pad..." : "New pad"} children={
-                                        <Button
-                                            onSelect={isCreatingPad ? () => {} : handleCreateNewPad}
-                                            className={isCreatingPad ? "creating-pad" : ""}
-                                            children={
-                                                <div className="ToolIcon__icon">
-                                                    <FilePlus2 />
-                                                </div>
-                                            }
-                                        />
-                                    } />
+                                    ))}
+                                    
+                                    </div>
+                                                                        
+                                    {/* Left scroll button - only visible when there are more pads than can fit in the view */}
+                                    {pads && pads.length > PADS_PER_PAGE && (
+                                        <React.Fragment key={`left-tooltip-${startPadIndex}`}>
+                                            <Tooltip 
+                                                label={`Scroll to the left${startPadIndex > 0 ? `\n(${startPadIndex} more)` : ''}`} 
+                                                children={
+                                                    <button 
+                                                        className={`scroll-button left ${startPadIndex > 0 ? '' : 'disabled'}`}
+                                                        onClick={showPreviousPads}
+                                                        aria-label="Show previous pads"
+                                                        disabled={startPadIndex <= 0}
+                                                    >
+                                                        <ChevronLeft size={20} />
+                                                    </button>
+                                                } 
+                                            />
+                                        </React.Fragment>
+                                    )}
+                                    
+                                    {/* Right scroll button - only visible when there are more pads than can fit in the view */}
+                                    {pads && pads.length > PADS_PER_PAGE && (
+                                        <React.Fragment key={`right-tooltip-${startPadIndex}`}>
+                                            <Tooltip 
+                                                label={`Scroll to the right${pads && pads.length - (startPadIndex + PADS_PER_PAGE) > 0 ? `\n(${Math.max(0, pads.length - (startPadIndex + PADS_PER_PAGE))} more)` : ''}`} 
+                                                children={
+                                                    <button 
+                                                        className={`scroll-button right ${pads && startPadIndex < pads.length - PADS_PER_PAGE ? '' : 'disabled'}`}
+                                                        onClick={showNextPads}
+                                                        aria-label="Show next pads"
+                                                        disabled={!pads || startPadIndex >= pads.length - PADS_PER_PAGE}
+                                                    >
+                                                        <ChevronRight size={20} />
+                                                    </button>
+                                                } 
+                                            />
+                                        </React.Fragment>
+                                    )}
                                 </div>
-                            </div>
+                            </>
                         )}
                     </Section>
                 </Stack.Col>
