@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 
-import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text, ArchiveRestore, Settings, Terminal } from 'lucide-react';
+import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text, ArchiveRestore, Settings, Terminal, FileText } from 'lucide-react';
 import AccountDialog from './AccountDialog';
 import md5 from 'crypto-js/md5';
 import { capture } from '../utils/posthog';
@@ -22,6 +22,8 @@ interface MainMenuConfigProps {
   excalidrawAPI: ExcalidrawImperativeAPI | null;
   showBackupsModal: boolean;
   setShowBackupsModal: (show: boolean) => void;
+  showPadsModal: boolean;
+  setShowPadsModal: (show: boolean) => void;
   showSettingsModal?: boolean;
   setShowSettingsModal?: (show: boolean) => void;
 }
@@ -30,6 +32,7 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
   MainMenu,
   excalidrawAPI,
   setShowBackupsModal,
+  setShowPadsModal,
   setShowSettingsModal = (show: boolean) => {},
 }) => {
   const [showAccountModal, setShowAccountModal] = useState(false);
@@ -128,6 +131,10 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
   const handleCanvasBackupsClick = () => {
     setShowBackupsModal(true);
   };
+  
+  const handleManagePadsClick = () => {
+    setShowPadsModal(true);
+  };
 
   const handleSettingsClick = () => {
     setShowSettingsModal(true);
@@ -194,9 +201,9 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });
       
       // No need to redirect to the logout URL since we're already handling it via iframe
-      console.log("Logged out successfully");
+      console.debug("[pad.ws] Logged out successfully");
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error("[pad.ws] Logout failed:", error);
     }
   };
 
@@ -230,6 +237,12 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
         <MainMenu.DefaultItems.LoadScene />
         <MainMenu.DefaultItems.Export />
         <MainMenu.DefaultItems.SaveAsImage />
+        <MainMenu.Item
+          icon={<FileText />}
+          onClick={handleManagePadsClick}
+        >
+          Manage pads...
+        </MainMenu.Item>
         <MainMenu.Item
           icon={<ArchiveRestore />}
           onClick={handleCanvasBackupsClick}

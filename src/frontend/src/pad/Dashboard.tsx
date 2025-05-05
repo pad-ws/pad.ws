@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidraw/element/types';
 import type { AppState } from '@atyrode/excalidraw/types';
-import StateIndicator from '../controls/StateIndicator';
-import ControlButton from '../controls/ControlButton';
-import { ActionButtonGrid } from '../buttons';
-import { useWorkspaceState } from '../../api/hooks';
+import StateIndicator from './StateIndicator';
+import ControlButton from './buttons/ControlButton';
+import { ActionButtonGrid } from './buttons';
+import { useWorkspaceState } from '../api/hooks';
 import './Dashboard.scss';
 
 // Direct import from types

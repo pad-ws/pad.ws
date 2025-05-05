@@ -24,7 +24,7 @@ const generateBuildInfoPlugin = (): Plugin => ({
       JSON.stringify(buildInfo, null, 2)
     );
     
-    console.log('Generated build-info.json with hash:', buildInfo.buildHash);
+    console.debug('[pad.ws] Generated build-info.json with hash:', buildInfo.buildHash);
   }
 });
 

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { Dialog } from "@atyrode/excalidraw";
-import { useCanvasBackups, CanvasBackup } from "../api/hooks";
-import { normalizeCanvasData } from "../utils/canvasUtils";
+import { usePadBackups, CanvasBackup } from "../api/hooks";
+import { normalizeCanvasData, getActivePad } from "../utils/canvasUtils";
 import "./BackupsDialog.scss";
 
 interface BackupsModalProps {
@@ -14,7 +14,8 @@ const BackupsModal: React.FC<BackupsModalProps> = ({
   onClose,
 }) => {
   const [modalIsShown, setModalIsShown] = useState(true);
-  const { data, isLoading, error } = useCanvasBackups();
+  const activePadId = getActivePad();
+  const { data, isLoading, error } = usePadBackups(activePadId);
   const [selectedBackup, setSelectedBackup] = useState<CanvasBackup | null>(null);
 
   // Functions from CanvasBackups.tsx
@@ -113,7 +114,9 @@ const BackupsModal: React.FC<BackupsModalProps> = ({
             onCloseRequest={handleClose}
             title={
               <div className="backups-modal__title-container">
-                <h2 className="backups-modal__title">Canvas Backups</h2>
+                <h2 className="backups-modal__title">
+                  {data?.pad_name ? `${data.pad_name} (this pad) - Backups` : 'Canvas Backups'}
+                </h2>
               </div>
             }
             closeOnClickOutside={true}

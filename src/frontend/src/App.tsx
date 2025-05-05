@@ -1,9 +1,17 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { useCanvas, useDefaultCanvas, useUserProfile } from "./api/hooks";
+import { useAllPads, useUserProfile } from "./api/hooks";
 import { ExcalidrawWrapper } from "./ExcalidrawWrapper";
 import { debounce } from "./utils/debounce";
 import posthog from "./utils/posthog";
-import { normalizeCanvasData } from "./utils/canvasUtils";
+import { 
+  normalizeCanvasData, 
+  getPadData, 
+  storePadData, 
+  setActivePad, 
+  getActivePad,
+  getStoredActivePad,
+  loadPadData
+} from "./utils/canvasUtils";
 import { useSaveCanvas } from "./api/hooks";
 import type * as TExcalidraw from "@atyrode/excalidraw";
 import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
@@ -28,23 +36,49 @@ export default function App({
   const { data: isAuthenticated, isLoading: isAuthLoading } = useAuthCheck();
   const { data: userProfile } = useUserProfile();
 
-  // Only enable canvas queries if authenticated and not loading
-  const { data: canvasData } = useCanvas({
-    queryKey: ['canvas'],
+  // Only enable pad queries if authenticated and not loading
+  const { data: pads } = useAllPads({
+    queryKey: ['allPads'],
     enabled: isAuthenticated === true && !isAuthLoading,
     retry: 1,
   });
+  
+  // Get the first pad's data to use as the canvas data
+  const canvasData = pads && pads.length > 0 ? pads[0].data : null;
 
   // Excalidraw API ref
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
   useCustom(excalidrawAPI, customArgs);
   useHandleLibrary({ excalidrawAPI });
 
+  // Using imported functions from canvasUtils.ts
+
   useEffect(() => {
-    if (excalidrawAPI && canvasData) {
-      excalidrawAPI.updateScene(normalizeCanvasData(canvasData));
+    if (excalidrawAPI && pads && pads.length > 0) {
+      // Check if there's a stored active pad ID
+      const storedActivePadId = getStoredActivePad();
+      
+      // Find the pad that matches the stored ID, or use the first pad if no match
+      let padToActivate = pads[0];
+      
+      if (storedActivePadId) {
+        // Try to find the pad with the stored ID
+        const matchingPad = pads.find(pad => pad.id === storedActivePadId);
+        if (matchingPad) {
+          console.debug(`[pad.ws] Found stored active pad in App.tsx: ${storedActivePadId}`);
+          padToActivate = matchingPad;
+        } else {
+          console.debug(`[pad.ws] Stored active pad ${storedActivePadId} not found in available pads`);
+        }
+      }
+      
+      // Set the active pad ID globally
+      setActivePad(padToActivate.id);
+      
+      // Load the pad data for the selected pad
+      loadPadData(excalidrawAPI, padToActivate.id, padToActivate.data);
     }
-  }, [excalidrawAPI, canvasData]);
+  }, [excalidrawAPI, pads]);
 
   const { mutate: saveCanvas } = useSaveCanvas({
     onSuccess: () => {
@@ -72,6 +106,10 @@ export default function App({
       (elements: NonDeletedExcalidrawElement[], state: AppState, files: any) => {
         if (!isAuthenticated) return;
 
+        // Get the active pad ID using the imported function
+        const activePadId = getActivePad();
+        if (!activePadId) return;
+
         const canvasData = {
           elements,
           appState: state,
@@ -81,12 +119,17 @@ export default function App({
         const serialized = JSON.stringify(canvasData);
         if (serialized !== lastSentCanvasDataRef.current) {
           lastSentCanvasDataRef.current = serialized;
+          
+          // Store the canvas data in local storage
+          storePadData(activePadId, canvasData);
+          
+          // Save the canvas data to the server
           saveCanvas(canvasData);
         }
       },
       1200
     ),
-    [saveCanvas, isAuthenticated]
+    [saveCanvas, isAuthenticated, storePadData]
   );
 
   useEffect(() => {

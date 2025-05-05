@@ -311,11 +311,3 @@ class CoderAPI:
         response = requests.put(endpoint, headers=headers, json=data)
         response.raise_for_status()
         return response.json()
-    
-
-if __name__ == "__main__":
-    coder = CoderAPI()
-    workspace_id = coder.get_workspace_status_for_user("alex")["id"]
-    coder.set_workspace_dormancy(workspace_id, True)
-    state = coder.get_workspace_status_for_user("alex")
-    print(state)

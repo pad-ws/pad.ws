@@ -1,5 +1,5 @@
 import React from 'react';
-import { useWorkspaceState, useAuthCheck } from '../../api/hooks';
+import { useWorkspaceState, useAuthCheck } from '../api/hooks';
 import './StateIndicator.scss';
 
 export const StateIndicator: React.FC = () => {
