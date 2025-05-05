@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from "react";
 import { Dialog } from "@atyrode/excalidraw";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, FilePlus2 } from "lucide-react";
 import { useAllPads, useRenamePad, useDeletePad, PadData } from "../api/hooks";
-import { loadPadData, getActivePad, setActivePad, saveCurrentPadBeforeSwitching } from "../utils/canvasUtils";
+import { loadPadData, getActivePad, setActivePad, saveCurrentPadBeforeSwitching, createNewPad } from "../utils/canvasUtils";
 import { queryClient } from "../api/queryClient";
 import { capture } from "../utils/posthog";
 import "./PadsDialog.scss";
@@ -21,6 +21,7 @@ const PadsDialog: React.FC<PadsDialogProps> = ({
   const activePadId = getActivePad();
   const [editingPadId, setEditingPadId] = useState<string | null>(null);
   const [newPadName, setNewPadName] = useState("");
+  const [isCreatingPad, setIsCreatingPad] = useState(false);
 
   // Get the renamePad mutation
   const { mutate: renamePad } = useRenamePad({
@@ -75,6 +76,37 @@ const PadsDialog: React.FC<PadsDialogProps> = ({
       console.error("[pad.ws] Failed to delete pad:", error);
     }
   });
+
+  const handleCreateNewPad = async () => {
+    if (isCreatingPad || !excalidrawAPI) return; // Prevent multiple clicks or if API not available
+    
+    try {
+      setIsCreatingPad(true);
+      
+      // Create a new pad using the imported function
+      // Note: createNewPad already updates the query cache internally
+      const newPad = await createNewPad(excalidrawAPI, activePadId, (data) => {
+        console.debug("[pad.ws] Canvas saved before creating new pad");
+      });
+      
+      // Track pad creation event
+      capture("pad_created", {
+        padId: newPad.id,
+        padName: newPad.display_name
+      });
+      
+      // Set the new pad as active and load it
+      setActivePad(newPad.id);
+      loadPadData(excalidrawAPI, newPad.id, newPad.data);
+      
+      // Close the dialog
+      handleClose();
+    } catch (error) {
+      console.error('[pad.ws] Error creating new pad:', error);
+    } finally {
+      setIsCreatingPad(false);
+    }
+  };
 
   const handleClose = useCallback(() => {
     setModalIsShown(false);
@@ -265,6 +297,15 @@ const PadsDialog: React.FC<PadsDialogProps> = ({
                 <h2 className="pads-dialog__title">
                   Manage Pads
                 </h2>
+                <button 
+                  className={`pads-dialog__new-pad-button ${isCreatingPad ? 'pads-dialog__new-pad-button--creating' : ''}`}
+                  onClick={handleCreateNewPad}
+                  disabled={isCreatingPad || !excalidrawAPI}
+                  title="Create new pad"
+                >
+                  <FilePlus2 size={18} />
+                  <span>New Pad</span>
+                </button>
               </div>
             }
             closeOnClickOutside={true}
