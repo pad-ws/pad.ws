@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 
 import type { ExcalidrawImperativeAPI } from "@atyrode/excalidraw/types";
 import { Stack, Button, Section, Tooltip } from "@atyrode/excalidraw";
 import { FilePlus2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAllPads, useSaveCanvas, useRenamePad, useDeletePad, PadData } from "../api/hooks";
 import { queryClient } from "../api/queryClient";
+import { capture } from "../utils/posthog";
 import { 
   getPadData, 
   storePadData, 
@@ -135,30 +136,60 @@ const Tabs: React.FC<TabsProps> = ({
         loadPadData(excalidrawAPI, pad.id, pad.data);
     };
 
+    // Listen for active pad change events
+    useEffect(() => {
+        const handleActivePadChange = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            const newActivePadId = customEvent.detail;
+            console.debug(`[pad.ws] Received activePadChanged event with padId: ${newActivePadId}`);
+            setActivePadId(newActivePadId);
+        };
+        
+        // Add event listener
+        window.addEventListener('activePadChanged', handleActivePadChange);
+        
+        // Clean up
+        return () => {
+            window.removeEventListener('activePadChanged', handleActivePadChange);
+        };
+    }, []);
+
     // Set the active pad ID when the component mounts and when the pads data changes
     useEffect(() => {
-        if (!isLoading && pads && pads.length > 0 && !activePadId) {
+        if (!isLoading && pads && pads.length > 0) {
             // Check if there's a stored active pad ID
             const storedActivePadId = getStoredActivePad();
             
-            // Find the pad that matches the stored ID, or use the first pad if no match
-            let padToActivate = pads[0];
-            
-            if (storedActivePadId) {
-                // Try to find the pad with the stored ID
-                const matchingPad = pads.find(pad => pad.id === storedActivePadId);
-                if (matchingPad) {
-                    console.debug(`[pad.ws] Found stored active pad: ${storedActivePadId}`);
-                    padToActivate = matchingPad;
-                } else {
-                    console.debug(`[pad.ws] Stored active pad ${storedActivePadId} not found in available pads`);
+            if (!activePadId || !pads.some(pad => pad.id === activePadId)) {
+                // Find the pad that matches the stored ID, or use the first pad if no match
+                let padToActivate = pads[0];
+                
+                if (storedActivePadId) {
+                    // Try to find the pad with the stored ID
+                    const matchingPad = pads.find(pad => pad.id === storedActivePadId);
+                    if (matchingPad) {
+                        console.debug(`[pad.ws] Found stored active pad: ${storedActivePadId}`);
+                        padToActivate = matchingPad;
+                    } else {
+                        console.debug(`[pad.ws] Stored active pad ${storedActivePadId} not found in available pads`);
+                    }
                 }
+                
+                // Set the active pad ID
+                setActivePadId(padToActivate.id);
+                // Store the active pad ID globally
+                setActivePad(padToActivate.id);
+                
+                // If the current canvas is empty, load the pad data
+                const currentElements = excalidrawAPI.getSceneElements();
+                if (currentElements.length === 0) {
+                    // Load the pad data using the imported function
+                    loadPadData(excalidrawAPI, padToActivate.id, padToActivate.data);
+                }
+            } else if (storedActivePadId && storedActivePadId !== activePadId) {
+                // Update local state to match global state
+                setActivePadId(storedActivePadId);
             }
-            
-            // Set the active pad ID
-            setActivePadId(padToActivate.id);
-            // Store the active pad ID globally
-            setActivePad(padToActivate.id);
             
             // Store all pads in local storage for the first time
             pads.forEach(pad => {
@@ -167,13 +198,6 @@ const Tabs: React.FC<TabsProps> = ({
                     storePadData(pad.id, pad.data);
                 }
             });
-            
-            // If the current canvas is empty, load the pad data
-            const currentElements = excalidrawAPI.getSceneElements();
-            if (currentElements.length === 0) {
-                // Load the pad data using the imported function
-                loadPadData(excalidrawAPI, padToActivate.id, padToActivate.data);
-            }
         }
     }, [pads, isLoading, activePadId, excalidrawAPI]);
 
@@ -186,6 +210,12 @@ const Tabs: React.FC<TabsProps> = ({
             // Create a new pad using the imported function
             const newPad = await createNewPad(excalidrawAPI, activePadId, saveCanvas);
             
+            // Track pad creation event
+            capture("pad_created", {
+                padId: newPad.id,
+                padName: newPad.display_name
+            });
+            
             // Set the active pad ID in the component state
             setActivePadId(newPad.id);
             
@@ -197,12 +227,7 @@ const Tabs: React.FC<TabsProps> = ({
                 const newPadIndex = currentPads.findIndex(pad => pad.id === newPad.id);
                 
                 if (newPadIndex !== -1) {
-                    // Calculate the appropriate startPadIndex to ensure the new pad is visible
-                    // We want to position the view so that the new pad is visible
-                    // Ideally, we want the new pad to be the last visible pad in the view
                     const newStartIndex = Math.max(0, Math.min(newPadIndex - PADS_PER_PAGE + 1, currentPads.length - PADS_PER_PAGE));
-                    
-                    // Update both the component state and the stored value
                     setStartPadIndex(newStartIndex);
                     setScrollIndex(newStartIndex);
                 }
@@ -229,13 +254,6 @@ const Tabs: React.FC<TabsProps> = ({
         }
     };
 
-    // Create a dependency that only changes when the number of pads changes or pad IDs change
-    const padStructure = React.useMemo(() => {
-        return pads ? pads.map(pad => pad.id) : [];
-    }, [pads]);
-
-    // We've removed the auto-centering feature that would automatically position the active pad in the middle of the tab bar
-    
     // Create a ref for the tabs wrapper to handle wheel events
     const tabsWrapperRef = useRef<HTMLDivElement>(null);
     
@@ -300,7 +318,7 @@ const Tabs: React.FC<TabsProps> = ({
                                     className="tabs-wrapper"
                                     ref={tabsWrapperRef}
                                 >
-                                    {/* New pad button - moved to the beginning */}
+                                    {/* New pad button */}
                                     <div className="new-tab-button-container">
                                         <Tooltip label={isCreatingPad ? "Creating new pad..." : "New pad"} children={
                                             <Button
@@ -338,20 +356,29 @@ const Tabs: React.FC<TabsProps> = ({
                                             });
                                         }}
                                     >
-                                        {/* Only show tooltip if name is likely to be truncated (more than ~15 characters) */}
-                                        {pad.display_name.length > 11 ? (
-                                            <Tooltip label={pad.display_name} children={
-                                                <Button
-                                                    onSelect={() => handlePadSelect(pad)}
-                                                    className={activePadId === pad.id ? "active-pad" : ""}
-                                                    children={
-                                                        <div className="tab-content">
-                                                            {pad.display_name.length > 8 ? `${pad.display_name.substring(0, 11)}...` : pad.display_name}
-                                                            <span className="tab-position">{startPadIndex + pads.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).indexOf(pad) + 1}</span>
-                                                        </div>
-                                                    }
-                                                />
-                                            } />
+                                        {/* Show tooltip for all active tabs or truncated names */}
+                                        {(activePadId === pad.id || pad.display_name.length > 11) ? (
+                                            <Tooltip 
+                                                label={
+                                                    activePadId === pad.id 
+                                                        ? (pad.display_name.length > 11 
+                                                            ? `${pad.display_name} (current pad)` 
+                                                            : "Current pad")
+                                                        : pad.display_name
+                                                } 
+                                                children={
+                                                    <Button
+                                                        onSelect={() => handlePadSelect(pad)}
+                                                        className={activePadId === pad.id ? "active-pad" : ""}
+                                                        children={
+                                                            <div className="tab-content">
+                                                                {pad.display_name.length > 8 ? `${pad.display_name.substring(0, 11)}...` : pad.display_name}
+                                                                <span className="tab-position">{startPadIndex + pads.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).indexOf(pad) + 1}</span>
+                                                            </div>
+                                                        }
+                                                    />
+                                                } 
+                                            />
                                         ) : (
                                             <Button
                                                 onSelect={() => handlePadSelect(pad)}
@@ -421,6 +448,12 @@ const Tabs: React.FC<TabsProps> = ({
                     padId={contextMenu.padId}
                     padName={contextMenu.padName}
                     onRename={(padId, newName) => {
+                        // Track pad rename event
+                        capture("pad_renamed", {
+                            padId,
+                            newName
+                        });
+                        
                         // Call the renamePad mutation
                         renamePad({ padId, newName });
                     }}
@@ -431,12 +464,20 @@ const Tabs: React.FC<TabsProps> = ({
                             return;
                         }
                         
+                        // Find the pad name before deletion for analytics
+                        const padToDelete = pads?.find(p => p.id === padId);
+                        const padName = padToDelete?.display_name || "";
+                        
+                        // Track pad deletion event
+                        capture("pad_deleted", {
+                            padId,
+                            padName
+                        });
+                        
                         // If deleting the active pad, switch to another pad first
                         if (padId === activePadId && pads) {
-                            // Find another pad to activate
                             const otherPad = pads.find(p => p.id !== padId);
                             if (otherPad) {
-                                // Set the new active pad
                                 handlePadSelect(otherPad);
                             }
                         }

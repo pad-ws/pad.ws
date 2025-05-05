@@ -8,6 +8,7 @@ import { MainMenuConfig } from './ui/MainMenu';
 import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRenderer';
 import AuthDialog from './ui/AuthDialog';
 import BackupsModal from './ui/BackupsDialog';
+import PadsDialog from './ui/PadsDialog';
 import SettingsDialog from './ui/SettingsDialog';
 import { capture } from './utils/posthog';
 import { Footer } from '@atyrode/excalidraw';
@@ -53,6 +54,7 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
   
   // State for modals
   const [showBackupsModal, setShowBackupsModal] = useState(false);
+  const [showPadsModal, setShowPadsModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   
   // Handle auth state changes
@@ -67,6 +69,10 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
   // Handlers for closing modals
   const handleCloseBackupsModal = () => {
     setShowBackupsModal(false);
+  };
+  
+  const handleClosePadsModal = () => {
+    setShowPadsModal(false);
   };
   
   const handleCloseSettingsModal = () => {
@@ -119,6 +125,8 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
           excalidrawAPI={excalidrawAPI} 
           showBackupsModal={showBackupsModal}
           setShowBackupsModal={setShowBackupsModal}
+          showPadsModal={showPadsModal}
+          setShowPadsModal={setShowPadsModal}
           showSettingsModal={showSettingsModal}
           setShowSettingsModal={setShowSettingsModal}
         />
@@ -132,6 +140,13 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
           <BackupsModal
             excalidrawAPI={excalidrawAPI}
             onClose={handleCloseBackupsModal}
+          />
+        )}
+        
+        {showPadsModal && (
+          <PadsDialog
+            excalidrawAPI={excalidrawAPI}
+            onClose={handleClosePadsModal}
           />
         )}
         

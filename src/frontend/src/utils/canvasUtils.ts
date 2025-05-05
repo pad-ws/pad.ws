@@ -114,6 +114,10 @@ export function setActivePad(padId: string): void {
     console.error('[pad.ws] Error storing active pad ID in local storage:', error);
   }
   
+  // Dispatch a custom event to notify components of the active pad change
+  const event = new CustomEvent('activePadChanged', { detail: padId });
+  window.dispatchEvent(event);
+  
   console.debug(`[pad.ws] Set active pad to ${padId}`);
 }
 
