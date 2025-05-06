@@ -125,6 +125,16 @@ export default function App({
           
           // Save the canvas data to the server
           saveCanvas(canvasData);
+          
+          // Dispatch a custom event for DevTools
+          const logChangeEvent = new CustomEvent('debouncedLogChange', {
+            detail: {
+              elements,
+              appState: state,
+              files
+            }
+          });
+          document.dispatchEvent(logChangeEvent);
         }
       },
       1200
