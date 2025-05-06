@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import { MousePointer, Edit, Clock, Move } from 'lucide-react';
 import './DevTools.scss';
-import { CollabEvent, CollabEventType } from '../App';
+import { CollabEvent, CollabEventType } from '../lib/room';
 
 interface DevToolsProps {
   element?: any; // Excalidraw element
