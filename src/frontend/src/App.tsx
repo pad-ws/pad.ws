@@ -5,7 +5,10 @@ import { debounce } from "./lib/debounce";
 import posthog from "./lib/posthog";
 import { 
   detectChangedElements, 
-  dispatchElementsChangedEvent,
+  dispatchElementsAddedEvent,
+  dispatchElementsEditedEvent,
+  dispatchElementsDeletedEvent,
+  dispatchAppStateChangedEvent,
   setupCollabEventHandlers,
 } from "./lib/room";
 import { 
@@ -103,6 +106,9 @@ export default function App({
 
   // Track previous elements state to detect changes
   const previousElementsRef = useRef<{ [id: string]: NonDeletedExcalidrawElement }>({});
+  
+  // Track previous app state to detect changes
+  const previousAppStateRef = useRef<AppState | null>(null);
 
   const debouncedLogChange = useCallback(
     debounce(
@@ -129,11 +135,31 @@ export default function App({
           // Save the canvas data to the server
           saveCanvas(canvasData);
           
-          // Detect which elements have changed
-          const changedElementIds = detectChangedElements(elements, previousElementsRef);
+          // Detect which elements have changed, categorized by type
+          const { added, edited, deleted, deletedElements } = detectChangedElements(elements, previousElementsRef);
           
-          // Create and dispatch elements_changed event using the imported function
-          dispatchElementsChangedEvent(elements, state, files, changedElementIds);
+          // Dispatch specific events based on what changed
+          if (added.length > 0) {
+            dispatchElementsAddedEvent(elements, added);
+          }
+          
+          if (edited.length > 0) {
+            dispatchElementsEditedEvent(elements, edited);
+          }
+          
+          if (deleted.length > 0) {
+            dispatchElementsDeletedEvent(deleted, deletedElements);
+          }
+          
+          // Check if app state changed (by comparing with previous state)
+          const prevState = previousAppStateRef.current;
+          if (prevState && JSON.stringify(prevState) !== JSON.stringify(state)) {
+            // Create and dispatch appstate_changed event with only appState data
+            dispatchAppStateChangedEvent(state);
+          }
+          
+          // Update previous app state reference
+          previousAppStateRef.current = { ...state };
           
           // Dispatch original event for backward compatibility
           const logChangeEvent = new CustomEvent('debouncedLogChange', {

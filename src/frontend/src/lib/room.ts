@@ -4,8 +4,21 @@ import { viewportCoordsToSceneCoords } from "@atyrode/excalidraw";
 import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
 import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
 
+/**
+ * IMPORTANT NOTE ABOUT ELEMENT CHANGE DETECTION:
+ * 
+ * When storing previous elements for comparison, we must create deep copies
+ * of the elements rather than storing references to the same objects.
+ * Otherwise, when an element is modified, both the current and previous
+ * references would point to the same updated object, making it impossible
+ * to detect changes.
+ * 
+ * This is why we use JSON.parse(JSON.stringify()) to create deep copies
+ * when updating previousElementsRef.current in the detectChangedElements function.
+ */
+
 // Define types for collaboration events
-export type CollabEventType = 'pointer_down' | 'pointer_up' | 'pointer_move' | 'elements_changed';
+export type CollabEventType = 'pointer_down' | 'pointer_up' | 'pointer_move' | 'elements_added' | 'elements_edited' | 'elements_deleted' | 'appstate_changed';
 
 export interface CollabEvent {
   type: CollabEventType;
@@ -22,39 +35,102 @@ export interface CollabEvent {
 export const POINTER_MOVE_THROTTLE_MS = 100; // Throttle pointer move events to avoid spamming
 
 /**
- * Function to detect which elements have changed
+ * Function to detect which elements have changed, categorized by type of change
  * @param elements Current elements
  * @param previousElementsRef Reference to previous elements state
- * @returns Array of changed element IDs
+ * @returns Object containing arrays of added, edited, and deleted elements
  */
 export const detectChangedElements = (
   elements: NonDeletedExcalidrawElement[],
   previousElementsRef: { current: { [id: string]: NonDeletedExcalidrawElement } }
-): string[] => {
-  const changedIds: string[] = [];
+): {
+  added: string[];
+  edited: string[];
+  deleted: string[];
+  deletedElements: any[]; // Store the actual deleted element data
+} => {
+  const added: string[] = [];
+  const edited: string[] = [];
+  const deleted: string[] = [];
+  const deletedElements: any[] = [];
   const currentElementsMap: { [id: string]: NonDeletedExcalidrawElement } = {};
   
-  // Build current elements map and detect changes
+  // Detect added and edited elements
   elements.forEach(element => {
+    // In Excalidraw, deleted elements have isDeleted=true but remain in the array
+    // We need to check for this flag to properly categorize elements
+    if ((element as any).isDeleted) {
+      // This is a deleted element that's still in the array
+      // Check if it was in the previous state and not already marked as deleted
+      const prevElement = previousElementsRef.current[element.id];
+      if (prevElement && !(prevElement as any).isDeleted) {
+        deleted.push(element.id);
+        // Store the deleted element data (using the previous state's data)
+        deletedElements.push({
+          ...prevElement,
+          id: element.id
+        });
+      }
+      // Don't add deleted elements to the currentElementsMap
+      return;
+    }
+    
     currentElementsMap[element.id] = element;
     
     const prevElement = previousElementsRef.current[element.id];
-    if (!prevElement || prevElement.version !== element.version) {
-      changedIds.push(element.id);
+    if (!prevElement) {
+      console.log("[pad.ws] Element added", element.id);
+      // Element didn't exist before - it's new
+      added.push(element.id);
+    } else if (prevElement.version !== element.version) {
+      // Element existed but version changed - it's edited
+      console.log("[pad.ws] Element edited", element.id, "version:", element.version, "prev version:", prevElement.version);
+      edited.push(element.id);
+    } else if (prevElement.x !== element.x || prevElement.y !== element.y) {
+      // Position changed but version didn't - this shouldn't happen after our fix
+      // but we'll check for it anyway and log it
+      console.log("[pad.ws] Element position changed but version didn't!", 
+        element.id, 
+        "version:", element.version, 
+        "position:", element.x, element.y, 
+        "prev position:", prevElement.x, prevElement.y);
+      
+      // Since we detected a change, we'll add it to edited anyway
+      edited.push(element.id);
+    } else {
+      console.log("[pad.ws] Element unchanged", 
+        element.id, 
+        "version:", element.version, 
+        "prev version:", prevElement.version, 
+        "position:", element.x, element.y, 
+        "prev position:", prevElement.x, prevElement.y);
     }
   });
   
-  // Check for deleted elements
+  // Detect deleted elements (elements that were in previous state but not in current state)
   Object.keys(previousElementsRef.current).forEach(id => {
-    if (!currentElementsMap[id]) {
-      changedIds.push(id);
+    if (!currentElementsMap[id] && !deleted.includes(id)) {
+      deleted.push(id);
+      // Store the deleted element data
+      deletedElements.push({
+        ...previousElementsRef.current[id],
+        id
+      });
     }
   });
   
-  // Update previous elements ref
-  previousElementsRef.current = currentElementsMap;
+  // Update previous elements ref with deep copies of non-deleted elements
+  // This ensures we don't store references to the same objects
+  const deepCopiedElementsMap: { [id: string]: NonDeletedExcalidrawElement } = {};
   
-  return changedIds;
+  Object.keys(currentElementsMap).forEach(id => {
+    // Create a deep copy of each element to avoid reference issues
+    deepCopiedElementsMap[id] = JSON.parse(JSON.stringify(currentElementsMap[id]));
+  });
+  
+  previousElementsRef.current = deepCopiedElementsMap;
+  
+  return { added, edited, deleted, deletedElements };
 };
 
 /**
@@ -190,26 +266,80 @@ export const setupCollabEventHandlers = (
 };
 
 /**
- * Creates and dispatches an elements_changed collaboration event
+ * Creates and dispatches an elements_added collaboration event
  * @param elements Current elements
- * @param state Current app state
- * @param files Current files
- * @param changedElementIds IDs of elements that changed
+ * @param addedElementIds IDs of elements that were added
  */
-export const dispatchElementsChangedEvent = (
+export const dispatchElementsAddedEvent = (
   elements: NonDeletedExcalidrawElement[],
-  state: AppState,
-  files: any,
-  changedElementIds: string[]
+  addedElementIds: string[]
 ): void => {
-  // Create and dispatch collaboration event
+  // Filter to only include added elements
+  const addedElements = elements.filter(el => addedElementIds.includes(el.id));
+  
   const collabEvent: CollabEvent = {
-    type: 'elements_changed',
+    type: 'elements_added',
     timestamp: Date.now(),
-    elements,
-    appState: state,
-    files,
-    changedElementIds
+    elements: addedElements,
+    changedElementIds: addedElementIds
+  };
+  
+  dispatchCollabEvent(collabEvent);
+};
+
+/**
+ * Creates and dispatches an elements_edited collaboration event
+ * @param elements Current elements
+ * @param editedElementIds IDs of elements that were edited
+ */
+export const dispatchElementsEditedEvent = (
+  elements: NonDeletedExcalidrawElement[],
+  editedElementIds: string[]
+): void => {
+  // Filter to only include edited elements
+  const editedElements = elements.filter(el => editedElementIds.includes(el.id));
+  
+  const collabEvent: CollabEvent = {
+    type: 'elements_edited',
+    timestamp: Date.now(),
+    elements: editedElements,
+    changedElementIds: editedElementIds
+  };
+  
+  dispatchCollabEvent(collabEvent);
+};
+
+/**
+ * Creates and dispatches an elements_deleted collaboration event
+ * @param deletedElementIds IDs of elements that were deleted
+ * @param deletedElements The actual deleted element data
+ */
+export const dispatchElementsDeletedEvent = (
+  deletedElementIds: string[],
+  deletedElements: any[]
+): void => {
+  const collabEvent: CollabEvent = {
+    type: 'elements_deleted',
+    timestamp: Date.now(),
+    changedElementIds: deletedElementIds,
+    elements: deletedElements
+  };
+  
+  dispatchCollabEvent(collabEvent);
+};
+
+/**
+ * Creates and dispatches an appstate_changed collaboration event
+ * @param state Current app state
+ */
+export const dispatchAppStateChangedEvent = (
+  state: AppState
+): void => {
+  // Create and dispatch collaboration event with only appState data
+  const collabEvent: CollabEvent = {
+    type: 'appstate_changed',
+    timestamp: Date.now(),
+    appState: state
   };
   
   dispatchCollabEvent(collabEvent);
