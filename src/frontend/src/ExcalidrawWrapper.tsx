@@ -10,7 +10,7 @@ import AuthDialog from './ui/AuthDialog';
 import BackupsModal from './ui/BackupsDialog';
 import PadsDialog from './ui/PadsDialog';
 import SettingsDialog from './ui/SettingsDialog';
-import { capture } from './utils/posthog';
+import { capture } from './lib/posthog';
 import { Footer } from '@atyrode/excalidraw';
 import Tabs from './ui/Tabs';
 

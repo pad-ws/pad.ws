@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidraw/element/types';
 import type { AppState } from '@atyrode/excalidraw/types';
 import Editor from './Editor';
-import { ExcalidrawElementFactory } from '../../lib/ExcalidrawElementFactory';
+import { ExcalidrawElementFactory } from '../../lib/elementFactory';
 import './HtmlEditor.scss';
 
 interface HtmlEditorProps {

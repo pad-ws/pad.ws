@@ -4,8 +4,8 @@ import { useWorkspaceState } from '../../api/hooks';
 import { Terminal, Braces, Settings, Plus, ExternalLink, Monitor } from 'lucide-react';
 import { ActionType, TargetType, CodeVariant, ActionButtonProps } from './types';
 import './ActionButton.scss';
-import { capture } from '../../utils/posthog';
-import { ExcalidrawElementFactory, PlacementMode } from '../../lib/ExcalidrawElementFactory';
+import { capture } from '../../lib/posthog';
+import { ExcalidrawElementFactory, PlacementMode } from '../../lib/elementFactory';
 
 // Interface for button settings stored in customData
 interface ButtonSettings {

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { Dialog } from "@atyrode/excalidraw";
 import { usePadBackups, CanvasBackup } from "../api/hooks";
-import { normalizeCanvasData, getActivePad } from "../utils/canvasUtils";
+import { normalizeCanvasData, getActivePad } from "../lib/canvas";
 import "./BackupsDialog.scss";
 
 interface BackupsModalProps {

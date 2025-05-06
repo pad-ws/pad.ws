@@ -1,7 +1,7 @@
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import posthog from "./src/utils/posthog";
+import posthog from "./src/lib/posthog";
 import { PostHogProvider } from 'posthog-js/react';
 
 import { QueryClientProvider } from '@tanstack/react-query';

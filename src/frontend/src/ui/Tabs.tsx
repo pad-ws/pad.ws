@@ -5,7 +5,7 @@ import { Stack, Button, Section, Tooltip } from "@atyrode/excalidraw";
 import { FilePlus2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAllPads, useSaveCanvas, useRenamePad, useDeletePad, PadData } from "../api/hooks";
 import { queryClient } from "../api/queryClient";
-import { capture } from "../utils/posthog";
+import { capture } from "../lib/posthog";
 import { 
   getPadData, 
   storePadData, 
@@ -16,7 +16,7 @@ import {
   createNewPad,
   setScrollIndex,
   getStoredScrollIndex
-} from "../utils/canvasUtils";
+} from "../lib/canvas";
 import TabContextMenu from "./TabContextMenu";
 import "./Tabs.scss";
 

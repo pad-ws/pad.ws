@@ -10,10 +10,10 @@ import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import { 
   PlacementMode, 
   placeElement 
-} from '../utils/elementPlacement';
+} from './elementPlacement';
 
 // Re-export PlacementMode to maintain backward compatibility
-export { PlacementMode } from '../utils/elementPlacement';
+export { PlacementMode } from './elementPlacement';
 
 // Base interface with common properties for all Excalidraw elements
 interface BaseElementOptions {

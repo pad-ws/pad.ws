@@ -1,23 +1,21 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useAllPads, useUserProfile } from "./api/hooks";
 import { ExcalidrawWrapper } from "./ExcalidrawWrapper";
-import { debounce } from "./utils/debounce";
+import { debounce } from "./lib/debounce";
 import throttle from "lodash.throttle";
-import posthog from "./utils/posthog";
+import posthog from "./lib/posthog";
 import { 
-  normalizeCanvasData, 
-  getPadData, 
   storePadData, 
   setActivePad, 
   getActivePad,
   getStoredActivePad,
   loadPadData
-} from "./utils/canvasUtils";
+} from "./lib/canvas";
 import { useSaveCanvas } from "./api/hooks";
 import type * as TExcalidraw from "@atyrode/excalidraw";
 import { viewportCoordsToSceneCoords } from "@atyrode/excalidraw";
 import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
-import type { ExcalidrawImperativeAPI, AppState, Gesture } from "@atyrode/excalidraw/types";
+import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
 import { useAuthCheck } from "./api/hooks";
 
 // Define types for collaboration events

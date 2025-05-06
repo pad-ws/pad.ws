@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useBuildInfo, useSaveCanvas } from './api/hooks';
-import { saveCurrentCanvas } from './utils/canvasUtils';
+import { saveCurrentCanvas } from './lib/canvas';
 
 /**
  * Component that checks for application version changes and refreshes the page when needed.

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { capture } from "../utils/posthog";
+import { capture } from "../lib/posthog";
 import { queryClient } from "../api/queryClient";
 import { GoogleIcon, GithubIcon } from "../icons";
 import "./AuthDialog.scss";

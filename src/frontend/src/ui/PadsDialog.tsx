@@ -2,9 +2,9 @@ import React, { useState, useCallback } from "react";
 import { Dialog } from "@atyrode/excalidraw";
 import { Pencil, Trash2, FilePlus2 } from "lucide-react";
 import { useAllPads, useRenamePad, useDeletePad, PadData } from "../api/hooks";
-import { loadPadData, getActivePad, setActivePad, saveCurrentPadBeforeSwitching, createNewPad } from "../utils/canvasUtils";
+import { loadPadData, getActivePad, setActivePad, saveCurrentPadBeforeSwitching, createNewPad } from "../lib/canvas";
 import { queryClient } from "../api/queryClient";
-import { capture } from "../utils/posthog";
+import { capture } from "../lib/posthog";
 import "./PadsDialog.scss";
 
 interface PadsDialogProps {
