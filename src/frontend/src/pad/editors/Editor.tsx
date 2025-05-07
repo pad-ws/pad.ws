@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import { Tooltip, updateTooltipPosition, getTooltipDiv } from '@atyrode/excalidraw';
 import SearchableLanguageSelector from './SearchableLanguageSelector';
-import { useHtmlEditor, HtmlEditorControls, defaultHtml } from './HtmlEditor';
+import { useHtmlEditor, HtmlEditorControls, defaultHtml, HtmlEditorSplitView } from './HtmlEditor';
 import './Editor.scss';
 
 // Custom tooltip wrapper that positions the tooltip at the top
@@ -295,16 +295,22 @@ const Editor: React.FC<EditorProps> = ({
     }
   };
 
-  // Initialize HTML editor functionality if the language is HTML
+  // Check if the language is HTML
   const isHtml = currentLanguage === 'html';
   
-  // Only initialize HTML editor hooks if we're in HTML mode and have the necessary props
-  const htmlEditor = isHtml && element && excalidrawAPI 
-    ? useHtmlEditor(element, editorRef, excalidrawAPI)
-    : null;
+  // Always initialize HTML editor hooks, but pass isActive flag
+  const htmlEditor = useHtmlEditor(
+    element, 
+    editorRef, 
+    excalidrawAPI, 
+    isHtml
+  );
+    
+  // Determine if we should show the split view
+  const showSplitView = isHtml && !htmlEditor.createNew && htmlEditor.showPreview;
 
   return (
-    <div className="editor__wrapper">
+    <div className={`editor__wrapper ${showSplitView ? 'editor__wrapper--split' : ''}`}>
       <MonacoEditor
         height={height}
         language={currentLanguage}
@@ -315,15 +321,26 @@ const Editor: React.FC<EditorProps> = ({
         onChange={handleEditorChange}
         className={className}
       />
+      
+      {/* Render the HTML preview in split view mode */}
+      {showSplitView && (
+        <HtmlEditorSplitView
+          editorContent={contentRef.current || ''}
+          previewContent={htmlEditor.previewContent}
+          showPreview={htmlEditor.showPreview}
+        />
+      )}
       {showLanguageSelector && (
         <div className="editor__toolbar">
           {/* Show HTML-specific controls when language is HTML */}
-          {isHtml && htmlEditor && (
+          {isHtml && (
             <div className="editor__html-controls">
               <HtmlEditorControls
                 createNew={htmlEditor.createNew}
                 setCreateNew={htmlEditor.setCreateNew}
                 applyHtml={htmlEditor.applyHtml}
+                showPreview={htmlEditor.showPreview}
+                togglePreview={htmlEditor.togglePreview}
               />
             </div>
           )}

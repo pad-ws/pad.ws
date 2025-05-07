@@ -6,11 +6,25 @@
     overflow: hidden; /* Prevent overflow issues */
     border-bottom-left-radius: 20px;
     border-bottom-right-radius: 20px;
+    
+    &--split {
+      .monaco-editor {
+        width: 50% !important; /* Force Monaco editor to resize */
+      }
+      
+      .editor__container {
+        width: 50% !important; /* Force container to resize */
+      }
+      
+      .editor__toolbar {
+        right: 50%; /* Limit toolbar width to match the editor in split view */
+      }
+    }
   }
 
   &__toolbar {
     display: flex;
-    justify-content: space-between; /* Space between HTML controls and right-side controls */
+    justify-content: flex-end; /* Default justify to the right when no HTML controls */
     padding: 8px;
     position: absolute; /* Position at bottom */
     bottom: 0;

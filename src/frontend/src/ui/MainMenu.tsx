@@ -48,21 +48,6 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     username = data.username;
     email = data.email || "";
   }
-  const handleHtmlEditorClick = () => {
-    if (!excalidrawAPI) return;
-    
-    const htmlEditorElement = ExcalidrawElementFactory.createEmbeddableElement({
-      link: "!html",
-      width: 800,
-      height: 500
-    });
-    
-    ExcalidrawElementFactory.placeInScene(htmlEditorElement, excalidrawAPI, {
-      mode: PlacementMode.NEAR_VIEWPORT_CENTER,
-      bufferPercentage: 10,
-      scrollToView: true
-    });
-  };
 
   const handleDashboardButtonClick = () => {
     if (!excalidrawAPI) return;
@@ -255,12 +240,6 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
       <MainMenu.Separator />
     
       <MainMenu.Group title="Tools">
-        <MainMenu.Item
-          icon={<SquareCode />}
-          onClick={handleHtmlEditorClick}
-        >
-          HTML Editor
-        </MainMenu.Item>
         <MainMenu.Item
           icon={<Text />}
           onClick={handleEditorClick}
