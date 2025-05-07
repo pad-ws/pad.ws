@@ -1,47 +1,4 @@
 .html-editor {
-  &__container {
-    display: flex;
-    position: relative;
-    width: 100%;
-    height: 100%;
-    flex-direction: column;
-    box-sizing: border-box;
-    padding: 32px;
-    font-family: sans-serif;
-    background: #2d2d2d;
-    color: #e0e0e0;
-    border-radius: 4px;
-    border: 1px solid #484848;
-  }
-
-  &__content {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-  }
-
-  &__monaco-container {
-    width: 100%;
-    position: relative;
-    flex: 1;
-    min-height: 0;
-    border: 1px solid #484848;
-    border-radius: 4px;
-    margin-bottom: 10px;
-  }
-
-  &__controls {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    width: 100%;
-    flex-shrink: 0;
-  }
-
   &__label {
     font-size: 12px;
     color: #e0e0e0;
@@ -58,9 +15,38 @@
     border-radius: 4px;
     cursor: pointer;
     font-size: 12px;
+    margin-right: 8px;
 
     &:hover {
       background: #4285e7;
     }
+    
+    &--active {
+      background: #3a75c4;
+    }
+  }
+  
+  &__split-view {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 100%;
+    box-sizing: border-box;
+    z-index: 5;
+    background: #ffffff00;
+    border-left: 2px solid #484848;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// Split view styles for the editor container
+.editor__wrapper.editor__wrapper--split {
+  .monaco-editor {
+    width: 50% !important; /* Force Monaco editor to resize */
+  }
+  
+  .editor__container {
+    width: 50% !important; /* Force container to resize */
   }
 }
