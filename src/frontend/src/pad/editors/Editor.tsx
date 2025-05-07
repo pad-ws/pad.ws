@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import { Tooltip, updateTooltipPosition, getTooltipDiv } from '@atyrode/excalidraw';
 import SearchableLanguageSelector from './SearchableLanguageSelector';
+import { useHtmlEditor, HtmlEditorControls, defaultHtml } from './HtmlEditor';
 import './Editor.scss';
 
 // Custom tooltip wrapper that positions the tooltip at the top
@@ -294,12 +295,20 @@ const Editor: React.FC<EditorProps> = ({
     }
   };
 
+  // Initialize HTML editor functionality if the language is HTML
+  const isHtml = currentLanguage === 'html';
+  
+  // Only initialize HTML editor hooks if we're in HTML mode and have the necessary props
+  const htmlEditor = isHtml && element && excalidrawAPI 
+    ? useHtmlEditor(element, editorRef, excalidrawAPI)
+    : null;
+
   return (
     <div className="editor__wrapper">
       <MonacoEditor
         height={height}
         language={currentLanguage}
-        defaultValue={defaultValue}
+        defaultValue={defaultValue || (isHtml ? defaultHtml : '')}
         theme={theme}
         options={options}
         onMount={handleEditorDidMount}
@@ -308,22 +317,37 @@ const Editor: React.FC<EditorProps> = ({
       />
       {showLanguageSelector && (
         <div className="editor__toolbar">
-          <TopTooltip label="Format" children={
-            <button 
-              className="editor__format-button" 
-              onClick={formatDocument}
-              aria-label="Format Document"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M2 4H14M4 8H12M6 12H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          } />
-          <SearchableLanguageSelector 
-            value={currentLanguage} 
-            onChange={handleLanguageChange}
-            className="editor__language-selector"
-          />
+          {/* Show HTML-specific controls when language is HTML */}
+          {isHtml && htmlEditor && (
+            <div className="editor__html-controls">
+              <HtmlEditorControls
+                createNew={htmlEditor.createNew}
+                setCreateNew={htmlEditor.setCreateNew}
+                applyHtml={htmlEditor.applyHtml}
+              />
+            </div>
+          )}
+          
+          {/* Group format button and language selector together on the right */}
+          <div className="editor__toolbar-right">
+            <TopTooltip label="Format" children={
+              <button 
+                className="editor__format-button" 
+                onClick={formatDocument}
+                aria-label="Format Document"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M2 4H14M4 8H12M6 12H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            } />
+            
+            <SearchableLanguageSelector 
+              value={currentLanguage} 
+              onChange={handleLanguageChange}
+              className="editor__language-selector"
+            />
+          </div>
         </div>
       )}
     </div>

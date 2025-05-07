@@ -1,50 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidraw/element/types';
-import type { AppState } from '@atyrode/excalidraw/types';
-import Editor from './Editor';
 import { ExcalidrawElementFactory } from '../../lib/ExcalidrawElementFactory';
 import './HtmlEditor.scss';
 
-interface HtmlEditorProps {
-  element: NonDeleted<ExcalidrawEmbeddableElement>;
-  appState: AppState;
-  excalidrawAPI?: any;
-}
+// Default HTML content for new HTML elements
+export const defaultHtml = '<button style="padding: 8px; background: #5294f6; color: white; border: none; border-radius: 4px;">Example Button</button>';
 
-export const HtmlEditor: React.FC<HtmlEditorProps> = ({ 
-  element, 
-  appState,
-  excalidrawAPI
-}) => {
+// Hook to manage HTML editor state and functionality
+export const useHtmlEditor = (
+  element: NonDeleted<ExcalidrawEmbeddableElement>,
+  editorRef: React.RefObject<any>,
+  excalidrawAPI?: any
+) => {
   const [createNew, setCreateNew] = useState(true);
-  const defaultHtml = '<button style="padding: 8px; background: #5294f6; color: white; border: none; border-radius: 4px;">Example Button</button>';
-  const [editorValue, setEditorValue] = useState(
-    element.customData?.editorContent || defaultHtml
-  );
-  const editorRef = useRef<any>(null);
-  const elementIdRef = useRef(element.id);
-
-  // Load content from customData when element changes (e.g., when cloned or pasted)
-  useEffect(() => {
-    // Check if element ID has changed (indicating a new element)
-    if (element.id !== elementIdRef.current) {
-      elementIdRef.current = element.id;
-      
-      // If element has customData with editorContent, update the state
-      if (element.customData?.editorContent) {
-        setEditorValue(element.customData.editorContent);
-      } else {
-        setEditorValue(defaultHtml);
-      }
-      
-      // Note: We don't need to update language here since HtmlEditor always uses 'html'
-      // But we still save it in customData for consistency
-    }
-  }, [element.id, element.customData, defaultHtml]);
-
-  const handleEditorMount = (editor: any) => {
-    editorRef.current = editor;
-  };
 
   const applyHtml = () => {
     if (!excalidrawAPI || !editorRef.current) return;
@@ -65,7 +33,7 @@ export const HtmlEditor: React.FC<HtmlEditorProps> = ({
       id: createNew ? undefined : element.id,
       customData: {
         editorContent: currentContent,
-        editorLanguage: 'html' // Always set to html for HtmlEditor
+        editorLanguage: 'html' // Always set to html for HTML content
       }
     });
     
@@ -93,34 +61,32 @@ export const HtmlEditor: React.FC<HtmlEditorProps> = ({
     excalidrawAPI.setActiveTool({ type: "selection" });
   };
 
+  return {
+    createNew,
+    setCreateNew,
+    applyHtml
+  };
+};
+
+// HTML-specific toolbar controls component
+export const HtmlEditorControls: React.FC<{
+  createNew: boolean;
+  setCreateNew: (value: boolean) => void;
+  applyHtml: () => void;
+}> = ({ createNew, setCreateNew, applyHtml }) => {
   return (
-    <div className="html-editor__container">
-      <div className="html-editor__content">
-        <Editor
-          height="100%"
-          language="html"
-          defaultValue={editorValue}
-          onChange={(value) => value && setEditorValue(value)}
-          onMount={handleEditorMount}
-          element={element}
-          excalidrawAPI={excalidrawAPI}
-          showLanguageSelector={false}
-          className="html-editor__monaco-container"
-        />
-        <div className="html-editor__controls">
-          <label className="html-editor__label">
-            <input 
-              type="checkbox" 
-              checked={createNew} 
-              onChange={(e) => setCreateNew(e.target.checked)} 
-            /> 
-            Create new element
-          </label>
-          <button className="html-editor__button" onClick={applyHtml}>
-            Apply HTML
-          </button>
-        </div>
-      </div>
-    </div>
+    <>
+      <label className="html-editor__label">
+        <input 
+          type="checkbox" 
+          checked={createNew} 
+          onChange={(e) => setCreateNew(e.target.checked)} 
+        /> 
+        Create new element
+      </label>
+      <button className="html-editor__button" onClick={applyHtml}>
+        Apply HTML
+      </button>
+    </>
   );
 };

@@ -10,7 +10,7 @@
 
   &__toolbar {
     display: flex;
-    justify-content: right;
+    justify-content: space-between; /* Space between HTML controls and right-side controls */
     padding: 8px;
     position: absolute; /* Position at bottom */
     bottom: 0;
@@ -19,7 +19,47 @@
     z-index: 10; /* Keep toolbar above other elements */
     // background-color: #191919; /* Match editor background */
     border-top: 2px solid #3c3c3c;
+  }
+  
+  &__toolbar-right {
+    display: flex;
+    align-items: center;
     gap: 8px; /* Add spacing between toolbar items */
+
+    .excalidraw-tooltip-wrapper {
+      height: 100%;
+      display: flex;
+      align-items: center;
+    }
+  }
+  
+  &__html-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: auto; /* Push to the left side */
+    
+    .html-editor__label {
+      font-size: 12px;
+      color: #e0e0e0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .html-editor__button {
+      padding: 6px 12px;
+      background: #5294f6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      
+      &:hover {
+        background: #4285e7;
+      }
+    }
   }
 
   &__format-button {
@@ -32,7 +72,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    
+    height: 100%;
     &:hover {
       background-color: #2a2d2e;
       color: #ffffff;
