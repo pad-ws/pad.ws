@@ -17,8 +17,8 @@
     left: 0;
     right: 0;
     z-index: 10; /* Keep toolbar above other elements */
-    background-color: #191919; /* Match editor background */
-    border-top: 1px solid #3c3c3c;
+    // background-color: #191919; /* Match editor background */
+    border-top: 2px solid #3c3c3c;
     gap: 8px; /* Add spacing between toolbar items */
   }
 
@@ -167,7 +167,7 @@
   &__container {
     height: 100%;
     width: 100%;
-    padding-bottom: 40px; /* Make room for the toolbar */
+    padding-bottom: 60px; /* Make room for the toolbar */
     box-sizing: border-box;
   }
 }
