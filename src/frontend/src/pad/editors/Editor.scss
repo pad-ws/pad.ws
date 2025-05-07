@@ -1,18 +1,51 @@
 .editor {
   &__wrapper {
-    display: flex;
-    flex-direction: column;
+    position: relative; /* For absolute positioning of toolbar */
     height: 100%;
     width: 100%;
+    overflow: hidden; /* Prevent overflow issues */
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
   }
 
   &__toolbar {
     display: flex;
     justify-content: right;
     padding: 8px;
+    position: absolute; /* Position at bottom */
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10; /* Keep toolbar above other elements */
+    background-color: #191919; /* Match editor background */
+    border-top: 1px solid #3c3c3c;
+    gap: 8px; /* Add spacing between toolbar items */
+  }
+
+  &__format-button {
+    background-color: #252526;
+    color: #cccccc;
+    border: 1px solid #3c3c3c;
+    border-radius: 7px;
+    padding: 4px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    &:hover {
+      background-color: #2a2d2e;
+      color: #ffffff;
+    }
+    
+    &:focus {
+      outline: none;
+      border-color: #007fd4;
+    }
   }
 
   &__language-selector {
+    display: flex;
     margin-right: 10px;
   }
   
@@ -35,8 +68,106 @@
       color: #cccccc;
     }
   }
+  
+  &__searchable-language-container {
+    display: flex;
+    align-items: center;
+    background-color: #252526;
+    border: 1px solid #3c3c3c;
+    border-radius: 7px;
+    max-width: 150px;
+    position: relative;
+    
+    &:focus-within {
+      border-color: #007fd4;
+    }
+  }
+  
+  &__searchable-language-input {
+    background-color: transparent;
+    color: #cccccc;
+    border: none;
+    padding: 4px 8px;
+    font-size: 12px;
+    width: 100%;
+    
+    &:focus {
+      outline: none;
+    }
+    
+    &::placeholder {
+      color: #cccccc;
+      opacity: 0.8;
+    }
+  }
+  
+  &__searchable-language-toggle {
+    background: none;
+    border: none;
+    color: #cccccc;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    transition: transform 0.2s ease;
+    
+    &:hover {
+      color: #ffffff;
+    }
+    
+    &:focus {
+      outline: none;
+    }
+  }
+  
+  &__searchable-language-dropdown {
+    position: absolute;
+    bottom: 100%; /* Position above instead of below */
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: #252526;
+    border: 1px solid #3c3c3c;
+    border-radius: 7px;
+    margin-bottom: 4px; /* Margin at bottom instead of top */
+    z-index: 20; /* Higher z-index to ensure it's above the toolbar */
+    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.3); /* Shadow adjusted for upward direction */
+  }
+  
+  &__searchable-language-option {
+    padding: 4px 8px;
+    font-size: 12px;
+    color: #cccccc;
+    cursor: pointer;
+    
+    &:hover {
+      background-color: #2a2d2e;
+    }
+    
+    &--highlighted {
+      background-color: #04395e;
+    }
+    
+    &--selected {
+      color: #ffffff;
+      font-weight: 500;
+    }
+  }
+  
+  &__searchable-language-no-results {
+    padding: 4px 8px;
+    font-size: 12px;
+    color: #cccccc;
+    font-style: italic;
+    text-align: center;
+  }
 
   &__container {
-    flex: 1;
+    height: 100%;
+    width: 100%;
+    padding-bottom: 40px; /* Make room for the toolbar */
+    box-sizing: border-box;
   }
 }

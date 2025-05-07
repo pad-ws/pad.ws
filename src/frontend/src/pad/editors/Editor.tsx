@@ -1,7 +1,34 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import MonacoEditor from '@monaco-editor/react';
-import LanguageSelector from './LanguageSelector';
+import { Tooltip, updateTooltipPosition, getTooltipDiv } from '@atyrode/excalidraw';
+import SearchableLanguageSelector from './SearchableLanguageSelector';
 import './Editor.scss';
+
+// Custom tooltip wrapper that positions the tooltip at the top
+const TopTooltip: React.FC<{label: string, children: React.ReactNode}> = ({ label, children }) => {
+  const handlePointerEnter = (event: React.PointerEvent<HTMLDivElement>) => {
+    const tooltip = getTooltipDiv();
+    tooltip.classList.add("excalidraw-tooltip--visible");
+    tooltip.textContent = label;
+    
+    const itemRect = event.currentTarget.getBoundingClientRect();
+    updateTooltipPosition(tooltip, itemRect, "top");
+  };
+  
+  const handlePointerLeave = () => {
+    getTooltipDiv().classList.remove("excalidraw-tooltip--visible");
+  };
+  
+  return (
+    <div 
+      className="excalidraw-tooltip-wrapper"
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
+    >
+      {children}
+    </div>
+  );
+};
 
 interface EditorProps {
   defaultValue?: string;
@@ -21,7 +48,7 @@ interface EditorProps {
 
 const Editor: React.FC<EditorProps> = ({
   defaultValue = '',
-  language = 'javascript',
+  language = 'plaintext',
   theme = 'vs-dark',
   height = '100%',
   options = {
@@ -259,6 +286,14 @@ const Editor: React.FC<EditorProps> = ({
     }
   };
 
+  // Format document function
+  const formatDocument = () => {
+    if (editorRef.current) {
+      // Trigger Monaco's format document action
+      editorRef.current.getAction('editor.action.formatDocument')?.run();
+    }
+  };
+
   return (
     <div className="editor__wrapper">
       <MonacoEditor
@@ -273,7 +308,18 @@ const Editor: React.FC<EditorProps> = ({
       />
       {showLanguageSelector && (
         <div className="editor__toolbar">
-          <LanguageSelector 
+          <TopTooltip label="Format" children={
+            <button 
+              className="editor__format-button" 
+              onClick={formatDocument}
+              aria-label="Format Document"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2 4H14M4 8H12M6 12H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          } />
+          <SearchableLanguageSelector 
             value={currentLanguage} 
             onChange={handleLanguageChange}
             className="editor__language-selector"
