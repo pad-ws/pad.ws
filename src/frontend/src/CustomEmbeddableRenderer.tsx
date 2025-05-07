@@ -7,7 +7,6 @@ import {
   Dashboard,
   StateIndicator,
   ControlButton,
-  HtmlEditor,
   Editor,
   Terminal,
 } from './pad';
@@ -28,7 +27,11 @@ export const renderCustomEmbeddable = (
 
     switch (path) {
       case 'html':
-        content = <HtmlEditor element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+        content = <Editor 
+          element={element} 
+          language="html" 
+          excalidrawAPI={excalidrawAPI} 
+        />;
         title = "HTML Editor";
         break;
       case 'editor':
