@@ -64,7 +64,6 @@ The system follows a microservices architecture with the following components:
 3. **Redis**
    - Manages user sessions
    - Provides caching for performance
-   - Coordinates distributed operations (like migrations)
 
 4. **Keycloak**
    - Provides OIDC authentication
