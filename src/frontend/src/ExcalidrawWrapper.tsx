@@ -56,6 +56,10 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
   const [isExiting, setIsExiting] = useState(false);
   const [remoteCursorsToDisplay, setRemoteCursorsToDisplay] = useState<Map<string, RemoteCursor>>(new Map());
 
+  // State to track canvas scroll position to trigger re-render for cursor updates
+  const [canvasScrollX, setCanvasScrollX] = useState(0);
+  const [canvasScrollY, setCanvasScrollY] = useState(0);
+
   // Effect to setup collaboration event receiver and remote cursor updates
   useEffect(() => {
     let cleanupEventReceiver: (() => void) | undefined;
@@ -133,9 +137,18 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
         initialData: initialData ?? defaultInitialData,
         onChange: onChange,
         name: "Pad.ws",
-        onScrollChange: (scrollX, scrollY) => {
-          lockEmbeddables(excalidrawAPI?.getAppState());
-          if (onScrollChange) onScrollChange(scrollX, scrollY);
+        onScrollChange: (scrollXFromExcalidraw, scrollYFromExcalidraw) => {
+          // Update internal state to trigger re-render
+          setCanvasScrollX(scrollXFromExcalidraw);
+          setCanvasScrollY(scrollYFromExcalidraw);
+
+          // Existing logic
+          lockEmbeddables(excalidrawAPI?.getAppState()); 
+          
+          // Call the onScrollChange prop that was passed TO ExcalidrawWrapper, if it exists
+          if (onScrollChange) {
+            onScrollChange(scrollXFromExcalidraw, scrollYFromExcalidraw);
+          }
         },
         validateEmbeddable: true,
         renderEmbeddable: (element, appState) => renderCustomEmbeddable(element, appState, excalidrawAPI),
