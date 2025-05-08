@@ -65,7 +65,6 @@ const CollabButton: React.FC<{ excalidrawAPI: any }> = ({ excalidrawAPI }) => {
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data as string);
-        console.log("Received message:", message);
 
         // Dispatch as a custom event for room.ts to handle
         // This re-uses the existing logic in setupCollabEventReceiver

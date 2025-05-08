@@ -49,13 +49,67 @@ export const getLastProcessedSceneVersion = (): number => {
  */
 
 // Define types for collaboration events
-export type CollabEventType = 'pointer_down' | 'pointer_up' | 'pointer_move' | 'elements_added' | 'elements_edited' | 'elements_deleted' | 'appstate_changed';
+export type CollabEventType = 'pointer_down' | 'pointer_up' | 'pointer_move' | 'cursor_position_update' | 'elements_added' | 'elements_edited' | 'elements_deleted' | 'appstate_changed';
 
 export interface EmitterInfo {
   userId: string;
   displayName: string;
   // We can add username or other fields later if needed
 }
+
+// Represents the data for a remote user's cursor
+export interface RemoteCursor {
+  userId: string;
+  displayName: string;
+  x: number;
+  y: number;
+  // color?: string; // Optional: for styling cursors
+  // lastUpdated?: number; // Optional: for fading out stale cursors
+}
+
+// Module-scoped variable to store remote cursors
+// Key: userId, Value: RemoteCursor
+const remoteCursors = new Map<string, RemoteCursor>();
+
+/**
+ * Dispatches an event indicating that the remote cursors have been updated.
+ * The UI can listen to this event to re-render cursors.
+ */
+const dispatchRemoteCursorsUpdatedEvent = () => {
+  const event = new CustomEvent('remoteCursorsUpdated', {
+    detail: new Map(remoteCursors) // Send a copy
+  });
+  document.dispatchEvent(event);
+};
+
+/**
+ * Updates or adds a remote cursor and dispatches an update event.
+ * @param cursorData The data for the remote cursor.
+ */
+export const updateRemoteCursor = (cursorData: RemoteCursor): void => {
+  remoteCursors.set(cursorData.userId, cursorData);
+  dispatchRemoteCursorsUpdatedEvent();
+};
+
+/**
+ * Removes a remote cursor and dispatches an update event.
+ * @param userId The ID of the user whose cursor to remove.
+ */
+export const removeRemoteCursor = (userId: string): void => {
+  if (remoteCursors.has(userId)) {
+    remoteCursors.delete(userId);
+    dispatchRemoteCursorsUpdatedEvent();
+  }
+};
+
+/**
+ * Gets a snapshot of the current remote cursors.
+ * @returns A map of remote cursors.
+ */
+export const getRemoteCursors = (): Map<string, RemoteCursor> => {
+  return new Map(remoteCursors); // Return a copy
+};
+
 
 export interface CollabEvent {
   type: CollabEventType;
@@ -89,7 +143,7 @@ export const setRoomEmitterInfo = (
 };
 
 // Constants for throttling
-export const POINTER_MOVE_THROTTLE_MS = 100; // Throttle pointer move events to avoid spamming
+export const POINTER_MOVE_THROTTLE_MS = 50; // Throttle pointer move events to avoid spamming
 
 /**
  * Function to detect which elements have changed, categorized by type of change
@@ -267,13 +321,23 @@ export const setupCollabEventHandlers = (
     );
     
     const collabEvent: CollabEvent = {
-      type: 'pointer_move',
+      type: 'pointer_move', // This is a general pointer move for drawing, etc.
       timestamp: Date.now(),
       emitter: currentEmitterInfo ?? undefined,
       pointer: sceneCoords
     };
-    
     dispatchCollabEvent(collabEvent);
+
+    // Dispatch a specific event for cursor position updates for broadcasting
+    if (currentEmitterInfo) {
+      const cursorUpdateEvent: CollabEvent = {
+        type: 'cursor_position_update',
+        timestamp: Date.now(),
+        emitter: currentEmitterInfo, // Emitter info is mandatory here
+        pointer: sceneCoords,
+      };
+      dispatchCollabEvent(cursorUpdateEvent);
+    }
   }, POINTER_MOVE_THROTTLE_MS);
   
   // Add pointer move listener to the excalidraw wrapper or container
@@ -478,8 +542,24 @@ const handleIncomingCollabEvent = (
         // console.log(`[CollabReceiver] Reconciled elements after deletion:`, elementsToUpdate);
       }
       break;
+    
+    case 'cursor_position_update':
+      if (remoteEventData.emitter && remoteEventData.pointer) {
+        // Ensure it's not an event from self if currentEmitterInfo is set
+        if (!currentEmitterInfo || remoteEventData.emitter.userId !== currentEmitterInfo.userId) {
+          const cursorData: RemoteCursor = {
+            userId: remoteEventData.emitter.userId,
+            displayName: remoteEventData.emitter.displayName,
+            x: remoteEventData.pointer.x,
+            y: remoteEventData.pointer.y,
+          };
+          updateRemoteCursor(cursorData);
+          // console.log("[CollabReceiver] Updated remote cursor:", cursorData);
+        }
+      }
+      break;
 
-    // TODO: Add cases for other event types like 'pointer_move', 'appstate_changed' later.
+    // TODO: Add cases for other event types like 'appstate_changed' later.
     // If handling appState changes, ensure finalElementsAfterUpdate is set if elements are also changed,
     // or handle appState versioning separately.
     default:
