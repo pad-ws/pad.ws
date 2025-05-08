@@ -1,4 +1,5 @@
 import throttle from "lodash.throttle";
+import isEqual from "lodash.isequal";
 import type * as TExcalidraw from "@atyrode/excalidraw";
 import { viewportCoordsToSceneCoords } from "@atyrode/excalidraw";
 import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
@@ -20,9 +21,15 @@ import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/type
 // Define types for collaboration events
 export type CollabEventType = 'pointer_down' | 'pointer_up' | 'pointer_move' | 'elements_added' | 'elements_edited' | 'elements_deleted' | 'appstate_changed';
 
+export interface EmitterInfo {
+  userId: string;
+  // We can add username or other fields later if needed
+}
+
 export interface CollabEvent {
   type: CollabEventType;
   timestamp: number;
+  emitter?: EmitterInfo;
   pointer?: { x: number; y: number }; // Canvas-relative coordinates
   button?: string;
   elements?: NonDeletedExcalidrawElement[];
@@ -30,6 +37,18 @@ export interface CollabEvent {
   files?: any;
   changedElementIds?: string[];
 }
+
+// Module-scoped variable to store emitter information
+let currentEmitterInfo: EmitterInfo | null = null;
+
+/**
+ * Sets the emitter information for subsequent collaboration events.
+ * @param emitterInfo The information about the user emitting the events.
+ */
+export const setRoomEmitterInfo = (emitterInfo: EmitterInfo): void => {
+  currentEmitterInfo = emitterInfo;
+  // console.log("[pad.ws] Emitter info for room events updated:", currentEmitterInfo);
+};
 
 // Constants for throttling
 export const POINTER_MOVE_THROTTLE_MS = 100; // Throttle pointer move events to avoid spamming
@@ -184,6 +203,7 @@ export const setupCollabEventHandlers = (
     const collabEvent: CollabEvent = {
       type: 'pointer_down',
       timestamp: Date.now(),
+      emitter: currentEmitterInfo ?? undefined,
       pointer: sceneCoords,
       button: event.button === 0 ? 'left' : event.button === 1 ? 'middle' : 'right'
     };
@@ -209,6 +229,7 @@ export const setupCollabEventHandlers = (
     const collabEvent: CollabEvent = {
       type: 'pointer_up',
       timestamp: Date.now(),
+      emitter: currentEmitterInfo ?? undefined,
       pointer: sceneCoords,
       button: event.button === 0 ? 'left' : event.button === 1 ? 'middle' : 'right'
     };
@@ -230,6 +251,7 @@ export const setupCollabEventHandlers = (
     const collabEvent: CollabEvent = {
       type: 'pointer_move',
       timestamp: Date.now(),
+      emitter: currentEmitterInfo ?? undefined,
       pointer: sceneCoords
     };
     
@@ -280,6 +302,7 @@ export const dispatchElementsAddedEvent = (
   const collabEvent: CollabEvent = {
     type: 'elements_added',
     timestamp: Date.now(),
+    emitter: currentEmitterInfo ?? undefined,
     elements: addedElements,
     changedElementIds: addedElementIds
   };
@@ -302,6 +325,7 @@ export const dispatchElementsEditedEvent = (
   const collabEvent: CollabEvent = {
     type: 'elements_edited',
     timestamp: Date.now(),
+    emitter: currentEmitterInfo ?? undefined,
     elements: editedElements,
     changedElementIds: editedElementIds
   };
@@ -321,6 +345,7 @@ export const dispatchElementsDeletedEvent = (
   const collabEvent: CollabEvent = {
     type: 'elements_deleted',
     timestamp: Date.now(),
+    emitter: currentEmitterInfo ?? undefined,
     changedElementIds: deletedElementIds,
     elements: deletedElements
   };
@@ -333,14 +358,44 @@ export const dispatchElementsDeletedEvent = (
  * @param state Current app state
  */
 export const dispatchAppStateChangedEvent = (
-  state: AppState
+  currentState: AppState,
+  previousState: AppState | null
 ): void => {
-  // Create and dispatch collaboration event with only appState data
-  const collabEvent: CollabEvent = {
-    type: 'appstate_changed',
-    timestamp: Date.now(),
-    appState: state
-  };
-  
-  dispatchCollabEvent(collabEvent);
+  // If there's no previous state, it's the initial load, so don't dispatch anything.
+  if (!previousState) {
+    return;
+  }
+
+  const changedAppState: Partial<AppState> = {};
+
+  // Compare current state with previous state
+  for (const key in currentState) {
+      if (key === 'collaborators') {
+        continue; // Always exclude collaborators key
+      }
+      if (Object.prototype.hasOwnProperty.call(currentState, key)) {
+        const currentVal = (currentState as any)[key];
+        const previousVal = (previousState as any)[key];
+
+        if (!Object.prototype.hasOwnProperty.call(previousState, key) || !isEqual(currentVal, previousVal)) {
+          (changedAppState as any)[key] = currentVal;
+        }
+      }
+    }
+    // Check for keys in previousState that are not in currentState (though AppState changes usually add/modify)
+    // This part might be less common for AppState but included for completeness if properties could be removed.
+    // However, Excalidraw's AppState typically doesn't remove top-level keys, it changes their values.
+    // If a key was removed, it wouldn't be in `currentState` to iterate over.
+    // If a key's value becomes `undefined`, `isEqual` should handle it.
+
+  // Only dispatch if there are actual changes
+  if (Object.keys(changedAppState).length > 0) {
+    const collabEvent: CollabEvent = {
+      type: 'appstate_changed',
+      timestamp: Date.now(),
+      emitter: currentEmitterInfo ?? undefined,
+      appState: changedAppState, // Send only the diff
+    };
+    dispatchCollabEvent(collabEvent);
+  }
 };

@@ -90,6 +90,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type: log.type,
           timestamp: new Date(log.data.timestamp).toLocaleString(),
+          emitter: log.data.emitter,
           pointer: log.data.pointer,
           button: log.data.button
         }, null, 2);
@@ -98,6 +99,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type: log.type,
           timestamp: new Date(log.data.timestamp).toLocaleString(),
+          emitter: log.data.emitter,
           addedElements: log.data.elements,
           count: log.data.elements?.length || 0
         }, null, 2);
@@ -106,6 +108,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type: log.type,
           timestamp: new Date(log.data.timestamp).toLocaleString(),
+          emitter: log.data.emitter,
           editedElements: log.data.elements,
           count: log.data.elements?.length || 0
         }, null, 2);
@@ -114,6 +117,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type: log.type,
           timestamp: new Date(log.data.timestamp).toLocaleString(),
+          emitter: log.data.emitter,
           deletedElements: log.data.elements,
           count: log.data.elements?.length || 0
         }, null, 2);
@@ -122,11 +126,16 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type: log.type,
           timestamp: new Date(log.data.timestamp).toLocaleString(),
+          emitter: log.data.emitter,
           appState: log.data.appState
         }, null, 2);
       
       default:
-        return JSON.stringify(log.data, null, 2);
+        // For pointer_move and any other types, include emitter if present
+        return JSON.stringify({
+          ...log.data,
+          timestamp: new Date(log.data.timestamp).toLocaleString(), // Ensure timestamp is formatted
+        }, null, 2);
     }
   };
 
@@ -189,6 +198,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type,
           timestamp,
+          emitter: { userId: "user-test-id" },
           pointer: { x: 100, y: 100 },
           button: 'left'
         }, null, 2);
@@ -197,6 +207,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type,
           timestamp,
+          emitter: { userId: "user-test-id" },
           pointer: { x: 100, y: 100 }
         }, null, 2);
       
@@ -204,6 +215,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type,
           timestamp,
+          emitter: { userId: "user-test-id" },
           elements: [{
             id: 'element-1',
             type: 'rectangle',
@@ -219,6 +231,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type,
           timestamp,
+          emitter: { userId: "user-test-id" },
           elements: [{
             id: 'element-1',
             type: 'rectangle',
@@ -234,6 +247,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type,
           timestamp,
+          emitter: { userId: "user-test-id" },
           elements: [{
             id: 'element-1'
           }]
@@ -243,6 +257,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type,
           timestamp,
+          emitter: { userId: "user-test-id" },
           appState: {
             viewBackgroundColor: '#ffffff'
           }
@@ -251,7 +266,8 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
       default:
         return JSON.stringify({
           type,
-          timestamp
+          timestamp,
+          emitter: { userId: "user-test-id" }
         }, null, 2);
     }
   };

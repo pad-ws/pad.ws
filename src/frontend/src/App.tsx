@@ -10,6 +10,7 @@ import {
   dispatchElementsDeletedEvent,
   dispatchAppStateChangedEvent,
   setupCollabEventHandlers,
+  setRoomEmitterInfo,
 } from "./lib/room";
 import { 
   storePadData, 
@@ -110,6 +111,9 @@ export default function App({
   // Track previous app state to detect changes
   const previousAppStateRef = useRef<AppState | null>(null);
 
+  // Ref to track if it's the initial load, to prevent firing events before comparison is possible
+  const isInitialLoadRef = useRef(true);
+
   const debouncedLogChange = useCallback(
     debounce(
       (elements: NonDeletedExcalidrawElement[], state: AppState, files: any) => {
@@ -134,8 +138,32 @@ export default function App({
           
           // Save the canvas data to the server
           saveCanvas(canvasData);
+
+          // Handle initial load: set baseline previous states and skip event dispatch
+          if (isInitialLoadRef.current) {
+            // Populate previousElementsRef with initial elements (deep copy)
+            const initialElementsMap: { [id: string]: NonDeletedExcalidrawElement } = {};
+            elements.forEach(element => {
+              if (!(element as any).isDeleted) { // Only non-deleted elements
+                initialElementsMap[element.id] = JSON.parse(JSON.stringify(element));
+              }
+            });
+            previousElementsRef.current = initialElementsMap;
+            
+            // Populate previousAppStateRef with initial state (deep copy)
+            previousAppStateRef.current = JSON.parse(JSON.stringify(state));
+            
+            isInitialLoadRef.current = false;
+            // Dispatch original event for backward compatibility even on initial load if needed by other parts
+            const logChangeEventInit = new CustomEvent('debouncedLogChange', {
+              detail: { elements, appState: state, files }
+            });
+            document.dispatchEvent(logChangeEventInit);
+            return; // Skip event dispatching for elements/appstate changes on initial load
+          }
           
           // Detect which elements have changed, categorized by type
+          // previousElementsRef is updated inside detectChangedElements
           const { added, edited, deleted, deletedElements } = detectChangedElements(elements, previousElementsRef);
           
           // Dispatch specific events based on what changed
@@ -151,15 +179,12 @@ export default function App({
             dispatchElementsDeletedEvent(deleted, deletedElements);
           }
           
-          // Check if app state changed (by comparing with previous state)
-          const prevState = previousAppStateRef.current;
-          if (prevState && JSON.stringify(prevState) !== JSON.stringify(state)) {
-            // Create and dispatch appstate_changed event with only appState data
-            dispatchAppStateChangedEvent(state);
-          }
+          // Dispatch appstate_changed event with current and previous state for diffing
+          // previousAppStateRef.current was set in the previous run (or initial load)
+          dispatchAppStateChangedEvent(state, previousAppStateRef.current);
           
-          // Update previous app state reference
-          previousAppStateRef.current = { ...state };
+          // Update previous app state reference with a deep copy for the next comparison
+          previousAppStateRef.current = JSON.parse(JSON.stringify(state));
           
           // Dispatch original event for backward compatibility
           const logChangeEvent = new CustomEvent('debouncedLogChange', {
@@ -187,6 +212,8 @@ export default function App({
         } = userProfile;
         posthog.people.set(personProps);
       }
+      // Set emitter info for collaboration events
+      setRoomEmitterInfo({ userId: userProfile.id });
     }
   }, [userProfile]);
 
