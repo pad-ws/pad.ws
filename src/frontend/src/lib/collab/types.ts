@@ -2,7 +2,7 @@ import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/ty
 import type { AppState } from "@atyrode/excalidraw/types";
 
 // Define types for collaboration events
-export type CollabEventType = 'pointer_down' | 'pointer_up' | 'pointer_move' | 'cursor_position_update' | 'elements_added' | 'elements_edited' | 'elements_deleted' | 'appstate_changed';
+export type CollabEventType = 'pointer_down' | 'pointer_up' | 'pointer_move' | 'elements_added' | 'elements_edited' | 'elements_deleted' | 'appstate_changed';
 
 export interface EmitterInfo {
   userId: string;

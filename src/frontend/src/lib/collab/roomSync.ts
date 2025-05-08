@@ -235,15 +235,7 @@ export const setupCollabEventHandlers = (
     };
     dispatchCollabEvent(collabEvent);
 
-    if (currentEmitterInfo) {
-      const cursorUpdateEvent: CollabEvent = {
-        type: 'cursor_position_update',
-        timestamp: Date.now(),
-        emitter: currentEmitterInfo,
-        pointer: sceneCoords,
-      };
-      dispatchCollabEvent(cursorUpdateEvent);
-    }
+    // Removed cursor_position_update dispatch, pointer_move now handles this
   }, POINTER_MOVE_THROTTLE_MS);
   
   const canvas = 
@@ -402,8 +394,9 @@ const handleIncomingCollabEvent = (
       }
       break;
     
-    case 'cursor_position_update':
+    case 'pointer_move': // Changed from cursor_position_update
       if (remoteEventData.emitter && remoteEventData.pointer) {
+        // Ensure this is a remote event and not an echo of our own
         if (!currentEmitterInfo || remoteEventData.emitter.userId !== currentEmitterInfo.userId) {
           const cursorData: RemoteCursor = {
             userId: remoteEventData.emitter.userId,
