@@ -78,31 +78,27 @@ async def load_templates():
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # Initialize database
-    await init_db()
-    print("Database connection established successfully")
+    # await init_db()
+    # print("Database connection established successfully")
     
-    # Run database migrations with Redis lock
-    # All workers will wait for the migration to complete before proceeding
-    try:
-        migration_success = await run_migrations_with_lock(
-            redis_client=redis_client,
-            lock_timeout=120,  # 2 minutes timeout for the lock
-            max_wait_time=300  # 5 minutes maximum wait time
-        )
+    # # Run database migrations with Redis lock
+    # # All workers will wait for the migration to complete before proceeding
+    # try:
+    #     migration_success = await run_migrations_with_lock(
+    #         redis_client=redis_client,
+    #         lock_timeout=120,  # 2 minutes timeout for the lock
+    #         max_wait_time=300  # 5 minutes maximum wait time
+    #     )
         
-        if migration_success:
-            print("Database migrations completed successfully or already done")
-        else:
-            print("Warning: Migrations failed or timed out - proceeding with caution")
-    except Exception as e:
-        print(f"Warning: Failed to run migrations: {str(e)}")
+    #     if migration_success:
+    #         print("Database migrations completed successfully or already done")
+    #     else:
+    #         print("Warning: Migrations failed or timed out - proceeding with caution")
+    # except Exception as e:
+    #     print(f"Warning: Failed to run migrations: {str(e)}")
     
-    # Check Redis connection
-    try:
-        redis_client.ping()
-        print("Redis connection established successfully")
-    except Exception as e:
-        print(f"Warning: Redis connection failed: {str(e)}")
+    redis_client.ping()
+    print("Redis connection established successfully")
     
     # Load all templates from the templates directory
     await load_templates()
