@@ -117,6 +117,15 @@
     width: 100%;
     gap: 8px;
   }
+
+  // Wrapper for the two event lists (Sending & Received)
+  &__collab-events-wrapper {
+    display: flex;
+    flex-direction: column; // Arrange sending/received one on top of the other
+    flex: 1;             // Takes 1 part of space in __collab-container (shares with __collab-details)
+    gap: 8px;            // Gap between sending and received lists
+    overflow: hidden;    // Prevent children from expanding this wrapper
+  }
   
   &__emit-container {
     display: flex;
@@ -225,6 +234,16 @@
     flex-direction: column;
     background-color: #1e1e1e;
     overflow: hidden;
+
+    // Styles for when __collab-events is a direct child of __collab-events-wrapper
+    // This ensures the two lists (Sending & Received) share space equally within their wrapper.
+    .dev-tools__collab-events-wrapper > & {
+      width: auto;      // Override the general fixed width below
+      flex-basis: 0;    // Distribute space based on flex-grow
+      flex-grow: 1;     // Each list will grow equally to fill half of the wrapper
+      flex-shrink: 1;   // Allow shrinking if the wrapper itself is constrained
+      min-width: 0;     // Crucial for allowing flex items to shrink below their content size
+    }
   }
   
   &__collab-events-header {

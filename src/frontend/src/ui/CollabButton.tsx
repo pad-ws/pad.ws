@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import "./CollabButton.scss";
 import { setRoomEmitterInfo } from "../lib/room"; // Assuming emitter info is set elsewhere or a default is used
+import { useUserProfile } from "../api/hooks";
 
 // Placeholder for actual WebSocket connection logic
 // This would ideally be in a separate service or in room.ts
@@ -9,14 +10,15 @@ let ws: WebSocket | null = null;
 const CollabButton: React.FC<{ excalidrawAPI: any }> = ({ excalidrawAPI }) => {
   const [roomId, setRoomId] = useState<string>("test-room");
   const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [userId, setUserId] = useState<string>(""); // For emitter info
+  const { data: userProfile } = useUserProfile();
+  const userId = userProfile?.id;
 
   useEffect(() => {
-    // Generate a simple unique ID for this client session
-    const newUserId = `user_${Math.random().toString(36).substr(2, 9)}`;
-    setUserId(newUserId);
-    setRoomEmitterInfo({ userId: newUserId }); // Set emitter info for outgoing events
-  }, []);
+    // Set emitter info for outgoing events when userProfile is available
+    if (userProfile && userId) { // Check both for clarity and safety
+      setRoomEmitterInfo(userId, userProfile.given_name, userProfile.username);
+    }
+  }, [userId, userProfile]); // Add userProfile to dependencies
 
   const handleConnect = useCallback(() => {
     if (!roomId.trim()) {
@@ -31,13 +33,23 @@ const CollabButton: React.FC<{ excalidrawAPI: any }> = ({ excalidrawAPI }) => {
     // Ensure userId is set
     if (!userId) {
       console.error("User ID not set, cannot connect.");
-      alert("User ID not initialized. Please wait a moment and try again.");
+      alert("User ID not available. Please ensure you are logged in and try again.");
       return;
     }
     
     // Update emitter info in room.ts before connecting
     // This ensures outgoing messages from this client will have the correct userId
-    setRoomEmitterInfo({ userId }); 
+    // userId is confirmed to be non-null by a check above this block.
+    // userProfile should also be available.
+    if (userProfile) {
+      setRoomEmitterInfo(userId!, userProfile.given_name, userProfile.username);
+    } else {
+      // This should ideally not happen if userId is present.
+      // If it does, it indicates an inconsistent state or a race condition.
+      console.error("User profile not available when trying to set emitter info for connection. Aborting connection.");
+      alert("User profile information is missing. Cannot connect to collaboration room.");
+      return; // Prevent connection if we can't set emitter info
+    }
 
     const wsUrl = `wss://alex.pad.ws/ws/collab/${roomId.trim()}`;
     console.log(`Attempting to connect to WebSocket: ${wsUrl} with userId: ${userId}`);
@@ -86,8 +98,8 @@ const CollabButton: React.FC<{ excalidrawAPI: any }> = ({ excalidrawAPI }) => {
     setIsConnected(false);
   };
 
-  const handleSendMessage = (message: any) => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
+  const handleSendMessage = useCallback((message: any) => {
+    if (ws && ws.readyState === WebSocket.OPEN && userId) {
       // Add emitter info if not already present (room.ts might do this too)
       const messageWithEmitter = {
         ...message,
@@ -95,14 +107,14 @@ const CollabButton: React.FC<{ excalidrawAPI: any }> = ({ excalidrawAPI }) => {
       };
       ws.send(JSON.stringify(messageWithEmitter));
     } else {
-      console.warn("WebSocket not connected. Cannot send message.");
+      console.warn("WebSocket not connected or userId not available. Cannot send message.");
     }
-  };
+  }, [userId]);
 
   // Listen to 'collabEvent' from room.ts and send it via WebSocket
   useEffect(() => {
     const eventListener = (event: Event) => {
-      if (event instanceof CustomEvent && event.detail && isConnected) {
+      if (event instanceof CustomEvent && event.detail && isConnected && userId) {
         // Only send if this client is the emitter (or if emitter info is not set by room.ts for some reason)
         // room.ts should set the emitter, so we check if it matches our userId
         if (event.detail.emitter?.userId === userId) {

@@ -3,6 +3,7 @@ import MonacoEditor from '@monaco-editor/react';
 import { MousePointer, Edit, Clock, Move, Settings, Plus, Trash2, Radio, Send } from 'lucide-react';
 import './DevTools.scss';
 import { CollabEvent, CollabEventType } from '../lib/room';
+import { useUserProfile } from '../api/hooks';
 
 interface DevToolsProps {
   element?: any; // Excalidraw element
@@ -23,9 +24,14 @@ interface CollabLogData {
 const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI }) => {
   // Active tab state (receive or emit)
   const [activeTab, setActiveTab] = useState<DevToolsTab>('receive');
-  
+
+  // Get user profile to determine own user ID
+  const { data: userProfile } = useUserProfile();
+  const currentUserId = userProfile?.id;
+
   // Store collaboration events
-  const [collabLogs, setCollabLogs] = useState<CollabLogData[]>([]);
+  const [sendingLogs, setSendingLogs] = useState<CollabLogData[]>([]);
+  const [receivedLogs, setReceivedLogs] = useState<CollabLogData[]>([]);
   // Current collab log to display
   const [selectedLog, setSelectedLog] = useState<CollabLogData | null>(null);
   // Store the latest pointer move event separately
@@ -37,47 +43,38 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
 
   // Subscribe to collaboration events
   useEffect(() => {
-    // Create a custom event listener for collaboration events
     const handleCollabEvent = (event: CustomEvent) => {
       const collabEvent: CollabEvent = event.detail;
-      
-      // Create a new collab log entry
+
       const newCollabLog: CollabLogData = {
         id: `collab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         timestamp: new Date(collabEvent.timestamp).toISOString(),
         type: collabEvent.type,
-        data: collabEvent
+        data: collabEvent,
       };
-      
-      // Handle pointer_move events differently to avoid spamming the UI
+
       if (collabEvent.type === 'pointer_move') {
-        // Just update the latest pointer move state
         setLatestPointerMove(newCollabLog);
-        
-        // If the currently selected log is a pointer_move, update to show the latest
         if (selectedLog?.type === 'pointer_move') {
           setSelectedLog(newCollabLog);
         }
       } else {
-        // For other event types, add to the logs list
-        setCollabLogs(prevLogs => {
-          const newLogs = [newCollabLog, ...prevLogs].slice(0, 100);
-          return newLogs;
-        });
-        
-        // Auto-select the newest log
+        const eventEmitterId = collabEvent.emitter?.userId;
+        if (currentUserId && eventEmitterId === currentUserId) {
+          setSendingLogs(prevLogs => [newCollabLog, ...prevLogs].slice(0, 50)); // Keep last 50 sent
+        } else {
+          setReceivedLogs(prevLogs => [newCollabLog, ...prevLogs].slice(0, 50)); // Keep last 50 received
+        }
+        // Auto-select the newest log (consider which list to pick from or if this is still desired)
         setSelectedLog(newCollabLog);
       }
     };
 
-    // Register the custom event
     document.addEventListener('collabEvent', handleCollabEvent as EventListener);
-
-    // Clean up
     return () => {
       document.removeEventListener('collabEvent', handleCollabEvent as EventListener);
     };
-  }, [selectedLog]);
+  }, [selectedLog, currentUserId]);
 
   // Format collaboration event data as pretty JSON
   const formatCollabEventData = (log: CollabLogData | null) => {
@@ -333,38 +330,71 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
       <div className="dev-tools__content">
         {activeTab === 'receive' ? (
           <div className="dev-tools__collab-container">
-            <div className="dev-tools__collab-events">
-              <div className="dev-tools__collab-events-header">
-                Recent Events
+            <div className="dev-tools__collab-events-wrapper">
+              {/* Sending Events List */}
+              <div className="dev-tools__collab-events">
+                <div className="dev-tools__collab-events-header">
+                  Sending Events
+                </div>
+                <div className="dev-tools__collab-events-list">
+                  {sendingLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className={`dev-tools__collab-event-item ${selectedLog?.id === log.id ? 'active' : ''}`}
+                      onClick={() => setSelectedLog(log)}
+                    >
+                      <div className="dev-tools__collab-event-icon">
+                        {getCollabEventIcon(log.type)}
+                      </div>
+                      <div className="dev-tools__collab-event-info">
+                        <div className="dev-tools__collab-event-type">
+                          {log.type}
+                        </div>
+                        <div className="dev-tools__collab-event-time">
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {sendingLogs.length === 0 && (
+                    <div className="dev-tools__collab-empty">
+                      No sending events yet.
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="dev-tools__collab-events-list">
-                {/* Don't show pointer_move events in the regular list */}
-                
-                {/* Show all other events */}
-                {collabLogs.map((log) => (
-                  <div 
-                    key={log.id}
-                    className={`dev-tools__collab-event-item ${selectedLog?.id === log.id ? 'active' : ''}`}
-                    onClick={() => setSelectedLog(log)}
-                  >
-                    <div className="dev-tools__collab-event-icon">
-                      {getCollabEventIcon(log.type)}
-                    </div>
-                    <div className="dev-tools__collab-event-info">
-                      <div className="dev-tools__collab-event-type">
-                        {log.type}
+
+              {/* Received Events List */}
+              <div className="dev-tools__collab-events">
+                <div className="dev-tools__collab-events-header">
+                  Received Events
+                </div>
+                <div className="dev-tools__collab-events-list">
+                  {receivedLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className={`dev-tools__collab-event-item ${selectedLog?.id === log.id ? 'active' : ''}`}
+                      onClick={() => setSelectedLog(log)}
+                    >
+                      <div className="dev-tools__collab-event-icon">
+                        {getCollabEventIcon(log.type)}
                       </div>
-                      <div className="dev-tools__collab-event-time">
-                        {new Date(log.timestamp).toLocaleTimeString()}
+                      <div className="dev-tools__collab-event-info">
+                        <div className="dev-tools__collab-event-type">
+                          {log.type}
+                        </div>
+                        <div className="dev-tools__collab-event-time">
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-                {collabLogs.length === 0 && (
-                  <div className="dev-tools__collab-empty">
-                    No events yet. Interact with the canvas to generate events.
-                  </div>
-                )}
+                  ))}
+                  {receivedLogs.length === 0 && (
+                    <div className="dev-tools__collab-empty">
+                      No received events yet.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <div className="dev-tools__collab-details">

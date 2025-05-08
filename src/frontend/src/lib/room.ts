@@ -53,6 +53,7 @@ export type CollabEventType = 'pointer_down' | 'pointer_up' | 'pointer_move' | '
 
 export interface EmitterInfo {
   userId: string;
+  displayName: string;
   // We can add username or other fields later if needed
 }
 
@@ -73,10 +74,17 @@ let currentEmitterInfo: EmitterInfo | null = null;
 
 /**
  * Sets the emitter information for subsequent collaboration events.
- * @param emitterInfo The information about the user emitting the events.
+ * @param userId The ID of the user.
+ * @param givenName The given name (first name) of the user (can be null or undefined).
+ * @param username The username of the user.
  */
-export const setRoomEmitterInfo = (emitterInfo: EmitterInfo): void => {
-  currentEmitterInfo = emitterInfo;
+export const setRoomEmitterInfo = (
+  userId: string,
+  givenName: string | null | undefined,
+  username: string
+): void => {
+  const displayName = givenName && givenName.trim() !== "" ? givenName : username;
+  currentEmitterInfo = { userId, displayName };
   // console.log("[pad.ws] Emitter info for room events updated:", currentEmitterInfo);
 };
 
