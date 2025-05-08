@@ -1,11 +1,9 @@
 import { DEFAULT_SETTINGS } from '../types/settings';
 import type { ExcalidrawImperativeAPI } from "@atyrode/excalidraw/types";
-import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
-import type { AppState } from "@atyrode/excalidraw/types";
 import { CanvasData, PadData } from '../api/hooks';
 import { fetchApi } from '../api/apiUtils';
 import { queryClient } from '../api/queryClient';
-import { updateLastProcessedSceneVersion } from '../lib/room'; // Import for scene versioning
+import { updateLastProcessedSceneVersion } from './collab'; // Import for scene versioning
 
 /**
  * 

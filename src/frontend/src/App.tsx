@@ -13,8 +13,7 @@ import {
   setRoomEmitterInfo,
   getLastProcessedSceneVersion, // Import for version checking
   updateLastProcessedSceneVersion, // Now needed for initial load version setting
-  // getSceneVersion will be imported directly from @atyrode/excalidraw
-} from "./lib/room";
+} from "./lib/collab"; // Updated import path
 import { getSceneVersion } from "@atyrode/excalidraw"; // Import getSceneVersion directly
 import { 
   storePadData, 
@@ -238,7 +237,9 @@ export default function App({
         posthog.people.set(personProps);
       }
       // Set emitter info for collaboration events
-      setRoomEmitterInfo({ userId: userProfile.id });
+      // The setRoomEmitterInfo function expects (userId: string, givenName: string | null | undefined, username: string)
+      // Assuming userProfile.username exists and userProfile.given_name might or might not.
+      setRoomEmitterInfo(userProfile.id, userProfile.given_name || null, userProfile.username || userProfile.id);
     }
   }, [userProfile]);
 

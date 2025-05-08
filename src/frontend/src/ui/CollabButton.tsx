@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import "./CollabButton.scss";
-import { setRoomEmitterInfo } from "../lib/room"; // Assuming emitter info is set elsewhere or a default is used
+import { setRoomEmitterInfo } from "../lib/collab"; // Assuming emitter info is set elsewhere or a default is used
 import { useUserProfile } from "../api/hooks";
 
 // Placeholder for actual WebSocket connection logic

@@ -1,5 +1,5 @@
 import React, { Children, cloneElement, useState, useEffect, CSSProperties } from 'react';
-import { setupCollabEventReceiver, getRemoteCursors, RemoteCursor } from './lib/room'; // Added for collab event receiving
+import { setupCollabEventReceiver, getRemoteCursors, RemoteCursor } from './lib/collab'; // Added for collab event receiving
 import { sceneCoordsToViewportCoords } from '@atyrode/excalidraw'; // Use the project's consistent excalidraw package
 import DiscordButton from './ui/DiscordButton';
 import GitHubButton from './ui/GitHubButton';
