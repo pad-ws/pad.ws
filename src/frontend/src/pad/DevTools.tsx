@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import { MousePointer, Edit, Clock, Move, Settings, Plus, Trash2, Radio, Send } from 'lucide-react';
 import './DevTools.scss';
-import { CollabEvent, CollabEventType } from '../lib/room';
+import { CollabEvent, CollabEventType } from '../lib/collab';
 import { useUserProfile } from '../api/hooks';
 
 interface DevToolsProps {
