@@ -19,7 +19,7 @@ from routers.pad_router import pad_router
 from routers.template_pad_router import template_pad_router
 from routers.app_router import app_router
 from database.service import TemplatePadService
-from database.database import async_session, run_migrations_with_lock
+from database.database import async_session
 
 # Initialize PostHog if API key is available
 if POSTHOG_API_KEY:
@@ -78,24 +78,8 @@ async def load_templates():
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # Initialize database
-    # await init_db()
-    # print("Database connection established successfully")
-    
-    # # Run database migrations with Redis lock
-    # # All workers will wait for the migration to complete before proceeding
-    # try:
-    #     migration_success = await run_migrations_with_lock(
-    #         redis_client=redis_client,
-    #         lock_timeout=120,  # 2 minutes timeout for the lock
-    #         max_wait_time=300  # 5 minutes maximum wait time
-    #     )
-        
-    #     if migration_success:
-    #         print("Database migrations completed successfully or already done")
-    #     else:
-    #         print("Warning: Migrations failed or timed out - proceeding with caution")
-    # except Exception as e:
-    #     print(f"Warning: Failed to run migrations: {str(e)}")
+    await init_db()
+    print("Database connection established successfully")
     
     redis_client.ping()
     print("Redis connection established successfully")
