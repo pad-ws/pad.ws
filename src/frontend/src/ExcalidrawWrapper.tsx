@@ -1,6 +1,8 @@
 import React, { Children, cloneElement, useState, useEffect } from 'react';
+import { setupCollabEventReceiver } from './lib/room'; // Added for collab event receiving
 import DiscordButton from './ui/DiscordButton';
 import GitHubButton from './ui/GitHubButton';
+import CollabButton from './ui/CollabButton'; // Import the new CollabButton
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { NonDeletedExcalidrawElement } from '@atyrode/excalidraw/element/types';
 import type { AppState } from '@atyrode/excalidraw/types';
@@ -51,6 +53,22 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
 }) => {
   // Add state for modal animation
   const [isExiting, setIsExiting] = useState(false);
+  
+  // Effect to setup collaboration event receiver
+  useEffect(() => {
+    if (excalidrawAPI) {
+      // Setup event receiver for incoming collaboration events
+      const cleanupEventReceiver = setupCollabEventReceiver(excalidrawAPI);
+      // console.log('[ExcalidrawWrapper] Collab event receiver set up.');
+
+      return () => {
+        if (cleanupEventReceiver) {
+          cleanupEventReceiver();
+          // console.log('[ExcalidrawWrapper] Collab event receiver cleaned up.');
+        }
+      };
+    }
+  }, [excalidrawAPI]);
   
   // State for modals
   const [showBackupsModal, setShowBackupsModal] = useState(false);
@@ -107,6 +125,7 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
         renderEmbeddable: (element, appState) => renderCustomEmbeddable(element, appState, excalidrawAPI),
         renderTopRightUI: renderTopRightUI ?? (() => (
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <CollabButton excalidrawAPI={excalidrawAPI} />
             <GitHubButton />
             <DiscordButton />
           </div>

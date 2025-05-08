@@ -198,7 +198,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type,
           timestamp,
-          emitter: { userId: "user-test-id" },
+          emitter: { userId: "test" },
           pointer: { x: 100, y: 100 },
           button: 'left'
         }, null, 2);
@@ -207,7 +207,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type,
           timestamp,
-          emitter: { userId: "user-test-id" },
+          emitter: { userId: "test" },
           pointer: { x: 100, y: 100 }
         }, null, 2);
       
@@ -215,7 +215,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type,
           timestamp,
-          emitter: { userId: "user-test-id" },
+          emitter: { userId: "test" },
           elements: [{
             id: 'element-1',
             type: 'rectangle',
@@ -231,7 +231,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type,
           timestamp,
-          emitter: { userId: "user-test-id" },
+          emitter: { userId: "test" },
           elements: [{
             id: 'element-1',
             type: 'rectangle',
@@ -247,7 +247,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type,
           timestamp,
-          emitter: { userId: "user-test-id" },
+          emitter: { userId: "test" },
           elements: [{
             id: 'element-1'
           }]
@@ -257,7 +257,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type,
           timestamp,
-          emitter: { userId: "user-test-id" },
+          emitter: { userId: "test" },
           appState: {
             viewBackgroundColor: '#ffffff'
           }
@@ -267,7 +267,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
         return JSON.stringify({
           type,
           timestamp,
-          emitter: { userId: "user-test-id" }
+          emitter: { userId: "test" }
         }, null, 2);
     }
   };
@@ -276,6 +276,15 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
   useEffect(() => {
     setEmitEventData(generateTemplateEventData(selectedEventType));
   }, [selectedEventType]);
+
+  // Effect to refresh emitEventData when Emit tab is selected
+  useEffect(() => {
+    if (activeTab === 'emit') {
+      setEmitEventData(generateTemplateEventData(selectedEventType));
+    }
+    // Note: We don't need to do anything special for the 'receive' tab here,
+    // as its content is driven by `selectedLog` which updates independently.
+  }, [activeTab, selectedEventType]); // Re-run if activeTab or selectedEventType changes
 
   return (
     <div className="dev-tools">
@@ -421,6 +430,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
                 value={emitEventData}
                 onChange={(value) => setEmitEventData(value || '')}
                 options={{
+                  readOnly: false, // Explicitly set to false
                   minimap: { enabled: false },
                   scrollBeyondLastLine: false,
                   fontSize: 12,

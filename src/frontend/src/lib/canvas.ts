@@ -5,6 +5,7 @@ import type { AppState } from "@atyrode/excalidraw/types";
 import { CanvasData, PadData } from '../api/hooks';
 import { fetchApi } from '../api/apiUtils';
 import { queryClient } from '../api/queryClient';
+import { updateLastProcessedSceneVersion } from '../lib/room'; // Import for scene versioning
 
 /**
  * 
@@ -221,11 +222,21 @@ export function loadPadData(
   if (localPadData) {
     // Use the local data if available
     console.debug(`[pad.ws] Loading pad ${padId} data from local storage`);
-    excalidrawAPI.updateScene(normalizeCanvasData(localPadData));
+    const normalizedLocalData = normalizeCanvasData(localPadData);
+    excalidrawAPI.updateScene(normalizedLocalData);
+    if (normalizedLocalData && normalizedLocalData.elements) {
+      updateLastProcessedSceneVersion(normalizedLocalData.elements);
+      // console.log(`[canvas.ts loadPadData local] lastProcessedSceneVersion set to: ${getSceneVersion(normalizedLocalData.elements)}`);
+    }
   } else if (serverData) {
     // Fall back to the server data
     console.debug(`[pad.ws] No local data found for pad ${padId}, using server data`);
-    excalidrawAPI.updateScene(normalizeCanvasData(serverData));
+    const normalizedServerData = normalizeCanvasData(serverData);
+    excalidrawAPI.updateScene(normalizedServerData);
+    if (normalizedServerData && normalizedServerData.elements) {
+      updateLastProcessedSceneVersion(normalizedServerData.elements);
+      // console.log(`[canvas.ts loadPadData server] lastProcessedSceneVersion set to: ${getSceneVersion(normalizedServerData.elements)}`);
+    }
   }
 }
 
@@ -266,7 +277,12 @@ export async function createNewPad(
   
   // Update the canvas with the new pad's data
   // Normalize the data before updating the scene
-  excalidrawAPI.updateScene(normalizeCanvasData(newPad.data));
+  const normalizedNewPadData = normalizeCanvasData(newPad.data);
+  excalidrawAPI.updateScene(normalizedNewPadData);
+  if (normalizedNewPadData && normalizedNewPadData.elements) {
+    updateLastProcessedSceneVersion(normalizedNewPadData.elements);
+    // console.log(`[canvas.ts createNewPad] lastProcessedSceneVersion set to: ${getSceneVersion(normalizedNewPadData.elements)}`);
+  }
   console.debug("[pad.ws] Loaded new pad data");
   
   // Set the active pad ID globally

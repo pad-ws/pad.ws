@@ -11,7 +11,11 @@ import {
   dispatchAppStateChangedEvent,
   setupCollabEventHandlers,
   setRoomEmitterInfo,
+  getLastProcessedSceneVersion, // Import for version checking
+  updateLastProcessedSceneVersion, // Now needed for initial load version setting
+  // getSceneVersion will be imported directly from @atyrode/excalidraw
 } from "./lib/room";
+import { getSceneVersion } from "@atyrode/excalidraw"; // Import getSceneVersion directly
 import { 
   storePadData, 
   setActivePad, 
@@ -119,7 +123,27 @@ export default function App({
       (elements: NonDeletedExcalidrawElement[], state: AppState, files: any) => {
         if (!isAuthenticated) return;
 
-        // Get the active pad ID using the imported function
+        // --- Scene Version Check ---
+        const currentSceneVersion = getSceneVersion(elements);
+        const lastKnownVersion = getLastProcessedSceneVersion();
+
+        if (!isInitialLoadRef.current && currentSceneVersion <= lastKnownVersion) {
+          // This change is likely from a remote update that didn't advance the scene version,
+          // or an echo. We should not re-process it for saving or broadcasting.
+          // console.log("[App debouncedLogChange] Scene version not newer, skipping all processing.");
+          
+          // It's still crucial to update our references to the "previous" state
+          // so that the *next* genuine local change is compared correctly.
+          detectChangedElements(elements, previousElementsRef); // This updates previousElementsRef.current
+          if (state) {
+            previousAppStateRef.current = JSON.parse(JSON.stringify(state));
+          }
+          return; // Exit completely
+        }
+        // --- End Scene Version Check ---
+
+        // If we reach here, it's either the initial load or a genuine new local change (version > lastKnownVersion)
+
         const activePadId = getActivePad();
         if (!activePadId) return;
 
@@ -130,43 +154,42 @@ export default function App({
         };
 
         const serialized = JSON.stringify(canvasData);
-        if (serialized !== lastSentCanvasDataRef.current) {
+
+        // Only proceed if the content has actually changed OR it's the initial load (where we establish baseline)
+        if (serialized !== lastSentCanvasDataRef.current || isInitialLoadRef.current) {
           lastSentCanvasDataRef.current = serialized;
           
-          // Store the canvas data in local storage
           storePadData(activePadId, canvasData);
-          
-          // Save the canvas data to the server
           saveCanvas(canvasData);
 
-          // Handle initial load: set baseline previous states and skip event dispatch
           if (isInitialLoadRef.current) {
-            // Populate previousElementsRef with initial elements (deep copy)
+            // Populate previousElementsRef and previousAppStateRef with initial deep copies
             const initialElementsMap: { [id: string]: NonDeletedExcalidrawElement } = {};
             elements.forEach(element => {
-              if (!(element as any).isDeleted) { // Only non-deleted elements
+              if (!(element as any).isDeleted) {
                 initialElementsMap[element.id] = JSON.parse(JSON.stringify(element));
               }
             });
             previousElementsRef.current = initialElementsMap;
-            
-            // Populate previousAppStateRef with initial state (deep copy)
             previousAppStateRef.current = JSON.parse(JSON.stringify(state));
             
+            // Set the initial processed scene version
+            updateLastProcessedSceneVersion(elements);
+            // console.log(`[App debouncedLogChange] Initial load, lastProcessedSceneVersion set to: ${getSceneVersion(elements)}`);
+            
             isInitialLoadRef.current = false;
-            // Dispatch original event for backward compatibility even on initial load if needed by other parts
+            
             const logChangeEventInit = new CustomEvent('debouncedLogChange', {
               detail: { elements, appState: state, files }
             });
             document.dispatchEvent(logChangeEventInit);
-            return; // Skip event dispatching for elements/appstate changes on initial load
+            // No collaboration events dispatched on initial load by this handler.
+            return; 
           }
           
-          // Detect which elements have changed, categorized by type
-          // previousElementsRef is updated inside detectChangedElements
+          // This part now only runs for genuine local changes that advanced the scene version
           const { added, edited, deleted, deletedElements } = detectChangedElements(elements, previousElementsRef);
           
-          // Dispatch specific events based on what changed
           if (added.length > 0) {
             dispatchElementsAddedEvent(elements, added);
           }
@@ -176,7 +199,9 @@ export default function App({
           }
           
           if (deleted.length > 0) {
-            dispatchElementsDeletedEvent(deleted, deletedElements);
+            // Pass the current 'elements' array as the first argument
+            // as it represents the state *after* deletions for versioning.
+            dispatchElementsDeletedEvent(elements, deleted, deletedElements);
           }
           
           // Dispatch appstate_changed event with current and previous state for diffing

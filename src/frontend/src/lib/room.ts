@@ -1,9 +1,39 @@
 import throttle from "lodash.throttle";
 import isEqual from "lodash.isequal";
 import type * as TExcalidraw from "@atyrode/excalidraw";
-import { viewportCoordsToSceneCoords } from "@atyrode/excalidraw";
-import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
+import {
+  viewportCoordsToSceneCoords,
+  restoreElements,
+  reconcileElements,
+  getSceneVersion, // Import this utility
+} from "@atyrode/excalidraw";
+import type {
+  NonDeletedExcalidrawElement,
+  ExcalidrawElement,
+  // RemoteExcalidrawElement, // Removed as it's not exported; ExcalidrawElement will be used
+} from "@atyrode/excalidraw/element/types";
 import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
+
+// Module-scoped variable to store the version of the last scene state
+// that was either broadcasted by this client or received from the server and applied.
+let lastProcessedSceneVersion: number = -1;
+
+/**
+ * Updates the last processed scene version.
+ * @param elements The elements based on which the scene version is determined.
+ */
+export const updateLastProcessedSceneVersion = (elements: readonly ExcalidrawElement[]): void => {
+  lastProcessedSceneVersion = getSceneVersion(elements);
+  // console.log("[pad.ws] Last processed scene version updated to:", lastProcessedSceneVersion);
+};
+
+/**
+ * Gets the last processed scene version.
+ * @returns The last processed scene version.
+ */
+export const getLastProcessedSceneVersion = (): number => {
+  return lastProcessedSceneVersion;
+};
 
 /**
  * IMPORTANT NOTE ABOUT ELEMENT CHANGE DETECTION:
@@ -98,31 +128,11 @@ export const detectChangedElements = (
     
     const prevElement = previousElementsRef.current[element.id];
     if (!prevElement) {
-      console.log("[pad.ws] Element added", element.id);
-      // Element didn't exist before - it's new
       added.push(element.id);
     } else if (prevElement.version !== element.version) {
-      // Element existed but version changed - it's edited
-      console.log("[pad.ws] Element edited", element.id, "version:", element.version, "prev version:", prevElement.version);
       edited.push(element.id);
-    } else if (prevElement.x !== element.x || prevElement.y !== element.y) {
-      // Position changed but version didn't - this shouldn't happen after our fix
-      // but we'll check for it anyway and log it
-      console.log("[pad.ws] Element position changed but version didn't!", 
-        element.id, 
-        "version:", element.version, 
-        "position:", element.x, element.y, 
-        "prev position:", prevElement.x, prevElement.y);
-      
-      // Since we detected a change, we'll add it to edited anyway
+    } else if (prevElement.x !== element.x || prevElement.y !== element.y) {      
       edited.push(element.id);
-    } else {
-      console.log("[pad.ws] Element unchanged", 
-        element.id, 
-        "version:", element.version, 
-        "prev version:", prevElement.version, 
-        "position:", element.x, element.y, 
-        "prev position:", prevElement.x, prevElement.y);
     }
   });
   
@@ -289,15 +299,15 @@ export const setupCollabEventHandlers = (
 
 /**
  * Creates and dispatches an elements_added collaboration event
- * @param elements Current elements
+ * @param allCurrentElements All current elements in the scene
  * @param addedElementIds IDs of elements that were added
  */
 export const dispatchElementsAddedEvent = (
-  elements: NonDeletedExcalidrawElement[],
+  allCurrentElements: NonDeletedExcalidrawElement[],
   addedElementIds: string[]
 ): void => {
   // Filter to only include added elements
-  const addedElements = elements.filter(el => addedElementIds.includes(el.id));
+  const addedElements = allCurrentElements.filter(el => addedElementIds.includes(el.id));
   
   const collabEvent: CollabEvent = {
     type: 'elements_added',
@@ -307,20 +317,22 @@ export const dispatchElementsAddedEvent = (
     changedElementIds: addedElementIds
   };
   
+  updateLastProcessedSceneVersion(allCurrentElements); // Update version before dispatching
+  // console.log("[pad.ws] Dispatching ADDED, lastProcessedSceneVersion set to:", getSceneVersion(allCurrentElements));
   dispatchCollabEvent(collabEvent);
 };
 
 /**
  * Creates and dispatches an elements_edited collaboration event
- * @param elements Current elements
+ * @param allCurrentElements All current elements in the scene
  * @param editedElementIds IDs of elements that were edited
  */
 export const dispatchElementsEditedEvent = (
-  elements: NonDeletedExcalidrawElement[],
+  allCurrentElements: NonDeletedExcalidrawElement[],
   editedElementIds: string[]
 ): void => {
   // Filter to only include edited elements
-  const editedElements = elements.filter(el => editedElementIds.includes(el.id));
+  const editedElements = allCurrentElements.filter(el => editedElementIds.includes(el.id));
   
   const collabEvent: CollabEvent = {
     type: 'elements_edited',
@@ -330,26 +342,32 @@ export const dispatchElementsEditedEvent = (
     changedElementIds: editedElementIds
   };
   
+  updateLastProcessedSceneVersion(allCurrentElements); // Update version before dispatching
+  // console.log("[pad.ws] Dispatching EDITED, lastProcessedSceneVersion set to:", getSceneVersion(allCurrentElements));
   dispatchCollabEvent(collabEvent);
 };
 
 /**
  * Creates and dispatches an elements_deleted collaboration event
+ * @param allCurrentElementsAfterDeletion Elements in the scene *after* deletion
  * @param deletedElementIds IDs of elements that were deleted
- * @param deletedElements The actual deleted element data
+ * @param deletedElementData The actual deleted element data for the event
  */
 export const dispatchElementsDeletedEvent = (
+  allCurrentElementsAfterDeletion: NonDeletedExcalidrawElement[],
   deletedElementIds: string[],
-  deletedElements: any[]
+  deletedElementData: any[]
 ): void => {
   const collabEvent: CollabEvent = {
     type: 'elements_deleted',
     timestamp: Date.now(),
     emitter: currentEmitterInfo ?? undefined,
     changedElementIds: deletedElementIds,
-    elements: deletedElements
+    elements: deletedElementData // Send the data of elements that were deleted
   };
-  
+
+  updateLastProcessedSceneVersion(allCurrentElementsAfterDeletion); // Update version based on state after deletion
+  // console.log("[pad.ws] Dispatching DELETED, lastProcessedSceneVersion set to:", getSceneVersion(allCurrentElementsAfterDeletion));
   dispatchCollabEvent(collabEvent);
 };
 
@@ -398,4 +416,101 @@ export const dispatchAppStateChangedEvent = (
     };
     dispatchCollabEvent(collabEvent);
   }
+};
+
+// Handler for incoming collaboration events
+const handleIncomingCollabEvent = (
+  event: CustomEvent<CollabEvent>,
+  excalidrawAPI: ExcalidrawImperativeAPI
+): void => {
+  const remoteEventData = event.detail;
+
+  // IMPORTANT: Emitter check to prevent processing self-emitted events in a real collab scenario
+  // For DevTools testing, ensure `emitter.userId` in DevTools JSON is different
+  // from `currentEmitterInfo.userId` or temporarily comment out this check.
+  if (currentEmitterInfo && remoteEventData.emitter?.userId === currentEmitterInfo.userId) {
+    // console.log("[CollabReceiver] Ignoring event from self:", remoteEventData.type, remoteEventData.emitter?.userId);
+    return;
+  }
+  // console.log("[CollabReceiver] Received event:", remoteEventData.type, remoteEventData);
+
+
+  const localElements = excalidrawAPI.getSceneElementsIncludingDeleted();
+  const appState = excalidrawAPI.getAppState();
+  let elementsToUpdate: ExcalidrawElement[] | undefined = undefined;
+  let finalElementsAfterUpdate: readonly ExcalidrawElement[] | undefined = undefined;
+
+  switch (remoteEventData.type) {
+    case 'elements_added':
+    case 'elements_edited':
+      if (remoteEventData.elements && remoteEventData.elements.length > 0) {
+        // Ensure elements are in the correct format for restoreElements if necessary
+        const restoredRemoteElements = restoreElements(remoteEventData.elements as ExcalidrawElement[], null);
+        elementsToUpdate = reconcileElements(
+          localElements,
+          restoredRemoteElements as ExcalidrawElement[],
+          appState
+        );
+        finalElementsAfterUpdate = elementsToUpdate;
+        // console.log("[CollabReceiver] Reconciled elements for add/edit:", elementsToUpdate);
+      }
+      break;
+
+    case 'elements_deleted':
+      if (remoteEventData.elements && remoteEventData.elements.length > 0) {
+        const idsToDelete = remoteEventData.elements.map(el => el.id);
+        const remoteElementsAfterDeletion = localElements.filter(el => !idsToDelete.includes(el.id));
+        
+        elementsToUpdate = reconcileElements(
+          localElements, 
+          restoreElements(remoteElementsAfterDeletion, null) as ExcalidrawElement[], 
+          appState
+        );
+        finalElementsAfterUpdate = elementsToUpdate;
+        // console.log(`[CollabReceiver] Reconciled elements after deletion:`, elementsToUpdate);
+      }
+      break;
+
+    // TODO: Add cases for other event types like 'pointer_move', 'appstate_changed' later.
+    // If handling appState changes, ensure finalElementsAfterUpdate is set if elements are also changed,
+    // or handle appState versioning separately.
+    default:
+      // console.log("[CollabReceiver] Unhandled event type:", remoteEventData.type);
+      return;
+  }
+
+  if (elementsToUpdate) {
+    excalidrawAPI.updateScene({ elements: elementsToUpdate });
+    // console.log(`[CollabReceiver] Scene updated via reconcile for event: ${remoteEventData.type}`);
+    if (finalElementsAfterUpdate) {
+      updateLastProcessedSceneVersion(finalElementsAfterUpdate);
+      // console.log(`[CollabReceiver] Scene updated for ${remoteEventData.type}, lastProcessedSceneVersion set to:`, getSceneVersion(finalElementsAfterUpdate));
+    }
+  }
+};
+
+/**
+ * Sets up a global event listener for 'collabEvent' to process incoming collaboration data.
+ * @param excalidrawAPI The Excalidraw API instance.
+ * @returns Cleanup function to remove the event listener.
+ */
+export const setupCollabEventReceiver = (
+  excalidrawAPI: ExcalidrawImperativeAPI
+): (() => void) => {
+  if (!excalidrawAPI) return () => {};
+
+  const eventListener = (event: Event) => {
+    // Type guard to ensure it's a CustomEvent<CollabEvent>
+    if (event instanceof CustomEvent && event.detail && typeof event.detail.type === 'string') {
+      handleIncomingCollabEvent(event as CustomEvent<CollabEvent>, excalidrawAPI);
+    }
+  };
+
+  document.addEventListener('collabEvent', eventListener);
+  // console.log("[CollabReceiver] Event listener for 'collabEvent' added.");
+
+  return () => {
+    document.removeEventListener('collabEvent', eventListener);
+    // console.log("[CollabReceiver] Event listener for 'collabEvent' removed.");
+  };
 };
