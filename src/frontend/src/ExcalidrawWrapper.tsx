@@ -1,9 +1,9 @@
 import React, { Children, cloneElement, useState, useEffect, CSSProperties } from 'react';
-import { setupCollabEventReceiver, getRemoteCursors, RemoteCursor } from './lib/collab'; // Added for collab event receiving
-import { sceneCoordsToViewportCoords } from '@atyrode/excalidraw'; // Use the project's consistent excalidraw package
+import { setupCollabEventReceiver, getRemoteCursors, RemoteCursor } from './lib/collab'; 
+import { sceneCoordsToViewportCoords } from '@atyrode/excalidraw';
 import DiscordButton from './ui/DiscordButton';
 import GitHubButton from './ui/GitHubButton';
-import CollabButton from './ui/CollabButton'; // Import the new CollabButton
+import CollabButton from './ui/CollabButton';
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { NonDeletedExcalidrawElement } from '@atyrode/excalidraw/element/types';
 import type { AppState } from '@atyrode/excalidraw/types';
@@ -225,16 +225,14 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
         position: 'absolute',
         left: `${viewportX}px`,
         top: `${viewportY}px`,
-        // transform: 'translate(-50%, -50%)', // Centering might depend on the cursor image/shape. Let's start without it or adjust.
-                                                // The default Excalidraw cursor is top-left aligned.
         backgroundColor: 'rgba(0, 120, 255, 0.7)', // Example color
         color: 'white',
         padding: '2px 5px',
         borderRadius: '3px',
         fontSize: '10px',
         whiteSpace: 'nowrap',
-        pointerEvents: 'none', // So they don't interfere with Excalidraw's events
-        zIndex: 10000, // Ensure they are on top
+        pointerEvents: 'none',
+        zIndex: 10000, 
       };
 
       cursorsArray.push(
@@ -243,10 +241,10 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
           <div style={{
             width: '8px',
             height: '8px',
-            backgroundColor: 'blue', // Or a user-specific color
+            backgroundColor: 'blue',
             borderRadius: '50%',
             position: 'absolute',
-            top: '-4px', // Adjust based on cursor shape
+            top: '-4px',
             left: '-4px', // Adjust based on cursor shape
           }}></div>
           <span style={{ marginLeft: '10px' }}>{cursor.displayName}</span>
