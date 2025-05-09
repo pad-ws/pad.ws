@@ -3,7 +3,6 @@ import { setupCollabEventReceiver, getRemoteCursors, RemoteCursor } from './lib/
 import { sceneCoordsToViewportCoords } from '@atyrode/excalidraw';
 import DiscordButton from './ui/DiscordButton';
 import GitHubButton from './ui/GitHubButton';
-import CollabButton from './ui/CollabButton';
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { NonDeletedExcalidrawElement } from '@atyrode/excalidraw/element/types';
 import type { AppState } from '@atyrode/excalidraw/types';
@@ -155,7 +154,6 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
         renderEmbeddable: (element, appState) => renderCustomEmbeddable(element, appState, excalidrawAPI),
         renderTopRightUI: renderTopRightUI ?? (() => (
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <CollabButton excalidrawAPI={excalidrawAPI} />
             <GitHubButton />
             <DiscordButton />
           </div>

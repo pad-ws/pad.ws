@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import MonacoEditor from '@monaco-editor/react';
-import { MousePointer, Edit, Clock, Move, Settings, Plus, Trash2, Radio, Send } from 'lucide-react';
+import { MousePointer, Edit, Clock, Move, Settings, Plus, Trash2, Radio, Send, RefreshCw, Save } from 'lucide-react';
 import './DevTools.scss';
 import { CollabEvent, CollabEventType, RemoteCursor } from '../lib/collab';
 import { useUserProfile } from '../api/hooks';
@@ -11,7 +11,8 @@ interface DevToolsProps {
   excalidrawAPI?: any; // Excalidraw API instance
 }
 
-// Enum for DevTools tabs
+// Enum for DevTools sections and tabs
+type DevToolsSection = 'collab' | 'appstate' | 'testing';
 type DevToolsTab = 'receive' | 'emit';
 
 interface CollabLogData {
@@ -22,8 +23,13 @@ interface CollabLogData {
 }
 
 const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI }) => {
-  // Active tab state (receive or emit)
+  // Active section and tab states
+  const [activeSection, setActiveSection] = useState<DevToolsSection>('collab');
   const [activeTab, setActiveTab] = useState<DevToolsTab>('receive');
+  
+  // AppState editor state
+  const [currentAppState, setCurrentAppState] = useState<string>('{}');
+  const [isAppStateLoading, setIsAppStateLoading] = useState<boolean>(false);
 
   // Get user profile to determine own user ID
   const { data: userProfile } = useUserProfile();
@@ -40,6 +46,12 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
   // Emit tab state
   const [selectedEventType, setSelectedEventType] = useState<CollabEventType>('pointer_down');
   const [emitEventData, setEmitEventData] = useState<string>('{\n  "type": "pointer_down",\n  "timestamp": 0,\n  "pointer": {\n    "x": 100,\n    "y": 100\n  },\n  "button": "left"\n}');
+  
+  // Testing section state
+  const [collaboratorCount, setCollaboratorCount] = useState<number>(0);
+  const [roomId, setRoomId] = useState<string>("test-room");
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [ws, setWs] = useState<WebSocket | null>(null);
 
   // Subscribe to remote cursor updates
   useEffect(() => {
@@ -330,30 +342,297 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
     // as its content is driven by `selectedLog` which updates independently.
   }, [activeTab, selectedEventType]); // Re-run if activeTab or selectedEventType changes
 
+  // Function to refresh the AppState
+  const refreshAppState = () => {
+    if (!excalidrawAPI) return;
+    
+    setIsAppStateLoading(true);
+    try {
+      const currentState = excalidrawAPI.getAppState();
+      setCurrentAppState(JSON.stringify(currentState, null, 2));
+    } catch (error) {
+      console.error('[DevTools] Error fetching AppState:', error);
+    } finally {
+      setIsAppStateLoading(false);
+    }
+  };
+  
+  // Function to update the AppState
+  const updateAppState = () => {
+    if (!excalidrawAPI) return;
+    
+    try {
+      const newAppState = JSON.parse(currentAppState);
+      
+      // Fix collaborators issue (similar to the fix in canvas.ts)
+      // Check if collaborators is an empty object ({}) or undefined
+      const isEmptyObject = newAppState.collaborators && 
+                           Object.keys(newAppState.collaborators).length === 0 && 
+                           Object.getPrototypeOf(newAppState.collaborators) === Object.prototype;
+                           
+      if (!newAppState.collaborators || isEmptyObject) {
+        // Apply the fix only if collaborators is empty or undefined
+        newAppState.collaborators = new Map();
+      }
+      
+      excalidrawAPI.updateScene({ appState: newAppState });
+      console.log('[DevTools] AppState updated successfully');
+    } catch (error) {
+      console.error('[DevTools] Error updating AppState:', error);
+      alert(`Error updating AppState: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+  
+  // Initialize AppState when component mounts or section changes to appstate
+  useEffect(() => {
+    if (activeSection === 'appstate' && excalidrawAPI) {
+      refreshAppState();
+    }
+  }, [activeSection, excalidrawAPI]);
+  
+  // WebSocket connection functions
+  const handleConnect = () => {
+    if (!roomId.trim()) {
+      alert("Please enter a Room ID.");
+      return;
+    }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      console.log("Already connected.");
+      return;
+    }
+
+    // Ensure userId is set
+    if (!currentUserId) {
+      console.error("User ID not set, cannot connect.");
+      alert("User ID not available. Please ensure you are logged in and try again.");
+      return;
+    }
+    
+    // Set emitter info for outgoing events
+    if (userProfile) {
+      // Import from lib/collab if needed
+      // setRoomEmitterInfo(currentUserId, userProfile.given_name, userProfile.username);
+    }
+
+    const wsUrl = `wss://alex.pad.ws/ws/collab/${roomId.trim()}`;
+    console.log(`Attempting to connect to WebSocket: ${wsUrl} with userId: ${currentUserId}`);
+    
+    const newWs = new WebSocket(wsUrl);
+    setWs(newWs);
+
+    newWs.onopen = () => {
+      console.log(`Connected to room: ${roomId}`);
+      setIsConnected(true);
+    };
+
+    newWs.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data as string);
+
+        // Dispatch as a custom event for room.ts to handle
+        if (message.emitter?.userId !== currentUserId) { // Basic check to avoid self-echo
+          const collabEvent = new CustomEvent('collabEvent', { detail: message });
+          document.dispatchEvent(collabEvent);
+        }
+      } catch (error) {
+        console.error("Failed to parse incoming message or dispatch event:", error);
+      }
+    };
+
+    newWs.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      alert(`WebSocket error. Check console.`);
+      setIsConnected(false);
+    };
+
+    newWs.onclose = (event) => {
+      console.log(`Disconnected from room: ${roomId}. Code: ${event.code}, Reason: ${event.reason}`);
+      setIsConnected(false);
+      setWs(null);
+    };
+  };
+
+  const handleDisconnect = () => {
+    if (ws) {
+      ws.close();
+      setWs(null);
+    }
+    setIsConnected(false);
+  };
+
+  // Listen to 'collabEvent' from room.ts and send it via WebSocket
+  useEffect(() => {
+    const handleSendMessage = (event: Event) => {
+      if (event instanceof CustomEvent && event.detail && isConnected && ws && ws.readyState === WebSocket.OPEN && currentUserId) {
+        // Only send if this client is the emitter
+        if (event.detail.emitter?.userId === currentUserId) {
+          const messageWithEmitter = {
+            ...event.detail,
+            emitter: event.detail.emitter || { userId: currentUserId }
+          };
+          ws.send(JSON.stringify(messageWithEmitter));
+        }
+      }
+    };
+    
+    document.addEventListener('collabEvent', handleSendMessage);
+    return () => {
+      document.removeEventListener('collabEvent', handleSendMessage);
+    };
+  }, [isConnected, currentUserId, ws]);
+
+  // Function to create a random collaborator in the appstate
+  const createRandomCollaborator = () => {
+    if (!excalidrawAPI) {
+      alert('Excalidraw API not available');
+      return;
+    }
+    
+    try {
+      // Get current appState
+      const currentState = excalidrawAPI.getAppState();
+      
+      // Ensure collaborators is a Map
+      if (!currentState.collaborators || !(currentState.collaborators instanceof Map)) {
+        currentState.collaborators = new Map();
+      }
+      
+      // Generate a random ID for the collaborator
+      const randomId = `test-collab-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      
+      // Create a random position for the collaborator
+      const randomX = Math.floor(Math.random() * 1000);
+      const randomY = Math.floor(Math.random() * 1000);
+      
+      // Create the collaborator object
+      const newCollaborator = {
+        userId: randomId,
+        displayName: `Test User ${collaboratorCount + 1}`,
+        x: randomX,
+        y: randomY,
+        isCurrentUser: false,
+        pointer: { x: randomX, y: randomY },
+        button: 'up',
+        selectedElementIds: {},
+        username: `testuser${collaboratorCount + 1}`,
+        userState: 'active'
+      };
+      
+      // Add the collaborator to the map
+      currentState.collaborators.set(randomId, newCollaborator);
+      
+      // Update the scene with the new appState
+      excalidrawAPI.updateScene({ appState: currentState });
+      
+      // Increment the collaborator count
+      setCollaboratorCount(prev => prev + 1);
+      
+      console.log('[DevTools] Created random collaborator:', newCollaborator);
+    } catch (error) {
+      console.error('[DevTools] Error creating collaborator:', error);
+      alert(`Error creating collaborator: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
   return (
     <div className="dev-tools">
       <div className="dev-tools__header">
-        <h2>Collaboration Events</h2>
-        <div className="dev-tools__tabs">
+        <div className="dev-tools__sections">
           <button 
-            className={`dev-tools__tab ${activeTab === 'receive' ? 'active' : ''}`}
-            onClick={() => setActiveTab('receive')}
+            className={`dev-tools__section ${activeSection === 'collab' ? 'active' : ''}`}
+            onClick={() => setActiveSection('collab')}
           >
-            <Radio size={14} />
-            <span>Receive</span>
+            <Radio size={16} />
+            <span>Collaboration Events</span>
           </button>
           <button 
-            className={`dev-tools__tab ${activeTab === 'emit' ? 'active' : ''}`}
-            onClick={() => setActiveTab('emit')}
+            className={`dev-tools__section ${activeSection === 'appstate' ? 'active' : ''}`}
+            onClick={() => setActiveSection('appstate')}
           >
-            <Send size={14} />
-            <span>Emit</span>
+            <Settings size={16} />
+            <span>AppState Editor</span>
+          </button>
+          <button 
+            className={`dev-tools__section ${activeSection === 'testing' ? 'active' : ''}`}
+            onClick={() => setActiveSection('testing')}
+          >
+            <RefreshCw size={16} />
+            <span>Testing Tools</span>
           </button>
         </div>
+        
+        {activeSection === 'collab' && (
+          <div className="dev-tools__tabs">
+            <button 
+              className={`dev-tools__tab ${activeTab === 'receive' ? 'active' : ''}`}
+              onClick={() => setActiveTab('receive')}
+            >
+              <Radio size={14} />
+              <span>Receive</span>
+            </button>
+            <button 
+              className={`dev-tools__tab ${activeTab === 'emit' ? 'active' : ''}`}
+              onClick={() => setActiveTab('emit')}
+            >
+              <Send size={14} />
+              <span>Emit</span>
+            </button>
+          </div>
+        )}
       </div>
       
-      {/* Cursor Positions Tracker - Always visible at the top when in receive mode */}
-      {activeTab === 'receive' && (
+      {/* AppState Editor */}
+      {activeSection === 'appstate' && (
+        <div className="dev-tools__appstate-container">
+          <div className="dev-tools__appstate-controls">
+            <div className="dev-tools__appstate-header">
+              <h3>AppState Editor</h3>
+              <p>View and modify the current Excalidraw AppState.</p>
+            </div>
+            
+            <div className="dev-tools__appstate-actions">
+              <button 
+                className="dev-tools__appstate-button"
+                onClick={refreshAppState}
+                disabled={isAppStateLoading}
+              >
+                <RefreshCw size={14} className={isAppStateLoading ? 'rotating' : ''} />
+                <span>Refresh</span>
+              </button>
+              
+              <button 
+                className="dev-tools__appstate-button"
+                onClick={updateAppState}
+              >
+                <Save size={14} />
+                <span>Push Changes</span>
+              </button>
+            </div>
+          </div>
+          
+          <div className="dev-tools__appstate-editor">
+            <div className="dev-tools__editor-header">AppState (JSON)</div>
+            <MonacoEditor
+              height="100%"
+              language="json"
+              theme="vs-dark"
+              value={currentAppState}
+              onChange={(value) => setCurrentAppState(value || '{}')}
+              options={{
+                readOnly: false,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                fontSize: 12,
+                automaticLayout: true,
+                wordWrap: 'on'
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Collaboration Events Content */}
+      {activeSection === 'collab' && activeTab === 'receive' && (
         <div className="dev-tools__pointer-tracker">
           <div className="dev-tools__pointer-tracker-header">
             <div className="dev-tools__pointer-tracker-icon">
@@ -389,7 +668,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
       )}
       
       <div className="dev-tools__content">
-        {activeTab === 'receive' ? (
+        {activeSection === 'collab' && activeTab === 'receive' ? (
           <div className="dev-tools__collab-container">
             <div className="dev-tools__collab-events-wrapper">
               {/* Sending Events List */}
@@ -476,7 +755,7 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
               />
             </div>
           </div>
-        ) : (
+        ) : activeSection === 'collab' && activeTab === 'emit' ? (
           <div className="dev-tools__emit-container">
             <div className="dev-tools__emit-controls">
               <div className="dev-tools__emit-header">
@@ -531,7 +810,103 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
               />
             </div>
           </div>
-        )}
+        ) : activeSection === 'testing' ? (
+          <div className="dev-tools__appstate-container">
+            <div className="dev-tools__appstate-controls">
+              <div className="dev-tools__appstate-header">
+                <h3>Testing Tools</h3>
+                <p>Various tools for testing Excalidraw functionality.</p>
+              </div>
+              
+              <div className="dev-tools__appstate-actions">
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#e0e0e0' }}>Collaborator Tools</h4>
+                <button 
+                  className="dev-tools__appstate-button"
+                  onClick={createRandomCollaborator}
+                >
+                  <Plus size={14} />
+                  <span>Add Random Collaborator</span>
+                </button>
+                
+                {collaboratorCount > 0 && (
+                  <div className="dev-tools__collab-empty" style={{ textAlign: 'center', marginTop: '12px' }}>
+                    {collaboratorCount} collaborator{collaboratorCount !== 1 ? 's' : ''} added
+                  </div>
+                )}
+                
+                <div style={{ marginTop: '24px', borderTop: '1px solid #444', paddingTop: '16px' }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#e0e0e0' }}>WebSocket Connection</h4>
+                  
+                  <div style={{ marginBottom: '12px' }}>
+                    <input
+                      type="text"
+                      value={roomId}
+                      onChange={(e) => setRoomId(e.target.value)}
+                      placeholder="Room ID"
+                      disabled={isConnected}
+                      style={{
+                        width: '90%',
+                        padding: '8px',
+                        backgroundColor: '#2d2d2d',
+                        border: '1px solid #444',
+                        borderRadius: '4px',
+                        color: '#e0e0e0',
+                        fontSize: '12px',
+                        marginBottom: '8px'
+                      }}
+                    />
+                    
+                    {isConnected ? (
+                      <button 
+                        className="dev-tools__appstate-button"
+                        onClick={handleDisconnect}
+                        style={{ backgroundColor: '#dc3545' }}
+                      >
+                        <Radio size={14} />
+                        <span>Disconnect</span>
+                      </button>
+                    ) : (
+                      <button 
+                        className="dev-tools__appstate-button"
+                        onClick={handleConnect}
+                      >
+                        <Radio size={14} />
+                        <span>Connect</span>
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="dev-tools__collab-empty" style={{ textAlign: 'center' }}>
+                    {isConnected ? (
+                      <span style={{ color: '#4caf50' }}>Connected to room: {roomId}</span>
+                    ) : (
+                      <span>Not connected</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="dev-tools__appstate-editor">
+              <div className="dev-tools__editor-header">Testing Information</div>
+              <div style={{ padding: '16px', color: '#e0e0e0', fontSize: '14px', lineHeight: '1.5' }}>
+                <p>This section provides tools for testing Excalidraw functionality:</p>
+                <ul style={{ paddingLeft: '20px' }}>
+                  <li><strong>Add Random Collaborator</strong>: Creates a random collaborator in the appstate with a random position.</li>
+                  <li><strong>WebSocket Connection</strong>: Connect to a collaboration room to send and receive events in real-time.</li>
+                </ul>
+                <p>WebSocket Connection Usage:</p>
+                <ol style={{ paddingLeft: '20px' }}>
+                  <li>Enter a room ID in the input field.</li>
+                  <li>Click "Connect" to establish a WebSocket connection.</li>
+                  <li>Once connected, all collaboration events will be sent to and received from the server.</li>
+                  <li>Use the "Emit Custom Event" tab in the Collaboration Events section to send test events.</li>
+                  <li>Click "Disconnect" to close the connection.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
