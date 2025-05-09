@@ -1,13 +1,15 @@
 import type { MakeBrand } from "@atyrode/excalidraw/common/utility-types";
 import type { OrderedExcalidrawElement } from "@atyrode/excalidraw/element/types";
-import { isInvisiblySmallElement } from "@atyrode/excalidraw/element/sizeHelpers";
-import { bytesToHexString } from "@atyrode/excalidraw/common/utils";
-import { generateEncryptionKey } from "@atyrode/excalidraw/data/encryption";
 import { DELETED_ELEMENT_TIMEOUT, ROOM_ID_BYTES, WS_SUBTYPES } from "../constants";
 import { UserIdleState } from "@atyrode/excalidraw/common/constants";
 import { SocketId, AppState } from "@atyrode/excalidraw/types";
 import { SceneBounds } from "@atyrode/excalidraw/element/bounds";
 import { ExcalidrawElement } from "@atyrode/excalidraw/element/types";
+import { 
+  isInvisiblySmallElement,
+  bytesToHexString,
+  generateEncryptionKey
+} from "@atyrode/excalidraw";
 
 export type SyncableExcalidrawElement = OrderedExcalidrawElement &
   MakeBrand<"SyncableExcalidrawElement">;

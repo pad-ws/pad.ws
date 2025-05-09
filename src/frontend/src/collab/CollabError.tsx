@@ -1,9 +1,9 @@
-import { Tooltip } from "@excalidraw/excalidraw/components/Tooltip";
-import { warning } from "@excalidraw/excalidraw/components/icons";
+import { Tooltip } from "@atyrode/excalidraw";
+import { CircleAlert } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 
-import { atom } from "../app-jotai";
+import { atom } from "../lib/jotai";
 
 import "./CollabError.scss";
 
@@ -44,7 +44,7 @@ const CollabError = ({ collabError }: { collabError: ErrorIndicator }) => {
           "collab-errors-button-shake": isAnimating,
         })}
       >
-        {warning}
+        <CircleAlert />
       </div>
     </Tooltip>
   );

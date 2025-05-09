@@ -1,8 +1,10 @@
-import { CaptureUpdateAction } from "@atyrode/excalidraw";
-import { compressData } from "@atyrode/excalidraw/data/encode";
-import { newElementWith } from "@atyrode/excalidraw/element/mutateElement";
-import { isInitializedImageElement } from "@atyrode/excalidraw/element/typeChecks";
-import { t } from "@atyrode/excalidraw/i18n";
+import { 
+  CaptureUpdateAction,
+  compressData,
+  newElementWith,
+  isInitializedImageElement,
+  t
+ } from "@atyrode/excalidraw";
 
 import type {
   ExcalidrawElement,

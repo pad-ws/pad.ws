@@ -1,8 +1,8 @@
 import {
     clearAppStateForLocalStorage,
     getDefaultAppState,
-  } from "@atyrode/excalidraw/appState";
-  import { clearElementsForLocalStorage } from "@atyrode/excalidraw/element/index";
+    clearElementsForLocalStorage
+  } from "@atyrode/excalidraw";
   
   import type { ExcalidrawElement } from "@atyrode/excalidraw/element/types";
   import type { AppState } from "@atyrode/excalidraw/types";

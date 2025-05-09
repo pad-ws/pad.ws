@@ -1,7 +1,9 @@
-import { CaptureUpdateAction } from "@atyrode/excalidraw";
-import { trackEvent } from "@atyrode/excalidraw/analytics";
-import { encryptData } from "@atyrode/excalidraw/data/encryption";
-import { newElementWith } from "@atyrode/excalidraw/element/mutateElement";
+import { 
+  CaptureUpdateAction,
+  trackEvent,
+  encryptData,
+  newElementWith,
+ } from "@atyrode/excalidraw";
 import throttle from "lodash.throttle";
 
 import type { UserIdleState } from "@atyrode/excalidraw/common/constants";

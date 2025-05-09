@@ -10,13 +10,6 @@
  *   (localStorage, indexedDB).
  */
 
-import { clearAppStateForLocalStorage } from "@atyrode/excalidraw/appState";
-import {
-  CANVAS_SEARCH_TAB,
-  DEFAULT_SIDEBAR,
-} from "@atyrode/excalidraw/common/constants";
-import { debounce } from "@atyrode/excalidraw/common/utils";
-import { clearElementsForLocalStorage } from "@atyrode/excalidraw/element/index";
 import {
   createStore,
   entries,
@@ -40,8 +33,15 @@ import type { MaybePromise } from "@atyrode/excalidraw/common/utility-types";
 import { SAVE_TO_LOCAL_STORAGE_TIMEOUT, STORAGE_KEYS } from "../constants";
 
 import { FileManager } from "./fileManager";
-import { Locker } from "./Locker";
+import { Locker } from "../lib/locker";
 import { updateBrowserStateVersion } from "./tabSync";
+import {
+  clearAppStateForLocalStorage,
+  CANVAS_SEARCH_TAB,
+  DEFAULT_SIDEBAR,
+  debounce,
+  clearElementsForLocalStorage
+} from "@atyrode/excalidraw";
 
 const filesStore = createStore("files-db", "files-store");
 

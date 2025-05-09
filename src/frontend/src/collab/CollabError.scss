@@ -1,4 +1,3 @@
-@import "../../packages/excalidraw/css/variables.module.scss";
 
 .excalidraw {
   .collab-errors-button {
@@ -6,7 +5,7 @@
     height: 26px;
     margin-inline-end: 1rem;
 
-    color: var(--color-danger);
+    color: #ff5757;
 
     flex-shrink: 0;
   }

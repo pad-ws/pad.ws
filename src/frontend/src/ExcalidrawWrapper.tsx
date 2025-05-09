@@ -16,6 +16,7 @@ import SettingsDialog from './ui/SettingsDialog';
 import { capture } from './lib/posthog';
 import { Footer } from '@atyrode/excalidraw';
 import Tabs from './ui/Tabs';
+import Collab from './collab/Collab';
 
 const defaultInitialData = {
   elements: [],
@@ -203,6 +204,10 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
             excalidrawAPI={excalidrawAPI}
             onClose={handleCloseSettingsModal}
           />
+        )}
+
+        {excalidrawAPI && (
+          <Collab excalidrawAPI={excalidrawAPI} />
         )}
       </>
     );
