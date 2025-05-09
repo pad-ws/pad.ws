@@ -11,9 +11,11 @@ import type {
   NonDeletedExcalidrawElement,
   ExcalidrawElement,
 } from "@atyrode/excalidraw/element/types";
-import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
-import type { CollabEvent, CollabEventType, EmitterInfo, RemoteCursor } from "./types";
-import { updateRemoteCursor } from "./cursor";
+import type { ExcalidrawImperativeAPI, AppState, SocketId } from "@atyrode/excalidraw/types";
+import type { CollabEvent, CollabEventType, EmitterInfo, PointerData, Collaborator } from "./types";
+
+// Module-scoped variable to store collaborator states
+const collaboratorsMap = new Map<SocketId, Collaborator>();
 
 // Module-scoped variable to store the version of the last scene state
 // that was either broadcasted by this client or received from the server and applied.
@@ -188,7 +190,7 @@ export const setupCollabEventHandlers = (
       timestamp: Date.now(),
       emitter: currentEmitterInfo ?? undefined,
       pointer: sceneCoords,
-      button: event.button === 0 ? 'left' : event.button === 1 ? 'middle' : 'right'
+      button: 'down' // Use 'down' for pointer down events
     };
     
     dispatchCollabEvent(collabEvent);
@@ -212,7 +214,7 @@ export const setupCollabEventHandlers = (
       timestamp: Date.now(),
       emitter: currentEmitterInfo ?? undefined,
       pointer: sceneCoords,
-      button: event.button === 0 ? 'left' : event.button === 1 ? 'middle' : 'right'
+      button: 'up' // Use 'up' for pointer up events
     };
     
     dispatchCollabEvent(collabEvent);
@@ -394,17 +396,22 @@ const handleIncomingCollabEvent = (
       }
       break;
     
-    case 'pointer_move': // Changed from cursor_position_update
+    case 'pointer_move':
       if (remoteEventData.emitter && remoteEventData.pointer) {
         // Ensure this is a remote event and not an echo of our own
         if (!currentEmitterInfo || remoteEventData.emitter.userId !== currentEmitterInfo.userId) {
-          const cursorData: RemoteCursor = {
-            userId: remoteEventData.emitter.userId,
-            displayName: remoteEventData.emitter.displayName,
-            x: remoteEventData.pointer.x,
-            y: remoteEventData.pointer.y,
+          const collaborator: Collaborator = {
+            pointer: {
+              x: remoteEventData.pointer.x,
+              y: remoteEventData.pointer.y,
+              tool: remoteEventData.pointer.tool,
+            },
+            button: remoteEventData.button,
+            selectedElementIds: remoteEventData.selectedElementIds,
+            username: remoteEventData.emitter.displayName,
           };
-          updateRemoteCursor(cursorData);
+          collaboratorsMap.set(remoteEventData.emitter.userId as SocketId, collaborator);
+          excalidrawAPI.updateScene({ collaborators: new Map(collaboratorsMap) });
         }
       }
       break;
