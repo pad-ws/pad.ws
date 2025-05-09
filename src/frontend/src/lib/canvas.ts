@@ -44,7 +44,14 @@ export function normalizeCanvasData(data: any) {
   };
   
   // Reset collaborators (https://github.com/excalidraw/excalidraw/issues/8637)
-  appState.collaborators = new Map();
+  const isEmptyObject = appState.collaborators && 
+  Object.keys(appState.collaborators).length === 0 && 
+  Object.getPrototypeOf(appState.collaborators) === Object.prototype;
+  
+  if (!appState.collaborators || isEmptyObject) {
+    // Apply the fix only if collaborators is empty or undefined
+    appState.collaborators = new Map();
+  }
   
   return { ...data, appState };
 }
