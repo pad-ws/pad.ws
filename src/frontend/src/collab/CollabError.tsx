@@ -38,7 +38,7 @@ const CollabError = ({ collabError }: { collabError: ErrorIndicator }) => {
   }
 
   return (
-    <Tooltip label={collabError.message} long={true}>
+    <Tooltip label={collabError.message} long={true} children={undefined}>
       <div
         className={clsx("collab-errors-button", {
           "collab-errors-button-shake": isAnimating,
