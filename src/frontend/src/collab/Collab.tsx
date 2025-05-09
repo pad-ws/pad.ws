@@ -55,7 +55,7 @@ import {
   } from "@atyrode/excalidraw/types";
   import type { Mutable, ValueOf } from "@atyrode/excalidraw/common/utility-types";
   
-  import { appJotaiStore, atom } from "@atyrode/excalidraw/app-jotai";
+  import { appJotaiStore, atom } from "../lib/jotai";
   import {
     CURSOR_SYNC_TIMEOUT,
     FILE_UPLOAD_MAX_BYTES,
@@ -65,18 +65,18 @@ import {
     WS_SUBTYPES,
     SYNC_FULL_SCENE_INTERVAL_MS,
     WS_EVENTS,
-  } from "../app_constants";
+  } from "../constants";
   import {
     generateCollaborationLinkData,
     getCollaborationLink,
     getSyncableElements,
-  } from "../data";
+  } from "./index";
   import {
     encodeFilesForUpload,
     FileManager,
     updateStaleImageStatuses,
-  } from "../data/FileManager";
-  import { LocalData } from "../data/LocalData";
+  } from "../data/fileManager";
+  import { LocalData } from "../data/localData";
   import {
     isSavedToFirebase,
     loadFilesFromFirebase,
@@ -96,7 +96,7 @@ import {
   import type {
     SocketUpdateDataSource,
     SyncableExcalidrawElement,
-  } from "../data";
+  } from "./index";
   
   export const collabAPIAtom = atom<CollabAPI | null>(null);
   export const isCollaboratingAtom = atom(false);

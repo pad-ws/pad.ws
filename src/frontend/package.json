@@ -9,6 +9,8 @@
     "@tanstack/react-query-devtools": "^5.74.3",
     "@types/crypto-js": "^4.2.2",
     "@types/lodash.isequal": "^4.5.8",
+    "jotai": "2.11.0",
+    "idb-keyval": "6.2.2",
     "browser-fs-access": "0.29.1",
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
