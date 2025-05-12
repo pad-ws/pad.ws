@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import { MousePointer, Edit, Clock, Move, Settings, Plus, Trash2, Radio, Send, RefreshCw, Save } from 'lucide-react';
 import './DevTools.scss';
-import { CollabEvent, CollabEventType, RemoteCursor } from '../lib/collab';
+import { CollabEvent, CollabEventType } from '../lib/collab';
 import { useUserProfile } from '../api/hooks';
 
 interface DevToolsProps {
@@ -40,8 +40,6 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
   const [receivedLogs, setReceivedLogs] = useState<CollabLogData[]>([]);
   // Current collab log to display
   const [selectedLog, setSelectedLog] = useState<CollabLogData | null>(null);
-  // Store all tracked cursors (local and remote)
-  const [allTrackedCursors, setAllTrackedCursors] = useState<Map<string, RemoteCursor>>(new Map());
   
   // Emit tab state
   const [selectedEventType, setSelectedEventType] = useState<CollabEventType>('pointer_down');
@@ -53,63 +51,11 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [ws, setWs] = useState<WebSocket | null>(null);
 
-  // Subscribe to remote cursor updates
-  useEffect(() => {
-    const handleRemoteCursorsUpdate = (event: Event) => {
-      const remoteCursorsMap = (event as CustomEvent).detail as Map<string, RemoteCursor>;
-      setAllTrackedCursors(prevTrackedCursors => {
-        const newTrackedCursors = new Map(prevTrackedCursors);
-        
-        // Preserve local cursor data if it exists
-        const localCursorData = currentUserId ? newTrackedCursors.get(currentUserId) : undefined;
-        newTrackedCursors.clear(); // Clear all existing cursors first
-        
-        if (localCursorData && currentUserId) { // Add local back if it existed
-          newTrackedCursors.set(currentUserId, localCursorData);
-        }
-
-        // Add new remote cursors
-        remoteCursorsMap.forEach((cursor, userId) => {
-          if (userId !== currentUserId) { // Ensure we only add remote cursors from this event
-            newTrackedCursors.set(userId, cursor);
-          }
-        });
-        return newTrackedCursors;
-      });
-    };
-
-    document.addEventListener('remoteCursorsUpdated', handleRemoteCursorsUpdate);
-    return () => {
-      document.removeEventListener('remoteCursorsUpdated', handleRemoteCursorsUpdate);
-    };
-  }, [currentUserId]);
 
   // Subscribe to all collaboration events for logging and local cursor updates
   useEffect(() => {
     const handleCollabEvent = (event: CustomEvent) => {
       const collabEvent: CollabEvent = event.detail;
-
-      // Handle local cursor updates from 'pointer_move' and prevent logging for these events.
-      // Remote cursor updates are handled by 'remoteCursorsUpdated' event triggered by updateRemoteCursor.
-      if (collabEvent.type === 'pointer_move') {
-        if (collabEvent.emitter && collabEvent.pointer && currentUserId === collabEvent.emitter.userId) {
-          // This is the local user's pointer_move event, update their cursor in the tracker
-          const localCursor: RemoteCursor = {
-            userId: collabEvent.emitter.userId,
-            displayName: collabEvent.emitter.displayName,
-            x: collabEvent.pointer.x,
-            y: collabEvent.pointer.y,
-          };
-          setAllTrackedCursors(prevCursors => {
-            const newCursors = new Map(prevCursors);
-            newCursors.set(localCursor.userId, localCursor);
-            return newCursors;
-          });
-        }
-        // Do NOT log 'pointer_move' events (neither local nor remote echoes that might pass through here)
-        // to the sending/received lists. They are handled by the cursor tracker.
-        return; 
-      }
 
       // For all other event types, log them
       const newCollabLog: CollabLogData = {
@@ -641,28 +587,6 @@ const DevTools: React.FC<DevToolsProps> = ({ element, appState, excalidrawAPI })
             <div className="dev-tools__pointer-tracker-title">
               Cursor Positions (Canvas Coordinates)
             </div>
-          </div>
-          <div className="dev-tools__cursor-list">
-            {allTrackedCursors.size > 0 ? (
-              Array.from(allTrackedCursors.values()).map((cursor: RemoteCursor) => (
-                <div key={cursor.userId} className="dev-tools__pointer-tracker-coords">
-                  <span className="dev-tools__cursor-name">
-                    {cursor.displayName}
-                    {cursor.userId === currentUserId ? " (You)" : ""}
-                  </span>
-                  <span className="dev-tools__cursor-coord">X: {cursor.x.toFixed(2)}</span>
-                  <span className="dev-tools__cursor-coord">Y: {cursor.y.toFixed(2)}</span>
-                  {/* Optional: Add last updated time if available in RemoteCursor type */}
-                  {/* <span className="dev-tools__pointer-tracker-time">
-                    {cursor.lastUpdated ? new Date(cursor.lastUpdated).toLocaleTimeString() : ''}
-                  </span> */}
-                </div>
-              ))
-            ) : (
-              <div className="dev-tools__pointer-tracker-coords">
-                <span>No active cursors.</span>
-              </div>
-            )}
           </div>
         </div>
       )}

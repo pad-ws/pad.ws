@@ -1,6 +1,5 @@
-import React, { Children, cloneElement, useState, useEffect, CSSProperties } from 'react';
-import { setupCollabEventReceiver, getRemoteCursors, RemoteCursor } from './lib/collab'; 
-import { sceneCoordsToViewportCoords } from '@atyrode/excalidraw';
+import React, { Children, cloneElement, useState, useEffect } from 'react';
+import { setupCollabEventReceiver } from './lib/collab'; 
 import DiscordButton from './ui/DiscordButton';
 import GitHubButton from './ui/GitHubButton';
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
@@ -54,7 +53,6 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
 }) => {
   // Add state for modal animation
   const [isExiting, setIsExiting] = useState(false);
-  const [remoteCursorsToDisplay, setRemoteCursorsToDisplay] = useState<Map<string, RemoteCursor>>(new Map());
 
   // State to track canvas scroll position to trigger re-render for cursor updates
   const [canvasScrollX, setCanvasScrollX] = useState(0);
@@ -65,28 +63,12 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
     let cleanupEventReceiver: (() => void) | undefined;
     if (excalidrawAPI) {
       cleanupEventReceiver = setupCollabEventReceiver(excalidrawAPI);
-      // console.log('[ExcalidrawWrapper] Collab event receiver set up.');
     }
-
-    const handleRemoteCursorsUpdate = (event: Event) => {
-      if (event instanceof CustomEvent && event.detail) {
-        setRemoteCursorsToDisplay(new Map(event.detail));
-      }
-    };
-
-    document.addEventListener('remoteCursorsUpdated', handleRemoteCursorsUpdate);
-    // console.log('[ExcalidrawWrapper] Listening for remoteCursorsUpdated.');
-
-    // Initial fetch of cursors, in case some were set before this component mounted/listened
-    setRemoteCursorsToDisplay(getRemoteCursors());
 
     return () => {
       if (cleanupEventReceiver) {
         cleanupEventReceiver();
-        // console.log('[ExcalidrawWrapper] Collab event receiver cleaned up.');
       }
-      document.removeEventListener('remoteCursorsUpdated', handleRemoteCursorsUpdate);
-      // console.log('[ExcalidrawWrapper] Stopped listening for remoteCursorsUpdated.');
     };
   }, [excalidrawAPI]);
   
@@ -211,57 +193,9 @@ export const ExcalidrawWrapper: React.FC<ExcalidrawWrapperProps> = ({
     );
   };
 
-  // Function to render remote cursors
-  const renderRemoteCursors = () => {
-    if (!excalidrawAPI) return null;
-
-    const appState = excalidrawAPI.getAppState();
-    const cursorsArray: React.JSX.Element[] = [];
-
-    remoteCursorsToDisplay.forEach((cursor, userId) => {
-      const { x: viewportX, y: viewportY } = sceneCoordsToViewportCoords(
-        { sceneX: cursor.x, sceneY: cursor.y },
-        appState
-      );
-
-      const cursorStyle: CSSProperties = {
-        position: 'absolute',
-        left: `${viewportX}px`,
-        top: `${viewportY}px`,
-        backgroundColor: 'rgba(0, 120, 255, 0.7)', // Example color
-        color: 'white',
-        padding: '2px 5px',
-        borderRadius: '3px',
-        fontSize: '10px',
-        whiteSpace: 'nowrap',
-        pointerEvents: 'none',
-        zIndex: 10000, 
-      };
-
-      cursorsArray.push(
-        <div key={userId} style={cursorStyle} className="remote-user-cursor">
-          {/* Simple dot for cursor position */}
-          <div style={{
-            width: '8px',
-            height: '8px',
-            backgroundColor: 'blue',
-            borderRadius: '50%',
-            position: 'absolute',
-            top: '-4px',
-            left: '-4px', // Adjust based on cursor shape
-          }}></div>
-          <span style={{ marginLeft: '10px' }}>{cursor.displayName}</span>
-        </div>
-      );
-    });
-    return cursorsArray;
-  };
-
-
   return (
     <div className="excalidraw-wrapper" style={{ position: 'relative' }}> {/* Ensure wrapper is a positioning context */}
       {renderExcalidraw(children)}
-      {excalidrawAPI && renderRemoteCursors()}
     </div>
   );
 };

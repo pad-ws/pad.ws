@@ -1,10 +1,5 @@
 export * from './types';
 export { 
-    getRemoteCursors, 
-    updateRemoteCursor, 
-    removeRemoteCursor 
-} from './cursor';
-export { 
     setupCollabEventReceiver, 
     setRoomEmitterInfo, 
     setupCollabEventHandlers,
