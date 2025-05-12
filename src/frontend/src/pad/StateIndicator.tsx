@@ -1,27 +1,10 @@
 import React from 'react';
-import { useWorkspaceState, useAuthCheck } from '../api/hooks';
 import './StateIndicator.scss';
 
 export const StateIndicator: React.FC = () => {
-  const { data: isAuthenticated, isLoading: isAuthLoading } = useAuthCheck();
-  
-  // Only fetch workspace state if authenticated
-  const { data: workspaceState, isLoading: isWorkspaceLoading } = useWorkspaceState({
-    queryKey: ['workspaceState'],
-    enabled: isAuthenticated === true && !isAuthLoading,
-    // Explicitly set refetchInterval to false when not authenticated
-    refetchInterval: isAuthenticated === true ? undefined : false,
-  });
+  const workspaceState = null; //TODO
 
-  const getState = () => {
-    if (isAuthLoading || isWorkspaceLoading) {
-      return { modifier: 'loading', text: 'Loading...' };
-    }
-    
-    if (isAuthenticated === false) {
-      return { modifier: 'unauthenticated', text: 'Not Authenticated' };
-    }
-    
+  const getState = () => {    
     if (!workspaceState) {
       return { modifier: 'unknown', text: 'Unknown' };
     }

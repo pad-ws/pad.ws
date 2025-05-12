@@ -3,13 +3,11 @@ import React, { useState } from 'react';
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 
-import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text, ArchiveRestore, Settings, Terminal, FileText } from 'lucide-react';
+import { LogOut, SquarePlus, LayoutDashboard, User, Text, Settings, Terminal, FileText } from 'lucide-react';
 import AccountDialog from './AccountDialog';
 import md5 from 'crypto-js/md5';
 import { capture } from '../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
-import { useUserProfile } from "../api/hooks";
-import { queryClient } from "../api/queryClient";
 import "./MainMenu.scss";
 
 // Function to generate gravatar URL
@@ -20,8 +18,6 @@ const getGravatarUrl = (email: string, size = 32) => {
 interface MainMenuConfigProps {
   MainMenu: typeof MainMenuType;
   excalidrawAPI: ExcalidrawImperativeAPI | null;
-  showBackupsModal: boolean;
-  setShowBackupsModal: (show: boolean) => void;
   showPadsModal: boolean;
   setShowPadsModal: (show: boolean) => void;
   showSettingsModal?: boolean;
@@ -31,12 +27,23 @@ interface MainMenuConfigProps {
 export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
   MainMenu,
   excalidrawAPI,
-  setShowBackupsModal,
   setShowPadsModal,
   setShowSettingsModal = (show: boolean) => {},
 }) => {
   const [showAccountModal, setShowAccountModal] = useState(false);
-  const { data, isLoading, isError } = useUserProfile();
+
+  const data = { // TODO
+    id: '1234567890',
+    email: 'test@example.com',
+    username: 'testuser',
+    name: 'Test User',
+    given_name: 'Test',
+    family_name: 'User',
+    email_verified: true,
+  }
+
+  const isLoading = false; //TODO
+  const isError = false; //TODO
 
   let username = "";
   let email = "";
@@ -113,10 +120,6 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     });
   };
 
-  const handleCanvasBackupsClick = () => {
-    setShowBackupsModal(true);
-  };
-  
   const handleManagePadsClick = () => {
     setShowPadsModal(true);
   };
@@ -180,10 +183,8 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
 
       // Wait for the iframe to complete
       await Promise.all(promises);
-            
-      // Invalidate auth query to show the AuthModal
-      queryClient.invalidateQueries({ queryKey: ['auth'] });
-      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+
+      // TODO: Invalidate auth query to show the AuthModal? or deprecated logic?
       
       // No need to redirect to the logout URL since we're already handling it via iframe
       console.debug("[pad.ws] Logged out successfully");
@@ -227,12 +228,6 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
           onClick={handleManagePadsClick}
         >
           Manage pads...
-        </MainMenu.Item>
-        <MainMenu.Item
-          icon={<ArchiveRestore />}
-          onClick={handleCanvasBackupsClick}
-        >
-          Load backup...
         </MainMenu.Item>
         <MainMenu.DefaultItems.ClearCanvas />
       </MainMenu.Group>

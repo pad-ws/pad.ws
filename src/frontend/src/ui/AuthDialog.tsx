@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { capture } from "../utils/posthog";
-import { queryClient } from "../api/queryClient";
 import { GoogleIcon, GithubIcon } from "../icons";
 import "./AuthDialog.scss";
 
@@ -63,7 +62,6 @@ export const AuthDialog = ({
       const authCompleted = localStorage.getItem('auth_completed');
       if (authCompleted) {
         localStorage.removeItem('auth_completed');
-        queryClient.invalidateQueries({ queryKey: ['auth'] });
         clearInterval(intervalId);
         handleClose();
       }

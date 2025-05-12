@@ -1,16 +1,20 @@
 import React from 'react';
-import { useWorkspaceState, useStartWorkspace, useStopWorkspace } from '../../api/hooks';
 import './ControlButton.scss';
 import { Play, Square, LoaderCircle } from 'lucide-react';
 
 export const ControlButton: React.FC = () => {
-  const { data: workspaceState } = useWorkspaceState({
-    queryKey: ['workspaceState'],
-    enabled: true,
-  });
+  
+  const workspaceState = { //TODO
+    status: 'running',
+    username: 'pad.ws',
+    name: 'pad.ws',
+    base_url: 'https://pad.ws',
+    agent: 'pad.ws',
+    error: null
+  }
 
-  const { mutate: startWorkspace, isPending: isStarting } = useStartWorkspace();
-  const { mutate: stopWorkspace, isPending: isStopping } = useStopWorkspace();
+  const isStarting = false; //TODO
+  const isStopping = false; //TODO
 
   // Determine current status
   const currentStatus = workspaceState?.status || 'unknown';
@@ -18,9 +22,9 @@ export const ControlButton: React.FC = () => {
   const handleClick = () => {
     if (isStarting || isStopping) return;
     if (currentStatus === 'running') {
-      stopWorkspace();
+      console.log('TODO: stopWorkspace'); //TODO
     } else if (currentStatus === 'stopped' || currentStatus === 'error') {
-      startWorkspace();
+      console.log('TODO: startWorkspace'); //TODO
     }
   };
 

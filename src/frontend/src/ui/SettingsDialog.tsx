@@ -5,7 +5,6 @@ import { UserSettings, DEFAULT_SETTINGS } from "../types/settings";
 import { RefreshCw } from "lucide-react";
 import { normalizeCanvasData } from "../utils/canvasUtils";
 import { capture } from "../utils/posthog";
-import { api } from "../api/hooks";
 import "./SettingsDialog.scss";
 
 interface SettingsDialogProps {
@@ -49,7 +48,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
       capture('restore_tutorial_canvas_clicked');
       
       // Use the API function from hooks.ts to fetch the default canvas
-      const defaultCanvasData = await api.getDefaultCanvas();
+      const defaultCanvasData = null; //TODO
       
       console.debug("Default canvas data:", defaultCanvasData);
       

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useWorkspaceState } from '../api/hooks';
 import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidraw/element/types';
 import type { AppState } from '@atyrode/excalidraw/types';
 import './Terminal.scss';
@@ -24,7 +23,15 @@ export const Terminal: React.FC<TerminalProps> = ({
   appState,
   excalidrawAPI
 }) => {
-  const { data: workspaceState } = useWorkspaceState();
+
+  const workspaceState = { //TODO
+    status: 'running',
+    username: 'pad.ws',
+    name: 'pad.ws',
+    base_url: 'https://pad.ws',
+    agent: 'pad.ws'
+  }
+  
   const [terminalId, setTerminalId] = useState<string | null>(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [shouldRenderIframe, setShouldRenderIframe] = useState(false);

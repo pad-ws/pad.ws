@@ -4,7 +4,6 @@ import type { AppState } from '@atyrode/excalidraw/types';
 import StateIndicator from './StateIndicator';
 import ControlButton from './buttons/ControlButton';
 import { ActionButtonGrid } from './buttons';
-import { useWorkspaceState } from '../api/hooks';
 import './Dashboard.scss';
 
 // Direct import from types
@@ -32,7 +31,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
   appState,
   excalidrawAPI
 }) => {
-  const { data: workspaceState } = useWorkspaceState();
+
+  const workspaceState = { //TODO
+    status: 'running',
+    username: 'pad.ws',
+    name: 'pad.ws',
+    base_url: 'https://pad.ws',
+    agent: 'pad.ws',
+    id: 'pad.ws',
+    error: null
+  }
 
   const buttonConfigs: ActionButtonConfig[] = [
     // First row: Terminal buttons

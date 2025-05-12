@@ -1,6 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useAuthCheck } from "./api/hooks";
-import { getAppConfig } from "./api/configService";
 
 /**
  * If unauthenticated, it shows the AuthModal as an overlay, but still renders the app behind it.
@@ -11,19 +9,22 @@ import { getAppConfig } from "./api/configService";
  * 
  * The iframe is removed as soon as it loads, or after a fallback timeout.
  */
-export default function AuthGate({ children }: { children: React.ReactNode }) {
-  const { data: isAuthenticated, isLoading } = useAuthCheck();
+export default function AuthGate() {
   const [coderAuthDone, setCoderAuthDone] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const timeoutRef = useRef<number | null>(null);
 
+  const isAuthenticated = false; //TODO
+
   useEffect(() => {
     // Only run the Coder OIDC priming once per session, after auth is confirmed
-    if (isAuthenticated === true && !coderAuthDone) {
+    if (isAuthenticated && !coderAuthDone) {
       const setupIframe = async () => {
         try {
           // Get config from API
-          const config = await getAppConfig();
+          const config = {
+            coderUrl: 'https://coder.pad.ws' //TODO
+          };
           
           if (!config.coderUrl) {
             console.warn('[pad.ws] Coder URL not found, skipping OIDC priming');
@@ -69,6 +70,5 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, coderAuthDone]);
 
-  // Just render children - AuthModal is now handled by ExcalidrawWrapper
-  return <>{children}</>;
+  return null;
 }

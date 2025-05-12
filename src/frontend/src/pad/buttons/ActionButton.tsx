@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useWorkspaceState } from '../../api/hooks';
-// Import SVGs as modules - using relative paths from the action button location
 import { Terminal, Braces, Settings, Plus, ExternalLink, Monitor } from 'lucide-react';
 import { ActionType, TargetType, CodeVariant, ActionButtonProps } from './types';
 import './ActionButton.scss';
@@ -28,7 +26,13 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   settingsEnabled = true, // Default to enabled for backward compatibility
   backgroundColor // Custom background color
 }) => {
-  const { data: workspaceState } = useWorkspaceState();
+  const workspaceState = { //TODO
+    status: 'running',
+    username: 'pad.ws',
+    name: 'pad.ws',
+    base_url: 'https://pad.ws',
+    agent: 'pad.ws'
+  }
   
   // Parse settings from parent element's customData if available
   const parseElementSettings = (): { 
