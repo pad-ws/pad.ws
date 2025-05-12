@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
 interface UserInfo {
   username?: string;
@@ -23,7 +24,7 @@ const fetchAuthStatus = async (): Promise<AuthStatusResponse> => {
         errorMessage = errorData.message;
       }
     } catch (e) {
-      // Ignore if error response is not JSON or empty //TODO
+      // Ignore if error response is not JSON or empty
     }
     throw new Error(errorMessage);
   }
@@ -34,12 +35,37 @@ export const useAuthStatus = () => {
   const { data, isLoading, error, isError, refetch } = useQuery<AuthStatusResponse, Error>({
     queryKey: ['authStatus'],
     queryFn: fetchAuthStatus,
-    // Optional configurations you might consider: //TODO
-    // staleTime: 5 * 60 * 1000, // Data is considered fresh for 5 minutes
-    // cacheTime: 10 * 60 * 1000, // Data is kept in cache for 10 minutes
-    // refetchOnWindowFocus: true, // Automatically refetch when the window gains focus
-    // retry: 1, // Retry failed requests once before showing an error
+    gcTime: 10 * 60 * 1000, // Data is kept in cache for 10 minutes
+    staleTime: 5 * 60 * 1000, // Data is considered fresh for 5 minutes
+    refetchOnWindowFocus: true, // Automatically refetch when the window gains focus
+    retry: 1, // Retry failed requests once before showing an error
   });
+
+  useEffect(() => {
+    // Listen for auth completion message from popup
+    const handleAuthMessage = (event: MessageEvent) => {
+      if (event.origin === window.location.origin &&
+        event.data?.type === 'AUTH_COMPLETE') {
+        // Refetch auth status when popup signals completion
+        refetch();
+      }
+    };
+
+    // Listen for localStorage changes
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'auth_completed') {
+        refetch();
+      }
+    };
+
+    window.addEventListener('message', handleAuthMessage);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('message', handleAuthMessage);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [refetch]);
 
   console.log("Auth status", data);
 

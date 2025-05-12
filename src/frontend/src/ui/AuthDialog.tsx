@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 //import { capture } from "../utils/posthog";
 import { GoogleIcon, GithubIcon } from "../icons";
 import "./AuthDialog.scss";
@@ -18,8 +18,6 @@ export const AuthDialog = ({
   onClose,
   children,
 }: AuthDialogProps) => {
-  
-  // Array of random messages that the logo can "say"
   const logoMessages = [
     "Hello there!",
     "Welcome to pad.ws!",
@@ -31,114 +29,55 @@ export const AuthDialog = ({
     "Let's get productive!",
     "Let's turn ideas into code!"
   ];
-  
-  // Select a random message when component mounts
-  const randomMessage = useMemo(() => {
-    const randomIndex = Math.floor(Math.random() * logoMessages.length);
-    return logoMessages[randomIndex];
-  }, []);
-  
-  useEffect(() => {
-    //capture("auth_modal_shown");
-    
-    // Load GitHub buttons script
-    const script = document.createElement('script');
-    script.src = 'https://buttons.github.io/buttons.js';
-    script.async = true;
-    script.defer = true;
-    document.body.appendChild(script);
-    
-    return () => {
-      // Clean up script when component unmounts
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  }, []);
 
-  // Prepare the content for the Dialog
+  const randomMessage = useMemo(() =>
+    logoMessages[Math.floor(Math.random() * logoMessages.length)],
+    []
+  );
+
   const dialogContent = (
     <div className="auth-modal__content">
       <p className="auth-modal__description">{description}</p>
-      
-      {/* Sign-in buttons */}
+
       <div className="auth-modal__buttons">
-        <button
-          onClick={() => {
-            window.open(
-              "/api/auth/login?kc_idp_hint=google&popup=1",
-              "authPopup",
-              "width=500,height=700,noopener,noreferrer"
-            );
-          }}
-        >
+        <button onClick={() => window.open("/api/auth/login?kc_idp_hint=google&popup=1", "authPopup", "width=500,height=700,noopener,noreferrer")}>
           <GoogleIcon className="google-icon" />
           <span>Continue with Google</span>
         </button>
 
-        <button
-          onClick={() => {
-            window.open(
-              "/api/auth/login?kc_idp_hint=github&popup=1",
-              "authPopup",
-              "width=500,height=700,noopener,noreferrer"
-            );
-          }}
-        >
+        <button onClick={() => window.open("/api/auth/login?kc_idp_hint=github&popup=1", "authPopup", "width=500,height=700,noopener,noreferrer")}>
           <GithubIcon />
           <span>Continue with GitHub</span>
         </button>
       </div>
 
-      {/* Footer */}
       <div className="auth-modal__footer">
-                {/* Warning message */}
-                <div className="auth-modal__warning">
+        <div className="auth-modal__warning">
           {warningText}
         </div>
-
-        {/* GitHub Star button
-        <a className="github-button" 
-           href="https://github.com/pad-ws/pad.ws" 
-           data-color-scheme="no-preference: dark_dimmed; light: dark_dimmed; dark: dark_dimmed;" 
-           data-icon="octicon-star" 
-           data-size="large" 
-           data-show-count="true" 
-           aria-label="Star pad-ws/pad.ws on GitHub">
-          Star
-        </a> //TODO*/}
-
-
       </div>
-      
     </div>
   );
 
   return (
-        <div className="auth-modal__wrapper">
-          <div className="auth-modal__logo-container">
-            <img 
-              src="/assets/images/favicon.png" 
-              alt="pad.ws logo" 
-              className="auth-modal__logo" 
-            />
-            <div className="auth-modal__logo-speech-bubble">
-              {randomMessage}
-            </div>
+    <div className="auth-modal__wrapper">
+      <div className="auth-modal__logo-container">
+        <img src="/assets/images/favicon.png" alt="pad.ws logo" className="auth-modal__logo" />
+        <div className="auth-modal__logo-speech-bubble">{randomMessage}</div>
+      </div>
+      <Dialog
+        className="auth-modal"
+        size="small"
+        onCloseRequest={() => { }}
+        title={
+          <div id="modal-title" className="auth-modal__title-container">
+            <h2 className="auth-modal__title">pad<span className="auth-modal__title-dot">.ws</span></h2>
           </div>
-          <Dialog
-            className="auth-modal"
-            size="small"
-            onCloseRequest={() => {}}
-            title={
-              <div id="modal-title" className="auth-modal__title-container">
-                <h2 className="auth-modal__title">pad<span className="auth-modal__title-dot">.ws</span></h2>
-              </div>
-            }
-            closeOnClickOutside={false}
-            children={children || dialogContent}
-          />
-        </div>
+        }
+        closeOnClickOutside={false}
+        children={children || dialogContent}
+      />
+    </div>
   );
 };
 

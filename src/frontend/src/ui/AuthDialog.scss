@@ -3,7 +3,7 @@
 .excalidraw .Dialog--fullscreen {
   &.auth-modal {
     .Dialog__close {
-        display: none;
+      display: none;
     }
   }
 }
@@ -13,6 +13,7 @@
     &__logo-container {
       display: none;
     }
+
     &__content {
       height: 100%;
       margin-bottom: 0;
@@ -21,6 +22,7 @@
       justify-content: space-between;
       flex: 1;
     }
+
     &__buttons {
       margin-bottom: auto;
     }
@@ -36,7 +38,6 @@
 }
 
 .auth-modal {
-
   .Island {
     padding-top: 15px !important;
     padding-bottom: 20px !important;
@@ -70,6 +71,7 @@
       transform: translate(-270px, -318px);
       opacity: 0;
     }
+
     to {
       transform: translate(-230px, -318px);
       opacity: 1;
@@ -81,7 +83,7 @@
     height: 60px;
     object-fit: contain;
   }
-  
+
   &__logo-speech-bubble {
     position: absolute;
     background-color: rgb(232, 232, 232);
@@ -97,7 +99,7 @@
     animation-delay: 1.5s;
     opacity: 0;
     transform: translateY(5px);
-    
+
     &::before {
       content: '';
       position: absolute;
@@ -108,12 +110,13 @@
       border-color: transparent rgb(232, 232, 232) transparent transparent;
     }
   }
-  
+
   @keyframes bubble-appear {
     from {
       opacity: 0;
       transform: translateY(5px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -131,7 +134,7 @@
     font-weight: 700;
     color: white;
     text-align: center;
-    
+
     &-dot {
       color: #fa8933;
     }
@@ -184,7 +187,7 @@
       cursor: pointer;
       background-color: #464652;
       color: white;
-  
+
       &:hover {
         border: 2px solid #cc6d24;
       }
@@ -192,7 +195,6 @@
   }
 
   &__footer {
-
     display: flex;
     justify-content: center;
     align-items: center;
@@ -202,18 +204,6 @@
     padding-top: 10px;
     border-top: 1px solid var(--dialog-border-color);
     width: 100%;
-
-    &-link {
-      display: flex;
-      align-items: center;
-      color: #b8723c !important;
-      font-size: 14px;
-      transition: color 0.15s;
-      
-      &:hover {
-        color: #a0a0a0 !important;
-      }
-    }
   }
 
   &__warning {
