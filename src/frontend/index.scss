@@ -40,6 +40,13 @@ body {
     --color-selection: #a4571b !important;
 }
 
+.excalidraw {
+    --color-primary-light: #a4571b !important;
+    --color-on-primary-container: #e0dfff !important;
+    --color-surface-primary-container: #cc6d24 !important;
+    --color-selection: #a4571b !important;
+}
+
 .excalidraw .sidebar-trigger {
     display: none !important;
 }

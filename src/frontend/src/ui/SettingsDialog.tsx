@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { Dialog } from "@atyrode/excalidraw";
+import { Dialog, RadioGroup, THEME } from "@atyrode/excalidraw"; // Import RadioGroup and THEME
 import { Range } from "./Range";
 import { UserSettings, DEFAULT_SETTINGS } from "../types/settings";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Sun, Moon, MonitorCog } from "lucide-react";
 import { normalizeCanvasData } from "../utils/canvasUtils";
 import { capture } from "../utils/posthog";
 import { api } from "../api/hooks";
+import clsx from "clsx";
 import "./SettingsDialog.scss";
 
 interface SettingsDialogProps {
@@ -13,16 +14,23 @@ interface SettingsDialogProps {
   onClose?: () => void;
 }
 
+// Use the actual theme values from Excalidraw + 'system'
+type AppTheme = typeof THEME.LIGHT | typeof THEME.DARK | 'system';
+
 const SettingsDialog: React.FC<SettingsDialogProps> = ({
   excalidrawAPI,
   onClose,
 }) => {
   const [modalIsShown, setModalIsShown] = useState(true);
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
+  // Initialize theme state based on current appState theme or default to 'system'
+  const [selectedTheme, setSelectedTheme] = useState<AppTheme>(
+    excalidrawAPI?.getAppState()?.theme || 'system'
+  );
   const [showRestoreConfirmation, setShowRestoreConfirmation] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
-  // Get current settings from excalidrawAPI when component mounts
+  // Get current settings and theme from excalidrawAPI when component mounts
   useEffect(() => {
     if (excalidrawAPI) {
       const appState = excalidrawAPI.getAppState();
@@ -31,8 +39,29 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
         ...DEFAULT_SETTINGS,
         ...userSettings
       });
+      // Ensure selectedTheme state is synced if appState changes externally
+      if (appState?.theme && appState.theme !== selectedTheme) {
+        setSelectedTheme(appState.theme);
+      }
     }
-  }, [excalidrawAPI]);
+  }, [excalidrawAPI, selectedTheme]); // Add selectedTheme dependency
+
+  const handleThemeChange = (newTheme: AppTheme) => {
+    if (!excalidrawAPI) return;
+
+    setSelectedTheme(newTheme); // Update local state for RadioGroup UI
+
+    // Update the appState
+    const appState = excalidrawAPI.getAppState();
+    const updatedAppState = {
+      ...appState,
+      theme: newTheme, // Set the theme in appState
+    };
+    
+    excalidrawAPI.updateScene({
+      appState: updatedAppState
+    });
+  };
 
   const handleClose = useCallback(() => {
     setModalIsShown(false);
@@ -104,6 +133,23 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
   // Dialog content
   const dialogContent = (
     <div className="settings-dialog__content">
+
+      {/* Theme Selector Section */}
+      <div className="settings-dialog__section">
+        <h3 className="settings-dialog__section-title">Theme</h3>
+        <RadioGroup
+          choices={[
+            { value: THEME.LIGHT, label: <Sun size={20} />, ariaLabel: "Light Theme" },
+            { value: THEME.DARK, label: <Moon size={20} />, ariaLabel: "Dark Theme" },
+            { value: 'system', label: <MonitorCog size={20} />, ariaLabel: "System Theme" },
+          ]}
+          value={selectedTheme}
+          onChange={handleThemeChange}
+          name="theme"
+        />
+      </div>
+
+      {/* Embed Settings Section */}
       <div className="settings-dialog__section">
         <h3 className="settings-dialog__section-title">Embed Settings</h3>
         <div className="settings-dialog__setting">
@@ -129,6 +175,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
         </div>
       </div>
 
+      {/* Canvas Management Section */}
       <div className="settings-dialog__section">
         <h3 className="settings-dialog__section-title">Canvas Management</h3>
         {showRestoreConfirmation ? (

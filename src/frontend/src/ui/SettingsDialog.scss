@@ -132,4 +132,30 @@
       }
     }
   }
+
+  .RadioGroup {
+    display: flex;
+    flex-direction: row;
+    width: fit-content;
+    gap: 5px;
+    padding: 10px;
+
+    &__choice {
+      color: #cc6d24;
+      padding: 5px;
+
+      &:hover {
+        color: #fa8933;
+      }
+
+      &.active {
+        color: #ffd8bb;
+        background: #cc6d24;
+
+        &:hover {
+          background: #fa8933;
+        }
+      }
+    }
+  }
 }

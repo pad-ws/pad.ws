@@ -46,9 +46,7 @@ export function normalizeCanvasData(data: any) {
   appState.collaborators = new Map();
 
   // Support new appState key default value (https://github.com/excalidraw/excalidraw/commit/a30e1b25c60a9c5c6f049daada0443df874a5266#diff-b7eb4d88c1bc5b4756a01281478e2105db6502e96c2a4b855496c508cef05397L124-R124)
-  if (!appState.searchMatches) {
-    appState.searchMatches = null;
-  }
+  appState.searchMatches = null;
   
   return { ...data, appState };
 }
