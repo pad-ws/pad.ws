@@ -173,19 +173,20 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
         Promise.all(promises)
           .then(() => {
             console.debug("[pad.ws] Keycloak iframe logout process completed successfully.");
-            // Auth status is invalidated by the useLogout hook's onSuccess,
-            // UI should update automatically.
           })
           .catch(err => {
             console.error("[pad.ws] Error during iframe logout process:", err);
-            // Optionally, inform the user that part of the logout (e.g., Keycloak session termination) might have failed.
           });
       },
       onError: (error) => {
-        // Error is already logged by the hook's onError.
-        // You can add component-specific UI feedback here if needed, e.g., a toast notification.
         console.error("[pad.ws] Logout failed in MainMenu component:", error.message);
       }
+    });
+
+    excalidrawAPI.updateScene({
+      appState: {},
+      elements: [],
+      files: [],
     });
   };
 

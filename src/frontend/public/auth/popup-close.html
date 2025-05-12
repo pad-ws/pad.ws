@@ -1,26 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <title>Authentication Complete</title>
 </head>
-
 <body>
   <script>
-    try {
-      // Try to communicate with parent window
-      if (window.opener && !window.opener.closed) {
-        window.opener.postMessage({ type: 'AUTH_COMPLETE' }, window.location.origin);
-      }
-    } catch (error) {
-      console.error('Error in auth popup:', error);
-      // Still try to close the window even if there's an error
-    } finally {
-      // Close the popup window
-      window.close();
-    }
+    localStorage.setItem('auth_completed', Date.now().toString());
+    window.close()
   </script>
 </body>
-
 </html>

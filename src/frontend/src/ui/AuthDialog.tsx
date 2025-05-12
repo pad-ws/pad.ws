@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 //import { capture } from "../utils/posthog";
 import { GoogleIcon, GithubIcon } from "../icons";
 import "./AuthDialog.scss";
@@ -35,6 +35,24 @@ export const AuthDialog = ({
     []
   );
 
+  useEffect(() => {
+    //capture("auth_modal_shown");
+    
+    // Load GitHub buttons script
+    const script = document.createElement('script');
+    script.src = 'https://buttons.github.io/buttons.js';
+    script.async = true;
+    script.defer = true;
+    document.body.appendChild(script);
+    
+    return () => {
+      // Clean up script when component unmounts
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []);
+
   const dialogContent = (
     <div className="auth-modal__content">
       <p className="auth-modal__description">{description}</p>
@@ -55,6 +73,17 @@ export const AuthDialog = ({
         <div className="auth-modal__warning">
           {warningText}
         </div>
+
+        {/* GitHub Star button */}
+        <a className="github-button" 
+           href="https://github.com/pad-ws/pad.ws" 
+           data-color-scheme="no-preference: dark_dimmed; light: dark_dimmed; dark: dark_dimmed;" 
+           data-icon="octicon-star" 
+           data-size="large" 
+           data-show-count="true" 
+           aria-label="Star pad-ws/pad.ws on GitHub">
+          Star
+        </a>
       </div>
     </div>
   );

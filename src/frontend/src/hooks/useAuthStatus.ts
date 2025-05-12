@@ -42,27 +42,16 @@ export const useAuthStatus = () => {
   });
 
   useEffect(() => {
-    // Listen for auth completion message from popup
-    const handleAuthMessage = (event: MessageEvent) => {
-      if (event.origin === window.location.origin &&
-        event.data?.type === 'AUTH_COMPLETE') {
-        // Refetch auth status when popup signals completion
-        refetch();
-      }
-    };
-
-    // Listen for localStorage changes
+    
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === 'auth_completed') {
         refetch();
       }
     };
 
-    window.addEventListener('message', handleAuthMessage);
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
-      window.removeEventListener('message', handleAuthMessage);
       window.removeEventListener('storage', handleStorageChange);
     };
   }, [refetch]);
