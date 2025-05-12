@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useAppConfig } from "./hooks/useAppConfig"; // Import useAppConfig
 
 /**
  * If unauthenticated, it shows the AuthModal as an overlay, but still renders the app behind it.
@@ -13,21 +14,16 @@ export default function AuthGate() {
   const [coderAuthDone, setCoderAuthDone] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const timeoutRef = useRef<number | null>(null);
+  const { config, isLoadingConfig, configError } = useAppConfig(); // Use the hook
 
   const isAuthenticated = false; //TODO
 
   useEffect(() => {
-    // Only run the Coder OIDC priming once per session, after auth is confirmed
-    if (isAuthenticated && !coderAuthDone) {
+    if (isAuthenticated && !coderAuthDone && config && !isLoadingConfig && !configError) {
       const setupIframe = async () => {
         try {
-          // Get config from API
-          const config = {
-            coderUrl: 'https://coder.pad.ws' //TODO
-          };
-          
           if (!config.coderUrl) {
-            console.warn('[pad.ws] Coder URL not found, skipping OIDC priming');
+            console.warn('[pad.ws] Coder URL not found in config, skipping OIDC priming');
             setCoderAuthDone(true);
             return;
           }
@@ -66,9 +62,12 @@ export default function AuthGate() {
           clearTimeout(timeoutRef.current);
         }
       };
+    } else if (configError) {
+      console.error('[pad.ws] Failed to load app config for OIDC priming:', configError);
+      setCoderAuthDone(true); // Mark as done to prevent retries if config fails
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, coderAuthDone]);
+  }, [isAuthenticated, coderAuthDone, config, isLoadingConfig, configError]);
 
   return null;
 }

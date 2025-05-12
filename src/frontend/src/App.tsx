@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Excalidraw, MainMenu } from "@atyrode/excalidraw";
+import { initializePostHog } from "./utils/posthog";
 import { useAuthStatus } from "./hooks/useAuthStatus";
+import { useAppConfig } from "./hooks/useAppConfig";
 import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
 import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
 
@@ -32,6 +34,7 @@ const defaultInitialData = {
 
 export default function App() {
   const { isAuthenticated } = useAuthStatus();
+  const { config: appConfig, isLoadingConfig, configError } = useAppConfig(); 
   
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
@@ -48,6 +51,17 @@ export default function App() {
     // TODO
     lockEmbeddables(excalidrawAPI?.getAppState());
   };
+
+  useEffect(() => {
+    if (appConfig && appConfig.posthogKey && appConfig.posthogHost) {
+      initializePostHog({
+        posthogKey: appConfig.posthogKey,
+        posthogHost: appConfig.posthogHost,
+      });
+    } else if (configError) {
+      console.error('[pad.ws] Failed to load app config, PostHog initialization might be skipped or delayed:', configError);
+    }
+  }, [appConfig, configError]);
   
   // TODO
   // useEffect(() => {
