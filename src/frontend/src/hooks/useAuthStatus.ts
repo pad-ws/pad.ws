@@ -104,7 +104,7 @@ export const useAuthStatus = () => {
   }, [data, queryClient, refetch, expiresAt]);
 
   return {
-    isAuthenticated: data?.authenticated ?? false,
+    isAuthenticated: data?.authenticated ?? undefined,
     user: data?.user,
     expires_in: data?.expires_in,
     isLoading,

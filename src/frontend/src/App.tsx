@@ -80,7 +80,7 @@ export default function App() {
         setShowSettingsModal={setShowSettingsModal}
       />
 
-      {isAuthenticated !== true && (
+      {isAuthenticated === false && (
         <AuthDialog
           onClose={() => {}}
         />

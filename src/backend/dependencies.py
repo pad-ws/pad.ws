@@ -2,7 +2,7 @@ import jwt
 from typing import Optional, Dict, Any
 from uuid import UUID
 
-from fastapi import Request, HTTPException, Depends
+from fastapi import Request, HTTPException
 
 from config import get_session, is_token_expired, refresh_token
 from database.service import UserService
