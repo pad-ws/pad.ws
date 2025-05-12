@@ -44,7 +44,6 @@ async def callback(
 ):
     session_id = request.cookies.get('session_id')
     if not session_id:
-        print("No session ID found")
         raise HTTPException(status_code=400, detail="No session")
     
     # Exchange code for token
@@ -114,7 +113,6 @@ async def logout(request: Request):
 
 @auth_router.get("/status")
 async def auth_status(
-    request: Request,
     user_session: Optional[UserSession] = Depends(optional_auth)
 ):
     """Check if the user is authenticated and return session information"""
