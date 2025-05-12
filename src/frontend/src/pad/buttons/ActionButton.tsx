@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Braces, Settings, Plus, ExternalLink, Monitor } from 'lucide-react';
 import { ActionType, TargetType, CodeVariant, ActionButtonProps } from './types';
 import './ActionButton.scss';
-import { capture } from '../../utils/posthog';
+// import { capture } from '../../utils/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../../lib/ExcalidrawElementFactory';
 
 // Interface for button settings stored in customData
@@ -296,11 +296,11 @@ const ActionButton: React.FC<ActionButtonProps> = ({
 
   
   const executeAction = () => {
-    capture('action_button_clicked', {
+    /* capture('action_button_clicked', {
       target: selectedTarget,
       action: selectedAction,
       codeVariant: selectedTarget === 'code' ? selectedCodeVariant : null
-    });
+    }); */  //TODO
     
     if (selectedAction === 'embed') {
       const excalidrawAPI = (window as any).excalidrawAPI;

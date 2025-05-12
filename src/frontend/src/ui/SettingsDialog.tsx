@@ -4,7 +4,7 @@ import { Range } from "./Range";
 import { UserSettings, DEFAULT_SETTINGS } from "../types/settings";
 import { RefreshCw } from "lucide-react";
 import { normalizeCanvasData } from "../utils/canvasUtils";
-import { capture } from "../utils/posthog";
+// import { capture } from "../utils/posthog";
 import "./SettingsDialog.scss";
 
 interface SettingsDialogProps {
@@ -45,7 +45,7 @@ const SettingsDialog: React.FC<SettingsDialogProps> = ({
     
     try {
       setIsRestoring(true);
-      capture('restore_tutorial_canvas_clicked');
+      // capture('restore_tutorial_canvas_clicked');
       
       // Use the API function from hooks.ts to fetch the default canvas
       const defaultCanvasData = null; //TODO
