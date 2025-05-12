@@ -18,6 +18,14 @@ const defaultInitialData = {
     gridModeEnabled: true,
     gridSize: 20,
     gridStep: 5,
+    pad: {
+      moduleBorderOffset: {
+        top: 40,
+        right: 5,
+        bottom: 5,
+        left: 5,
+      },
+    },
   },
   files: {},
 };

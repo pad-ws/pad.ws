@@ -158,7 +158,7 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
 
             iframe.onload = () => cleanup();
             // Fallback: remove iframe after 2s if onload doesn't fire
-            timeoutId = window.setTimeout(() => cleanup(new Error(`${debugName} iframe load timed out`)), 2000);
+            timeoutId = window.setTimeout(() => cleanup(new Error(`${debugName} iframe load timed out`)), 5000);
 
             iframe.onerror = (event) => { // event can be an ErrorEvent or string
                 const errorMsg = typeof event === 'string' ? event : (event instanceof ErrorEvent ? event.message : `Error loading ${debugName} iframe`);
