@@ -3,13 +3,16 @@ import jwt
 import httpx
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import RedirectResponse, FileResponse, JSONResponse
+from config import refresh_token
 import os
-from datetime import datetime
+from typing import Optional
+import time
 
 from config import (get_auth_url, get_token_url, set_session, delete_session, get_session, 
                     FRONTEND_URL, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_SERVER_URL, OIDC_REALM, OIDC_REDIRECT_URI, STATIC_DIR)
 from dependencies import get_coder_api
 from coder import CoderAPI
+from dependencies import optional_auth, UserSession
 
 auth_router = APIRouter()
 
@@ -61,7 +64,7 @@ async def callback(
             raise HTTPException(status_code=400, detail="Auth failed")
         
         token_data = token_response.json()
-        expiry = token_data['expires_in']
+        expiry = token_data['refresh_expires_in']
         set_session(session_id, token_data, expiry)
         access_token = token_data['access_token']
         user_info = jwt.decode(access_token, options={"verify_signature": False})
@@ -110,45 +113,53 @@ async def logout(request: Request):
     return response
 
 @auth_router.get("/status")
-async def auth_status(request: Request):
+async def auth_status(
+    request: Request,
+    user_session: Optional[UserSession] = Depends(optional_auth)
+):
     """Check if the user is authenticated and return session information"""
-    session_id = request.cookies.get('session_id')
-    
-    if not session_id:
+    if not user_session:
         return JSONResponse({
             "authenticated": False,
-            "message": "No session found"
+            "message": "Not authenticated"
         })
     
-    session_data = get_session(session_id)
-    if not session_data:
-        return JSONResponse({
-            "authenticated": False,
-            "message": "Invalid session"
-        })
-    
-    # Decode the access token to get user info
     try:
-        access_token = session_data.get('access_token')
-        if not access_token:
-            return JSONResponse({
-                "authenticated": False,
-                "message": "No access token found"
-            })
-            
-        user_info = jwt.decode(access_token, options={"verify_signature": False})
+        expires_in = user_session.token_data.get('exp') - time.time()
         
         return JSONResponse({
             "authenticated": True,
             "user": {
-                "username": user_info.get('preferred_username'),
-                "email": user_info.get('email'),
-                "name": user_info.get('name')
+                "username": user_session.username,
+                "email": user_session.email,
+                "name": user_session.name
             },
-            "expires_in": session_data.get('expires_in')
+            "expires_in": expires_in
         })
     except Exception as e:
         return JSONResponse({
             "authenticated": False,
-            "message": f"Error decoding token: {str(e)}"
+            "message": f"Error processing session: {str(e)}"
         })
+
+@auth_router.post("/refresh")
+async def refresh_session(request: Request):
+    """Refresh the current session's access token"""
+    session_id = request.cookies.get('session_id')
+    if not session_id:
+        raise HTTPException(status_code=401, detail="No session found")
+    
+    session_data = get_session(session_id)
+    if not session_data:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    
+    # Try to refresh the token
+    success, new_session = await refresh_token(session_id, session_data)
+    if not success:
+        raise HTTPException(status_code=401, detail="Failed to refresh session")
+    
+    # Return the new expiry time
+    return JSONResponse({
+        "expires_in": new_session.get('expires_in'),
+        "authenticated": True
+    })

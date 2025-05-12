@@ -167,7 +167,8 @@ async def refresh_token(session_id: str, token_data: Dict[str, Any]) -> Tuple[bo
             new_token_data = refresh_response.json()
             
             # Update session with new tokens
-            expiry = new_token_data['expires_in']
+            expiry = new_token_data['refresh_expires_in']
+            print(f"New expiry in refresh_token: {expiry}")
             set_session(session_id, new_token_data, expiry)
             
             return True, new_token_data
