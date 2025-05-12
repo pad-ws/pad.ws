@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Excalidraw, MainMenu } from "@atyrode/excalidraw";
+import { useAuthStatus } from "./hooks/useAuthStatus";
 import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
 import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
 
@@ -9,7 +10,7 @@ import { MainMenuConfig } from './ui/MainMenu';
 import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRenderer';
 import AuthDialog from './ui/AuthDialog';
 import SettingsDialog from './ui/SettingsDialog';
-import { capture } from './utils/posthog';
+// import { capture } from './utils/posthog';
 
 const defaultInitialData = {
   elements: [],
@@ -22,17 +23,10 @@ const defaultInitialData = {
 };
 
 export default function App() {
-  const isAuthenticated = false; //TODO
-  const [isExiting, setIsExiting] = useState(false);
+  const { isAuthenticated } = useAuthStatus();
+  
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      setIsExiting(true);
-      capture('signed_in');
-    }
-  }, [isAuthenticated]);
 
   const handleCloseSettingsModal = () => {
     setShowSettingsModal(false);
@@ -63,42 +57,41 @@ export default function App() {
 
   // Render Excalidraw directly with props and associated UI
   return (
-    <div className="excalidraw-wrapper"> {/* Keep the wrapper div */}
-      <Excalidraw
-        excalidrawAPI={(api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api)}
-        theme="dark"
-        initialData={defaultInitialData}
-        onChange={handleOnChange}
-        name="Pad.ws"
-        onScrollChange={handleOnScrollChange}
-        validateEmbeddable={true}
-        renderEmbeddable={(element, appState) => renderCustomEmbeddable(element, appState, excalidrawAPI)}
-        renderTopRightUI={() => (
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <GitHubButton />
-            <DiscordButton />
-          </div>
-        )}
-      >
-        <MainMenuConfig
-          MainMenu={MainMenu}
-          excalidrawAPI={excalidrawAPI}
-          showSettingsModal={showSettingsModal}
-          setShowSettingsModal={setShowSettingsModal}
-        />
-        {isAuthenticated === false && (
-          <AuthDialog
-            onClose={() => {}}
-          />
-        )}
+    <Excalidraw
+      excalidrawAPI={(api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api)}
+      theme="dark"
+      initialData={defaultInitialData}
+      onChange={handleOnChange}
+      name="Pad.ws"
+      onScrollChange={handleOnScrollChange}
+      validateEmbeddable={true}
+      renderEmbeddable={(element, appState) => renderCustomEmbeddable(element, appState, excalidrawAPI)}
+      renderTopRightUI={() => (
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          {/* <GitHubButton /> //TODO */}
+          <DiscordButton />
+        </div>
+      )}
+    >
+      <MainMenuConfig
+        MainMenu={MainMenu}
+        excalidrawAPI={excalidrawAPI}
+        showSettingsModal={showSettingsModal}
+        setShowSettingsModal={setShowSettingsModal}
+      />
 
-        {showSettingsModal && (
-          <SettingsDialog
-            excalidrawAPI={excalidrawAPI}
-            onClose={handleCloseSettingsModal}
-          />
-        )}
-      </Excalidraw>
-    </div>
+      {isAuthenticated !== true && (
+        <AuthDialog
+          onClose={() => {}}
+        />
+      )}
+
+      {showSettingsModal && (
+        <SettingsDialog
+          excalidrawAPI={excalidrawAPI}
+          onClose={handleCloseSettingsModal}
+        />
+      )}
+    </Excalidraw>
   );
 }

@@ -116,7 +116,7 @@ async def read_root(request: Request, auth: Optional[UserSession] = Depends(opti
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 # Include routers in the main app with the /api prefix
-app.include_router(auth_router, prefix="/auth")
+app.include_router(auth_router, prefix="/api/auth")
 app.include_router(user_router, prefix="/api/users")
 app.include_router(workspace_router, prefix="/api/workspace")
 app.include_router(pad_router, prefix="/api/pad")

@@ -6,7 +6,8 @@ import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 import { LogOut, SquarePlus, LayoutDashboard, User, Text, Settings, Terminal, FileText } from 'lucide-react';
 import AccountDialog from './AccountDialog';
 import md5 from 'crypto-js/md5';
-import { capture } from '../utils/posthog';
+// import { capture } from '../utils/posthog';
+import { useLogout } from '../hooks/useLogout';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
 import "./MainMenu.scss";
 
@@ -31,6 +32,7 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
   setShowSettingsModal = (show: boolean) => {},
 }) => {
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const { mutate: logoutMutation, isPending: isLoggingOut } = useLogout();
 
   const data = { // TODO
     id: '1234567890',
@@ -132,65 +134,59 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     setShowAccountModal(true);
   };
 
-  const handleLogout = async () => {
-    capture('logout_clicked');
-    
-    try {
-      // Call the logout endpoint and get the logout_url
-      const response = await fetch('/auth/logout', { 
-        method: 'GET',
-        credentials: 'include' 
-      });
-      const data = await response.json();
-      const keycloakLogoutUrl = data.logout_url;
-      
-      // Create a function to create an iframe and return a promise that resolves when it loads or times out
-      const createIframeLoader = (url: string, debugName: string): Promise<void> => {
-        return new Promise<void>((resolve) => {
-          const iframe = document.createElement("iframe");
-          iframe.style.display = "none";
-          iframe.src = url;
-          console.debug(`[pad.ws] (Silently) Priming ${debugName} logout for ${url}`);
+  const handleLogout = () => {
+    // capture('logout_clicked');
 
-          const cleanup = () => {
-            if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-            resolve();
-          };
+    logoutMutation(undefined, {
+      onSuccess: (data) => {
+        const keycloakLogoutUrl = data.logout_url;
 
-          iframe.onload = cleanup;
-          // Fallback: remove iframe after 2s if onload doesn't fire
-          const timeoutId = window.setTimeout(cleanup, 2000);
+        const createIframeLoader = (url: string, debugName: string): Promise<void> => {
+          return new Promise<void>((resolve, reject) => { // Added reject for error handling
+            const iframe = document.createElement("iframe");
+            iframe.style.display = "none";
+            iframe.src = url;
+            console.debug(`[pad.ws] (Silently) Priming ${debugName} logout for ${url}`);
 
-          // Also clean up if the iframe errors
-          iframe.onerror = () => {
-            clearTimeout(timeoutId);
-            cleanup();
-          };
+            let timeoutId: number | undefined;
 
-          // Add the iframe to the DOM
-          document.body.appendChild(iframe);
-        });
-      };
+            const cleanup = (error?: any) => {
+              if (timeoutId) clearTimeout(timeoutId);
+              if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+              if (error) reject(error); else resolve();
+            };
 
-      // Create a promise for Keycloak logout iframe
-      const promises = [];
+            iframe.onload = () => cleanup();
+            // Fallback: remove iframe after 2s if onload doesn't fire
+            timeoutId = window.setTimeout(() => cleanup(new Error(`${debugName} iframe load timed out`)), 2000);
 
-      // Add Keycloak logout iframe
-      promises.push(createIframeLoader(keycloakLogoutUrl, "Keycloak"));
+            iframe.onerror = (event) => { // event can be an ErrorEvent or string
+                const errorMsg = typeof event === 'string' ? event : (event instanceof ErrorEvent ? event.message : `Error loading ${debugName} iframe`);
+                cleanup(new Error(errorMsg));
+            };
+            document.body.appendChild(iframe);
+          });
+        };
 
-      // Wait for both iframes to complete
-      await Promise.all(promises);
+        const promises = [createIframeLoader(keycloakLogoutUrl, "Keycloak")];
 
-      // Wait for the iframe to complete
-      await Promise.all(promises);
-
-      // TODO: Invalidate auth query to show the AuthModal? or deprecated logic?
-      
-      // No need to redirect to the logout URL since we're already handling it via iframe
-      console.debug("[pad.ws] Logged out successfully");
-    } catch (error) {
-      console.error("[pad.ws] Logout failed:", error);
-    }
+        Promise.all(promises)
+          .then(() => {
+            console.debug("[pad.ws] Keycloak iframe logout process completed successfully.");
+            // Auth status is invalidated by the useLogout hook's onSuccess,
+            // UI should update automatically.
+          })
+          .catch(err => {
+            console.error("[pad.ws] Error during iframe logout process:", err);
+            // Optionally, inform the user that part of the logout (e.g., Keycloak session termination) might have failed.
+          });
+      },
+      onError: (error) => {
+        // Error is already logged by the hook's onError.
+        // You can add component-specific UI feedback here if needed, e.g., a toast notification.
+        console.error("[pad.ws] Logout failed in MainMenu component:", error.message);
+      }
+    });
   };
 
   return (
@@ -280,8 +276,9 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
       <MainMenu.Item
           icon={<LogOut />}
           onClick={handleLogout}
+          disabled={isLoggingOut} // Disable button while logout is in progress
         >
-          Logout
+          {isLoggingOut ? "Logging out..." : "Logout"}
         </MainMenu.Item>
       
     </MainMenu>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { capture } from "../utils/posthog";
+//import { capture } from "../utils/posthog";
 import { GoogleIcon, GithubIcon } from "../icons";
 import "./AuthDialog.scss";
 
@@ -18,7 +18,6 @@ export const AuthDialog = ({
   onClose,
   children,
 }: AuthDialogProps) => {
-  const [modalIsShown, setModalIsShown] = useState(true);
   
   // Array of random messages that the logo can "say"
   const logoMessages = [
@@ -40,7 +39,7 @@ export const AuthDialog = ({
   }, []);
   
   useEffect(() => {
-    capture("auth_modal_shown");
+    //capture("auth_modal_shown");
     
     // Load GitHub buttons script
     const script = document.createElement('script');
@@ -57,31 +56,6 @@ export const AuthDialog = ({
     };
   }, []);
 
-  useEffect(() => {
-    const checkLocalStorage = () => {
-      const authCompleted = localStorage.getItem('auth_completed');
-      if (authCompleted) {
-        localStorage.removeItem('auth_completed');
-        clearInterval(intervalId);
-        handleClose();
-      }
-    };
-    
-    const intervalId = setInterval(checkLocalStorage, 500);
-    
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, []);
-
-  const handleClose = React.useCallback(() => {
-    setModalIsShown(false);
-
-    if (onClose) {
-      onClose();
-    }
-  }, [onClose]);
-
   // Prepare the content for the Dialog
   const dialogContent = (
     <div className="auth-modal__content">
@@ -92,7 +66,7 @@ export const AuthDialog = ({
         <button
           onClick={() => {
             window.open(
-              "/auth/login?kc_idp_hint=google&popup=1",
+              "/api/auth/login?kc_idp_hint=google&popup=1",
               "authPopup",
               "width=500,height=700,noopener,noreferrer"
             );
@@ -105,7 +79,7 @@ export const AuthDialog = ({
         <button
           onClick={() => {
             window.open(
-              "/auth/login?kc_idp_hint=github&popup=1",
+              "/api/auth/login?kc_idp_hint=github&popup=1",
               "authPopup",
               "width=500,height=700,noopener,noreferrer"
             );
@@ -123,7 +97,7 @@ export const AuthDialog = ({
           {warningText}
         </div>
 
-        {/* GitHub Star button */}
+        {/* GitHub Star button
         <a className="github-button" 
            href="https://github.com/pad-ws/pad.ws" 
            data-color-scheme="no-preference: dark_dimmed; light: dark_dimmed; dark: dark_dimmed;" 
@@ -132,7 +106,7 @@ export const AuthDialog = ({
            data-show-count="true" 
            aria-label="Star pad-ws/pad.ws on GitHub">
           Star
-        </a>
+        </a> //TODO*/}
 
 
       </div>
@@ -141,8 +115,6 @@ export const AuthDialog = ({
   );
 
   return (
-    <>
-      {modalIsShown && (
         <div className="auth-modal__wrapper">
           <div className="auth-modal__logo-container">
             <img 
@@ -157,7 +129,7 @@ export const AuthDialog = ({
           <Dialog
             className="auth-modal"
             size="small"
-            onCloseRequest={handleClose}
+            onCloseRequest={() => {}}
             title={
               <div id="modal-title" className="auth-modal__title-container">
                 <h2 className="auth-modal__title">pad<span className="auth-modal__title-dot">.ws</span></h2>
@@ -167,8 +139,6 @@ export const AuthDialog = ({
             children={children || dialogContent}
           />
         </div>
-      )}
-    </>
   );
 };
 
