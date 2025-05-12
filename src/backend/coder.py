@@ -1,5 +1,6 @@
 import requests
 import random
+from datetime import datetime
 from config import CODER_API_KEY, CODER_URL, CODER_TEMPLATE_ID, CODER_DEFAULT_ORGANIZATION, CODER_WORKSPACE_NAME
 
 class CoderAPI:
@@ -344,3 +345,48 @@ class CoderAPI:
         response = requests.put(endpoint, headers=headers, json=data)
         response.raise_for_status()
         return response.json()
+    
+    def list_workspaces(self, query=None, limit=None, offset=None):
+        """
+        List all workspaces
+        """
+        endpoint = f"{self.coder_url}/api/v2/workspaces"
+        params = {}
+        if query:
+            params['q'] = query
+        if limit:
+            params['limit'] = limit
+        if offset:
+            params['offset'] = offset
+        response = requests.get(endpoint, headers=self.headers, params=params)
+        return response.json()
+    
+    def delete_workspace(self, workspace_id):
+        """
+        Delete a workspace
+        """
+        endpoint = f"{self.coder_url}/api/v2/workspaces/{workspace_id}/builds"
+        data = {
+            "transition": "delete"
+        }
+        headers = self.headers.copy()
+        headers['Content-Type'] = 'application/json'
+        response = requests.post(endpoint, headers=headers, json=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def cleanse_workspaces(self, days_until_deleting: int):
+        """
+        Cleanse workspaces that are due to be deleted
+        """
+        result = self.list_workspaces(query="dormant:true")
+        count = 0
+        for workspace in result["workspaces"]:
+            now = datetime.now()
+            deleting_at = datetime.strptime(workspace["deleting_at"], "%Y-%m-%dT%H:%M:%S.%fZ")
+            days_until_deleting = (deleting_at - now).days
+            if days_until_deleting < days_until_deleting:
+                count += 1
+                print(f"[{count}] Deleting workspace {workspace['id']} from {workspace['owner_name']}, due deletion was in {days_until_deleting} days")
+                self.delete_workspace(workspace["id"])
+    
