@@ -1,40 +1,53 @@
 import React, { useState, useEffect } from "react";
-import { ExcalidrawWrapper } from "./ExcalidrawWrapper";
-import type * as TExcalidraw from "@atyrode/excalidraw";
-import type { ExcalidrawImperativeAPI } from "@atyrode/excalidraw/types";
+import { Excalidraw, MainMenu } from "@atyrode/excalidraw";
+import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
+import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
 
-export interface AppProps {
-  useCustom: (api: ExcalidrawImperativeAPI | null, customArgs?: any[]) => void;
-  customArgs?: any[];
-  children?: React.ReactNode;
-  excalidrawLib: typeof TExcalidraw;
-}
+import DiscordButton from './ui/DiscordButton';
+import GitHubButton from './ui/GitHubButton';
+import { MainMenuConfig } from './ui/MainMenu';
+import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRenderer';
+import AuthDialog from './ui/AuthDialog';
+import SettingsDialog from './ui/SettingsDialog';
+import { capture } from './utils/posthog';
 
-export default function App({
-  useCustom,
-  customArgs,
-  children,
-  excalidrawLib,
-}: AppProps) {
-  const { useHandleLibrary, MainMenu } = excalidrawLib;
+const defaultInitialData = {
+  elements: [],
+  appState: {
+    gridModeEnabled: true,
+    gridSize: 20,
+    gridStep: 5,
+  },
+  files: {},
+};
 
+export default function App() {
   const isAuthenticated = false; //TODO
-
-  // Excalidraw API ref
+  const [isExiting, setIsExiting] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
-  useCustom(excalidrawAPI, customArgs);
-  useHandleLibrary({ excalidrawAPI });
 
   useEffect(() => {
-    if (excalidrawAPI) {
-      (window as any).excalidrawAPI = excalidrawAPI;
+    if (isAuthenticated) {
+      setIsExiting(true);
+      capture('signed_in');
     }
-    return () => {
-      (window as any).excalidrawAPI = null;
-    };
-  }, [excalidrawAPI]);
+  }, [isAuthenticated]);
 
-  /* PostHog user identification */
+  const handleCloseSettingsModal = () => {
+    setShowSettingsModal(false);
+  };
+
+  const handleOnChange = (elements: readonly NonDeletedExcalidrawElement[], state: AppState) => {
+    // TODO
+  };
+
+  const handleOnScrollChange = (scrollX: number, scrollY: number) => {
+    // TODO
+    lockEmbeddables(excalidrawAPI?.getAppState());
+  };
+  
+  // TODO
   // useEffect(() => {
   //   if (userProfile?.id) {
   //     posthog.identify(userProfile.id);
@@ -48,17 +61,44 @@ export default function App({
   //   }
   // }, [userProfile]);
 
+  // Render Excalidraw directly with props and associated UI
   return (
-    <>
-      <ExcalidrawWrapper
-        excalidrawAPI={excalidrawAPI}
-        setExcalidrawAPI={setExcalidrawAPI}
-        MainMenu={MainMenu}
-        isAuthenticated={isAuthenticated}
+    <div className="excalidraw-wrapper"> {/* Keep the wrapper div */}
+      <Excalidraw
+        excalidrawAPI={(api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api)}
+        theme="dark"
+        initialData={defaultInitialData}
+        onChange={handleOnChange}
+        name="Pad.ws"
+        onScrollChange={handleOnScrollChange}
+        validateEmbeddable={true}
+        renderEmbeddable={(element, appState) => renderCustomEmbeddable(element, appState, excalidrawAPI)}
+        renderTopRightUI={() => (
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <GitHubButton />
+            <DiscordButton />
+          </div>
+        )}
       >
-        {children}
-      </ExcalidrawWrapper>
+        <MainMenuConfig
+          MainMenu={MainMenu}
+          excalidrawAPI={excalidrawAPI}
+          showSettingsModal={showSettingsModal}
+          setShowSettingsModal={setShowSettingsModal}
+        />
+        {isAuthenticated === false && (
+          <AuthDialog
+            onClose={() => {}}
+          />
+        )}
 
-    </>
+        {showSettingsModal && (
+          <SettingsDialog
+            excalidrawAPI={excalidrawAPI}
+            onClose={handleCloseSettingsModal}
+          />
+        )}
+      </Excalidraw>
+    </div>
   );
 }
