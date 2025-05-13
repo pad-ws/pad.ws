@@ -5,7 +5,6 @@ from uuid import UUID
 from fastapi import Request, HTTPException
 
 from config import get_session, is_token_expired, refresh_token
-from database.service import UserService
 from coder import CoderAPI
 
 class UserSession:
@@ -84,12 +83,6 @@ class UserSession:
     def is_admin(self) -> bool:
         """Check if user has admin role"""
         return "admin" in self.roles
-    
-    async def get_user_data(self, user_service: UserService) -> Dict[str, Any]:
-        """Get user data from database, caching the result"""
-        if self._user_data is None and self.id:
-            self._user_data = await user_service.get_user(self.id)
-        return self._user_data
 
 class AuthDependency:
     """

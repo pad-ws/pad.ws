@@ -31,9 +31,7 @@ DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{urlquote(DB_PASSWORD)}@{DB_HOST
 engine = create_async_engine(DATABASE_URL, echo=False)
 
 # Create async session factory
-async_session = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
-)
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
 async def init_db() -> None:
@@ -59,45 +57,3 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             yield session
         finally:
             await session.close()
-
-# Dependency for getting repositories
-async def get_user_repository(session: AsyncSession = Depends(get_session)):
-    """Get a user repository"""
-    from .repository import UserRepository
-    return UserRepository(session)
-
-async def get_pad_repository(session: AsyncSession = Depends(get_session)):
-    """Get a pad repository"""
-    from .repository import PadRepository
-    return PadRepository(session)
-
-async def get_backup_repository(session: AsyncSession = Depends(get_session)):
-    """Get a backup repository"""
-    from .repository import BackupRepository
-    return BackupRepository(session)
-
-async def get_template_pad_repository(session: AsyncSession = Depends(get_session)):
-    """Get a template pad repository"""
-    from .repository import TemplatePadRepository
-    return TemplatePadRepository(session)
-
-# Dependency for getting services
-async def get_user_service(session: AsyncSession = Depends(get_session)):
-    """Get a user service"""
-    from .service import UserService
-    return UserService(session)
-
-async def get_pad_service(session: AsyncSession = Depends(get_session)):
-    """Get a pad service"""
-    from .service import PadService
-    return PadService(session)
-
-async def get_backup_service(session: AsyncSession = Depends(get_session)):
-    """Get a backup service"""
-    from .service import BackupService
-    return BackupService(session)
-
-async def get_template_pad_service(session: AsyncSession = Depends(get_session)):
-    """Get a template pad service"""
-    from .service import TemplatePadService
-    return TemplatePadService(session)

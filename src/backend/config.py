@@ -53,6 +53,11 @@ redis_pool = ConnectionPool(
 # Create a Redis client that uses the connection pool
 redis_client = Redis(connection_pool=redis_pool)
 
+
+default_pad =  {}
+with open("templates/default.json", 'r') as f:
+    default_pad = json.load(f)
+
 def get_redis_client():
     """Get a Redis client from the connection pool"""
     return Redis(connection_pool=redis_pool)

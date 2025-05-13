@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, TYPE_CHECKING
+from typing import Dict, Any, TYPE_CHECKING
 
 from sqlalchemy import Column, String, ForeignKey, Index, UUID
 from sqlalchemy.dialects.postgresql import JSONB
@@ -7,7 +7,6 @@ from sqlalchemy.orm import relationship, Mapped
 from .base_model import Base, BaseModel, SCHEMA_NAME
 
 if TYPE_CHECKING:
-    from .backup_model import BackupModel
     from .user_model import UserModel
 
 class PadModel(Base, BaseModel):
@@ -30,12 +29,6 @@ class PadModel(Base, BaseModel):
     
     # Relationships
     owner: Mapped["UserModel"] = relationship("UserModel", back_populates="pads")
-    backups: Mapped[List["BackupModel"]] = relationship(
-        "BackupModel", 
-        back_populates="pad", 
-        cascade="all, delete-orphan",
-        lazy="selectin"
-    )
 
     def __repr__(self) -> str:
         return f"<PadModel(id='{self.id}', display_name='{self.display_name}')>"
@@ -48,20 +41,3 @@ class PadModel(Base, BaseModel):
             import json
             result["data"] = json.loads(result["data"])
         return result
-
-
-class TemplatePadModel(Base, BaseModel):
-    """Model for template pads table in app schema"""
-    __tablename__ = "template_pads"
-    __table_args__ = (
-        Index("ix_template_pads_display_name", "display_name"),
-        Index("ix_template_pads_name", "name"),
-        {"schema": SCHEMA_NAME}
-    )
-
-    name = Column(String(100), nullable=False, unique=True)
-    display_name = Column(String(100), nullable=False)
-    data = Column(JSONB, nullable=False)
-
-    def __repr__(self) -> str:
-        return f"<TemplatePadModel(id='{self.id}', display_name='{self.display_name}')>"

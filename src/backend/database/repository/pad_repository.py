@@ -38,15 +38,6 @@ class PadRepository:
         result = await self.session.execute(stmt)
         return result.scalars().all()
     
-    async def get_by_name(self, owner_id: UUID, display_name: str) -> Optional[PadModel]:
-        """Get a pad by owner and display name"""
-        stmt = select(PadModel).where(
-            PadModel.owner_id == owner_id,
-            PadModel.display_name == display_name
-        )
-        result = await self.session.execute(stmt)
-        return result.scalars().first()
-    
     async def update(self, pad_id: UUID, data: Dict[str, Any]) -> Optional[PadModel]:
         """Update a pad"""
         stmt = update(PadModel).where(PadModel.id == pad_id).values(**data).returning(PadModel)
