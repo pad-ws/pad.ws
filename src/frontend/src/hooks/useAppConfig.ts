@@ -1,6 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-// Removed: import posthog from 'posthog-js';
-// Removed: import { useEffect } from 'react';
 
 interface AppConfig {
   coderUrl: string;
@@ -32,9 +30,6 @@ export const useAppConfig = () => {
     staleTime: Infinity, // Config is not expected to change during a session
     gcTime: Infinity, // Renamed from cacheTime in v5
   });
-
-  // useEffect for posthog.init() has been removed from here.
-  // It will be handled in App.tsx to ensure single initialization.
 
   return {
     config: data,
