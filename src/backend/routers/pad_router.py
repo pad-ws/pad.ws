@@ -22,8 +22,12 @@ async def initialize_pad(
     if existing_pads:
         # User already has pads, load the first one
         pad = await Pad.get_by_id(session, existing_pads[0].id)
+        pad_dict = pad.to_dict()
+        # Get only this user's appState
+        user_app_state = pad_dict["data"]["appState"].get(str(user.id), {})
+        pad_dict["data"]["appState"] = user_app_state
         return {
-            "pad": pad.to_dict(),
+            "pad": pad_dict,
             "is_new": False
         }
     else:
@@ -31,12 +35,14 @@ async def initialize_pad(
         new_pad = await Pad.create(
             session=session,
             owner_id=user.id,
-            display_name="My First Pad",
-            data={"content": "Welcome to your first pad!"}
+            display_name="My First Pad"
         )
-        
+        pad_dict = new_pad.to_dict()
+        # Get only this user's appState
+        user_app_state = pad_dict["data"]["appState"].get(str(user.id), {})
+        pad_dict["data"]["appState"] = user_app_state
         return {
-            "pad": new_pad.to_dict(),
+            "pad": pad_dict,
             "is_new": True
         }
 
@@ -65,7 +71,11 @@ async def get_pad(
                 detail="Not authorized to access this pad"
             )
             
-        return pad.to_dict()
+        pad_dict = pad.to_dict()
+        # Get only this user's appState
+        user_app_state = pad_dict["data"]["appState"].get(str(user.id), {})
+        pad_dict["data"]["appState"] = user_app_state
+        return pad_dict
     except HTTPException:
         raise
     except Exception as e:
