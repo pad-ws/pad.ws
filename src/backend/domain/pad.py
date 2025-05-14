@@ -1,10 +1,8 @@
 from uuid import UUID
-from typing import Dict, Any, Set, List, Optional, Callable, Union
-import json
-import copy
-import asyncio
+from typing import Dict, Any, Optional
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
+from config import default_pad
 
 from database.models.pad_model import PadStore
 
@@ -42,14 +40,23 @@ class Pad:
         session: AsyncSession,
         owner_id: UUID,
         display_name: str,
-        data: Dict[str, Any] = None
+        data: Dict[str, Any] = default_pad
     ) -> 'Pad':
-        """Create a new pad"""
+        """Create a new pad with multi-user app state support"""
+        # Create a deep copy of the default template
+        pad_data = {
+            "files": data.get("files", {}),
+            "elements": data.get("elements", []),
+            "appState": {
+                str(owner_id): data.get("appState", {})
+            }
+        }
+            
         store = await PadStore.create_pad(
             session=session,
             owner_id=owner_id,
             display_name=display_name,
-            data=data or {}
+            data=pad_data
         )
         return cls.from_store(store)
 
