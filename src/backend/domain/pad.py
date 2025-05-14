@@ -125,12 +125,5 @@ class Pad:
             "updated_at": self.updated_at.isoformat()
         }
 
-    def to_model_data(self) -> Dict[str, Any]:
-        """Convert pad instance to dictionary for database model"""
-        return {
-            "owner_id": self.owner_id,
-            "display_name": self.display_name,
-            "data": self.data
-        }
 
     

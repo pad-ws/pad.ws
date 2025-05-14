@@ -1,11 +1,24 @@
 import jwt
 from typing import Optional, Dict, Any
 from uuid import UUID
+import os
 
 from fastapi import Request, HTTPException
 
-from config import get_session, is_token_expired, refresh_token
+from config import get_redis_client
+from domain.session import Session
 from coder import CoderAPI
+
+# Initialize session domain
+redis_client = get_redis_client()
+oidc_config = {
+    'server_url': os.getenv('OIDC_SERVER_URL'),
+    'realm': os.getenv('OIDC_REALM'),
+    'client_id': os.getenv('OIDC_CLIENT_ID'),
+    'client_secret': os.getenv('OIDC_CLIENT_SECRET'),
+    'redirect_uri': os.getenv('REDIRECT_URI')
+}
+session = Session(redis_client, oidc_config)
 
 class UserSession:
     """
@@ -17,16 +30,15 @@ class UserSession:
         self._user_data = None
 
         # Get the signing key and decode with verification
-        from config import get_jwks_client, OIDC_CLIENT_ID
         try:
-            jwks_client = get_jwks_client()
+            jwks_client = session._get_jwks_client()
             signing_key = jwks_client.get_signing_key_from_jwt(access_token)
             
             self.token_data = jwt.decode(
                 access_token,
                 signing_key.key,
                 algorithms=["RS256"],
-                audience=OIDC_CLIENT_ID
+                audience=oidc_config['client_id']
             )
 
         except jwt.InvalidTokenError as e:
@@ -102,22 +114,22 @@ class AuthDependency:
             return self._handle_auth_error("Not authenticated")
             
         # Get session data from Redis
-        session = get_session(session_id)
-        if not session:
+        session_data = session.get(session_id)
+        if not session_data:
             return self._handle_auth_error("Not authenticated")
             
         # Handle token expiration
-        if is_token_expired(session):
+        if session.is_token_expired(session_data):
             # Try to refresh the token
-            success, new_session = await refresh_token(session_id, session)
+            success, new_session = await session.refresh_token(session_id, session_data)
             if not success:
                 return self._handle_auth_error("Session expired")
-            session = new_session
+            session_data = new_session
         
         # Create user session object
         user_session = UserSession(
-            access_token=session.get('access_token'),
-            token_data=session
+            access_token=session_data.get('access_token'),
+            token_data=session_data
         )
         
         # Check admin requirement if specified

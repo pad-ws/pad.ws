@@ -178,7 +178,6 @@ async def refresh_token(session_id: str, token_data: Dict[str, Any]) -> Tuple[bo
     except Exception as e:
         print(f"Error refreshing token: {str(e)}")
         return False, token_data
-
 def get_jwks_client():
     """Get or create a PyJWKClient for token verification"""
     global _jwks_client
@@ -186,3 +185,4 @@ def get_jwks_client():
         jwks_url = f"{OIDC_SERVER_URL}/realms/{OIDC_REALM}/protocol/openid-connect/certs"
         _jwks_client = PyJWKClient(jwks_url)
     return _jwks_client
+
