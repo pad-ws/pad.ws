@@ -1,0 +1,87 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: keycloak
+    command: start
+    ports:
+      - "${KEYCLOAK_PORT}:${KEYCLOAK_PORT}"
+    env_file: .env
+    depends_on:
+      - postgres
+    environment:
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: ${KEYCLOAK_PORT}
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT_BACKCHANNEL: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HOSTNAME_URL: http://localhost:${KEYCLOAK_PORT}
+      KC_HOSTNAME_ADMIN_URL: http://localhost:${KEYCLOAK_PORT}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_PROXY: "edge"
+      PROXY_ADDRESS_FORWARDING: "true"
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://192.168.1.21:5432/${POSTGRES_DB}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+    restart: unless-stopped
+
+  coder:
+    image: ghcr.io/coder/coder:latest
+    container_name: coder
+    environment:
+      CODER_ACCESS_URL: http://localhost:${CODER_PORT}
+      CODER_OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      CODER_OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      CODER_OIDC_SIGN_IN_TEXT: "Sign in for pad"
+      CODER_ADDITIONAL_CSP_POLICY: ${CODER_ADDITIONAL_CSP_POLICY}
+      CODER_OAUTH2_GITHUB_DEFAULT_PROVIDER_ENABLED: "false"
+      CODER_PG_CONNECTION_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}?sslmode=disable
+      CODER_ADDRESS: 0.0.0.0:7080
+      CODER_OIDC_IGNORE_EMAIL_VERIFIED: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - ${DOCKER_GROUP_ID}
+    restart: unless-stopped
+    network_mode: host
+
+  pad:
+    image: ghcr.io/pad-ws/pad.ws:main
+    container_name: pad
+    environment:
+      - STATIC_DIR=/app/frontend/dist
+      - ASSETS_DIR=/app/frontend/dist/assets
+
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
+      - OIDC_DISCOVERY_URL=${OIDC_DISCOVERY_URL}
+
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=localhost
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      
+      - CODER_API_KEY=${CODER_API_KEY}
+      - CODER_URL=http://localhost:${CODER_PORT}
+      - CODER_TEMPLATE_ID=${CODER_TEMPLATE_ID}
+      - CODER_DEFAULT_ORGANIZATION=${CODER_DEFAULT_ORGANIZATION}
+    network_mode: host
+
+volumes:
+  postgres_data:

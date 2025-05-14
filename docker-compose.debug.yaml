@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    networks:
+      - pad-net
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pad:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pad
+    env_file: .env
+    depends_on:
+      - postgres
+    networks:
+      - pad-net
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
+    environment:
+      - STATIC_DIR=/app/frontend/dist
+      - ASSETS_DIR=/app/frontend/dist/assets
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
+      - OIDC_SERVER_URL=http://localhost:${KEYCLOAK_PORT}
+      - OIDC_REALM=${OIDC_REALM}
+      - REDIRECT_URI=http://localhost:${APP_PORT}/auth/callback
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - CODER_API_KEY=${CODER_API_KEY}
+      - CODER_URL=http://localhost:${CODER_PORT}
+      - CODER_TEMPLATE_ID=${CODER_TEMPLATE_ID}
+      - CODER_DEFAULT_ORGANIZATION=${CODER_DEFAULT_ORGANIZATION}
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD} --save 60 1 --loglevel warning
+    network_mode: host
+
+volumes:
+  postgres_data:
+networks:
+  pad-net:
+    driver: bridge

@@ -1,75 +1,91 @@
 import secrets
-import jwt
 import httpx
-from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import RedirectResponse, FileResponse, JSONResponse
 import os
+import jwt
 
-from config import (get_auth_url, get_token_url, set_session, delete_session, get_session, 
-                    FRONTEND_URL, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_SERVER_URL, OIDC_REALM, OIDC_REDIRECT_URI, STATIC_DIR)
+from config import (
+    OIDC_CLIENT_ID,
+    OIDC_CLIENT_SECRET,
+    OIDC_CONFIG,
+    STATIC_DIR,
+    get_auth_url,
+    set_session,
+    delete_session,
+    get_session,
+)
 from dependencies import get_coder_api
 from coder import CoderAPI
 
 auth_router = APIRouter()
 
-@auth_router.get("/login")
-async def login(request: Request, kc_idp_hint: str = None, popup: str = None):
-    
-    session_id = secrets.token_urlsafe(32)
 
+@auth_router.get("/login-old")
+async def login(request: Request, kc_idp_hint: str = None, popup: str = None):
+    session_id = secrets.token_urlsafe(32)
     auth_url = get_auth_url()
     state = "popup" if popup == "1" else "default"
-
     if kc_idp_hint:
         auth_url = f"{auth_url}&kc_idp_hint={kc_idp_hint}"
-
     # Add state param to OIDC URL
     auth_url = f"{auth_url}&state={state}"
-
     response = RedirectResponse(auth_url)
-    response.set_cookie('session_id', session_id)
+    response.set_cookie("session_id", session_id)
 
+
+@auth_router.get("/login")
+async def newLogin(request: Request, popup: str = None):
+    session_id = secrets.token_urlsafe(32)
+        
+    authorization_url = get_auth_url()
+    if popup == "1":
+        authorization_url += "&state=popup"
+        
+    response = RedirectResponse(authorization_url)
+    response.set_cookie("session_id", session_id)
     return response
+
 
 @auth_router.get("/callback")
 async def callback(
-    request: Request, 
-    code: str, 
+    request: Request,
+    code: str,
     state: str = "default",
-    coder_api: CoderAPI = Depends(get_coder_api)
+    coder_api: CoderAPI = Depends(get_coder_api),
 ):
-    session_id = request.cookies.get('session_id')
+    session_id = request.cookies.get("session_id")
     if not session_id:
         print("No session ID found")
         raise HTTPException(status_code=400, detail="No session")
-    
-    # Exchange code for token
+
+    # Exchange authorization code for access token
     async with httpx.AsyncClient() as client:
         token_response = await client.post(
-            get_token_url(),
+            OIDC_CONFIG["token_endpoint"],
             data={
-                'grant_type': 'authorization_code',
-                'client_id': OIDC_CLIENT_ID,
-                'client_secret': OIDC_CLIENT_SECRET,
-                'code': code,
-                'redirect_uri': OIDC_REDIRECT_URI
-            }
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": request.base_url._url + "auth/callback",
+                "client_id": OIDC_CLIENT_ID,
+                "client_secret": OIDC_CLIENT_SECRET,
+            },
         )
-        
+
         if token_response.status_code != 200:
             raise HTTPException(status_code=400, detail="Auth failed")
-        
+
         token_data = token_response.json()
-        expiry = token_data['expires_in']
+        expiry = token_data["expires_in"]
         set_session(session_id, token_data, expiry)
-        access_token = token_data['access_token']
-        user_info = jwt.decode(access_token, options={"verify_signature": False})
-        
+        access_token = token_data["access_token"]
+        user_info = jwt.decode(
+            access_token, options={"verify_signature": False}
+        )
+
         try:
-            user_data, _ = coder_api.ensure_user_exists(
-                user_info
-            )
-            coder_api.ensure_workspace_exists(user_data['username'])
+            user_data, _ = coder_api.ensure_user_exists(user_info)
+            coder_api.ensure_workspace_exists(user_data["username"])
         except Exception as e:
             print(f"Error in user/workspace setup: {str(e)}")
             # Continue with login even if Coder API fails
@@ -77,26 +93,31 @@ async def callback(
     if state == "popup":
         return FileResponse(os.path.join(STATIC_DIR, "auth/popup-close.html"))
     else:
-        return RedirectResponse('/')
-    
+        return RedirectResponse("/")
+
+
 @auth_router.get("/logout")
 async def logout(request: Request):
-    session_id = request.cookies.get('session_id')
-    
+    session_id = request.cookies.get("session_id")
+
     session_data = get_session(session_id)
     if not session_data:
-        return RedirectResponse('/')
-    
-    id_token = session_data.get('id_token', '')
-    
+        return RedirectResponse("/")
+
+    id_token = session_data.get("id_token", "")
+
     # Delete the session from Redis
     delete_session(session_id)
-    
-    # Create the Keycloak logout URL with redirect back to our app
-    logout_url = f"{OIDC_SERVER_URL}/realms/{OIDC_REALM}/protocol/openid-connect/logout"
-    full_logout_url = f"{logout_url}?id_token_hint={id_token}&post_logout_redirect_uri={FRONTEND_URL}"
-    
+
+    # Create the OIDC logout URL with redirect back to our app
+    logout_url = OIDC_CONFIG["end_session_endpoint"]
+    redirect_uri = OIDC_CONFIG[
+        "frontend_url"
+    ]  # Match the frontend redirect URI
+    full_logout_url = f"{logout_url}?id_token_hint={id_token}&post_logout_redirect_uri={redirect_uri}"
+
     # Create a redirect response to Keycloak's logout endpoint
-    response = JSONResponse({"status": "success", "logout_url": full_logout_url})
-    
+    response = JSONResponse(
+        {"status": "success", "logout_url": full_logout_url}
+    )
     return response
