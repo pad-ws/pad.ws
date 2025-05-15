@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any, TYPE_CHECKING
 from uuid import UUID
 from datetime import datetime
 
-from sqlalchemy import Column, Index, String, UUID as SQLUUID, Boolean, select, update, delete
+from sqlalchemy import Column, Index, String, UUID as SQLUUID, Boolean, select, update, delete, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -100,6 +100,28 @@ class UserStore(Base, BaseModel):
         stmt = select(cls)
         result = await session.execute(stmt)
         return result.scalars().all()
+
+    @classmethod
+    async def get_open_pads(cls, session: AsyncSession, user_id: UUID) -> List[Dict[str, Any]]:
+        """Get just the metadata of pads owned by the user without loading full pad data"""
+        from .pad_model import PadStore  # Import here to avoid circular imports
+        
+        stmt = select(
+            PadStore.id,
+            PadStore.display_name,
+            PadStore.created_at,
+            PadStore.updated_at
+        ).where(PadStore.owner_id == user_id)
+        
+        result = await session.execute(stmt)
+        pads = result.all()
+        
+        return [{
+            "id": str(pad.id),
+            "display_name": pad.display_name,
+            "created_at": pad.created_at.isoformat(),
+            "updated_at": pad.updated_at.isoformat()
+        } for pad in pads]
 
     async def save(self, session: AsyncSession) -> 'UserStore':
         """Save the current user state"""

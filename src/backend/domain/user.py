@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database.models.user_model import UserStore
+from database.models.user_model import UserStore
 
 
 class User:
@@ -168,3 +168,8 @@ class User:
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
         }
+
+    @classmethod
+    async def get_open_pads(cls, session: AsyncSession, user_id: UUID) -> List[Dict[str, Any]]:
+        """Get just the metadata of pads owned by the user without loading full pad data"""
+        return await UserStore.get_open_pads(session, user_id)

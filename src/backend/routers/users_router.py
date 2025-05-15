@@ -5,9 +5,12 @@ from uuid import UUID
 import posthog
 import jwt
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import get_redis_client, get_jwks_client, OIDC_CLIENT_ID, FRONTEND_URL
 from dependencies import UserSession, require_admin, require_auth
+from database.database import get_session
+from domain.user import User
 
 users_router = APIRouter()
 
@@ -15,8 +18,9 @@ users_router = APIRouter()
 @users_router.get("/me")
 async def get_user_info(
     user: UserSession = Depends(require_auth),
+    session: AsyncSession = Depends(get_session),
 ):
-    """Get the current user's information and sync with token data"""
+    """Get the current user's information and their pads"""
     
     # Create token data dictionary from UserSession properties
     token_data = {
@@ -29,21 +33,18 @@ async def get_user_info(
         "roles": user.roles
     }
     
-    # try:
-    #     # Sync user with token data
-    #     user_data = await user_service.sync_user_with_token_data(user.id, token_data)
-    # except Exception as e:
-    #     print(f"Error syncing user data: {str(e)}")
-    #     raise HTTPException(
-    #         status_code=500,
-    #         detail=f"Error syncing user data: {e}"
-    #     )
-    raise NotImplementedError("/me Not implemented")
+    # Get user's pad metadata
+    pads = await User.get_open_pads(session, user.id)
+    
+    user_data = {
+        **token_data,
+        "pads": pads
+    }
     
     if os.getenv("VITE_PUBLIC_POSTHOG_KEY"):
         telemetry = user_data.copy()
         telemetry["$current_url"] = FRONTEND_URL
-        posthog.identify(distinct_id=user_data["id"], properties=telemetry)
+        posthog.identify(distinct_id=user.id, properties=telemetry)
     
     return user_data
 
