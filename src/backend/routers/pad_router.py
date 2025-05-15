@@ -34,7 +34,7 @@ async def initialize_pad(
     pad_dict = pad.to_dict()
     user_app_state = pad_dict["data"]["appState"].get(str(user.id), {})
     pad_dict["data"]["appState"] = user_app_state
-    return pad_dict
+    return pad_dict["data"]
 
 @pad_router.post("/new")
 async def create_new_pad(
@@ -48,7 +48,7 @@ async def create_new_pad(
             owner_id=user.id,
             display_name="New Pad"
         )
-        return pad.to_dict()
+        return pad.to_dict()["data"]
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -59,7 +59,7 @@ async def create_new_pad(
 async def get_pad(
     pad_id: UUID,
     user: UserSession = Depends(require_auth),
-    session: AsyncSession = Depends(lambda: AsyncSession())
+    session: AsyncSession = Depends(get_session)
 ) -> Dict[str, Any]:
     """Get a specific pad for the authenticated user"""
     try:
@@ -82,7 +82,7 @@ async def get_pad(
         # Get only this user's appState
         user_app_state = pad_dict["data"]["appState"].get(str(user.id), {})
         pad_dict["data"]["appState"] = user_app_state
-        return pad_dict
+        return pad_dict["data"]
     except HTTPException:
         raise
     except Exception as e:

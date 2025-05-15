@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 
 interface Tab {
     id: string;
@@ -69,11 +70,19 @@ const createNewPad = async (): Promise<void> => {
 
 export const usePadTabs = () => {
     const queryClient = useQueryClient();
+    const [selectedTabId, setSelectedTabId] = useState<string>('');
 
     const { data, isLoading, error, isError } = useQuery<PadResponse, Error>({
         queryKey: ['padTabs'],
-        queryFn: fetchUserPads,
+        queryFn: fetchUserPads
     });
+
+    // Set initial selected tab when data is loaded
+    useEffect(() => {
+        if (data?.tabs.length && !selectedTabId) {
+            setSelectedTabId(data.tabs[0].id);
+        }
+    }, [data, selectedTabId]);
 
     const createPadMutation = useMutation({
         mutationFn: createNewPad,
@@ -82,13 +91,28 @@ export const usePadTabs = () => {
         },
     });
 
+    const selectTab = async (tabId: string) => {
+        setSelectedTabId(tabId);
+        try {
+            const response = await fetch(`/api/pad/${tabId}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch pad data');
+            }
+            const padData = await response.json();
+            queryClient.setQueryData(['pad', tabId], padData);
+        } catch (error) {
+            console.error('Error fetching pad data:', error);
+        }
+    };
+
     return {
         tabs: data?.tabs ?? [],
-        activeTabId: data?.activeTabId,
+        selectedTabId: selectedTabId || data?.activeTabId || '',
         isLoading,
         error,
         isError,
         createNewPad: createPadMutation.mutate,
-        isCreating: createPadMutation.isPending
+        isCreating: createPadMutation.isPending,
+        selectTab
     };
 }; 

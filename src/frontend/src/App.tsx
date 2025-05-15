@@ -1,18 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { Excalidraw, MainMenu, Footer } from "@atyrode/excalidraw";
-import { initializePostHog } from "./utils/posthog";
+import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
+import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
+
+// Hooks
 import { useAuthStatus } from "./hooks/useAuthStatus";
 import { useAppConfig } from "./hooks/useAppConfig";
 import { usePadTabs } from "./hooks/usePadTabs";
-import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
-import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
-import TabBar from "./ui/TabBar";
+import { usePad } from "./hooks/usePadData";
 
+// Components
+import TabBar from "./ui/TabBar";
 import DiscordButton from './ui/DiscordButton';
 import { MainMenuConfig } from './ui/MainMenu';
-import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRenderer';
 import AuthDialog from './ui/AuthDialog';
 import SettingsDialog from './ui/SettingsDialog';
+
+// Utils
+import { initializePostHog } from "./utils/posthog";
+import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRenderer';
 
 const defaultInitialData = {
   elements: [],
@@ -37,51 +43,45 @@ export default function App() {
   const { config: appConfig, isLoadingConfig, configError } = useAppConfig();
   const {
     tabs,
-    activeTabId,
+    selectedTabId,
     isLoading: isLoadingTabs,
     createNewPad,
-    isCreating
+    isCreating,
+    selectTab
   } = usePadTabs();
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
+
+  const { padData } = usePad(selectedTabId, excalidrawAPI);
 
   const handleCloseSettingsModal = () => {
     setShowSettingsModal(false);
   };
 
   const handleOnChange = (elements: readonly NonDeletedExcalidrawElement[], state: AppState) => {
-    // TODO
+    // TODO: Implement change handling
   };
 
   const handleOnScrollChange = (scrollX: number, scrollY: number) => {
     lockEmbeddables(excalidrawAPI?.getAppState());
   };
 
-  const handleTabSelect = (tabId: string) => {
-    // Find the selected tab
-    const selectedTab = tabs.find(tab => tab.id === tabId);
-    if (selectedTab) {
-      // TODO: Load pad content when needed
-      // For now, just initialize with default data
-      if (excalidrawAPI) {
-        excalidrawAPI.updateScene(defaultInitialData);
-      }
-    }
+  const handleTabSelect = async (tabId: string) => {
+    await selectTab(tabId);
   };
 
   useEffect(() => {
-    if (appConfig && appConfig.posthogKey && appConfig.posthogHost) {
+    if (appConfig?.posthogKey && appConfig?.posthogHost) {
       initializePostHog({
         posthogKey: appConfig.posthogKey,
         posthogHost: appConfig.posthogHost,
       });
     } else if (configError) {
-      console.error('[pad.ws] Failed to load app config, PostHog initialization might be skipped or delayed:', configError);
+      console.error('[pad.ws] Failed to load app config:', configError);
     }
   }, [appConfig, configError]);
 
-  // Render Excalidraw directly with props and associated UI
   return (
     <>
       <Excalidraw
@@ -106,10 +106,8 @@ export default function App() {
           setShowSettingsModal={setShowSettingsModal}
         />
 
-        {isAuthenticated === false && (
-          <AuthDialog
-            onClose={() => { }}
-          />
+        {!isAuthenticated && (
+          <AuthDialog onClose={() => { }} />
         )}
 
         {showSettingsModal && (
@@ -122,7 +120,7 @@ export default function App() {
         <Footer>
           <TabBar
             tabs={tabs.map(tab => ({ id: tab.id, label: tab.title }))}
-            activeTabId={activeTabId}
+            activeTabId={selectedTabId}
             onTabSelect={handleTabSelect}
             onNewTab={createNewPad}
           />
