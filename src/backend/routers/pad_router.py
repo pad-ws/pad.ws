@@ -22,29 +22,19 @@ async def initialize_pad(
     if existing_pads:
         # User already has pads, load the first one
         pad = await Pad.get_by_id(session, existing_pads[0].id)
-        pad_dict = pad.to_dict()
-        # Get only this user's appState
-        user_app_state = pad_dict["data"]["appState"].get(str(user.id), {})
-        pad_dict["data"]["appState"] = user_app_state
-        return {
-            "pad": pad_dict,
-            "is_new": False
-        }
+       
     else:
         # Create a new pad for first-time user
-        new_pad = await Pad.create(
+        pad = await Pad.create(
             session=session,
             owner_id=user.id,
             display_name="My First Pad"
         )
-        pad_dict = new_pad.to_dict()
-        # Get only this user's appState
-        user_app_state = pad_dict["data"]["appState"].get(str(user.id), {})
-        pad_dict["data"]["appState"] = user_app_state
-        return {
-            "pad": pad_dict,
-            "is_new": True
-        }
+
+    pad_dict = pad.to_dict()
+    user_app_state = pad_dict["data"]["appState"].get(str(user.id), {})
+    pad_dict["data"]["appState"] = user_app_state
+    return pad_dict
 
 
 
