@@ -1,9 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface Tab {
     id: string;
     title: string;
-    content: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -23,9 +22,7 @@ interface UserResponse {
     roles: string[];
     pads: {
         id: string;
-        owner_id: string;
         display_name: string;
-        data: any;
         created_at: string;
         updated_at: string;
     }[];
@@ -51,7 +48,6 @@ const fetchUserPads = async (): Promise<PadResponse> => {
     const tabs = userData.pads.map(pad => ({
         id: pad.id,
         title: pad.display_name,
-        content: JSON.stringify(pad.data),
         createdAt: pad.created_at,
         updatedAt: pad.updated_at
     }));
@@ -62,10 +58,28 @@ const fetchUserPads = async (): Promise<PadResponse> => {
     };
 };
 
+const createNewPad = async (): Promise<void> => {
+    const response = await fetch('/api/pad/new', {
+        method: 'POST',
+    });
+    if (!response.ok) {
+        throw new Error('Failed to create new pad');
+    }
+};
+
 export const usePadTabs = () => {
+    const queryClient = useQueryClient();
+
     const { data, isLoading, error, isError } = useQuery<PadResponse, Error>({
         queryKey: ['padTabs'],
         queryFn: fetchUserPads,
+    });
+
+    const createPadMutation = useMutation({
+        mutationFn: createNewPad,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['padTabs'] });
+        },
     });
 
     return {
@@ -73,6 +87,8 @@ export const usePadTabs = () => {
         activeTabId: data?.activeTabId,
         isLoading,
         error,
-        isError
+        isError,
+        createNewPad: createPadMutation.mutate,
+        isCreating: createPadMutation.isPending
     };
 }; 

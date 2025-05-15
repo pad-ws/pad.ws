@@ -36,7 +36,24 @@ async def initialize_pad(
     pad_dict["data"]["appState"] = user_app_state
     return pad_dict
 
-
+@pad_router.post("/new")
+async def create_new_pad(
+    user: UserSession = Depends(require_auth),
+    session: AsyncSession = Depends(get_session)
+) -> Dict[str, Any]:
+    """Create a new pad for the authenticated user"""
+    try:
+        pad = await Pad.create(
+            session=session,
+            owner_id=user.id,
+            display_name="New Pad"
+        )
+        return pad.to_dict()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create new pad: {str(e)}"
+        )
 
 @pad_router.get("/{pad_id}")
 async def get_pad(

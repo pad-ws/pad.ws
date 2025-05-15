@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { NewPadIcon } from '../icons';
 import './TabBar.scss';
 
 interface Tab {
@@ -30,9 +30,9 @@ const TabBar: React.FC<TabBarProps> = ({ tabs, activeTabId, onTabSelect, onNewTa
                 <button
                     className="tab new-tab"
                     onClick={onNewTab}
-                    title="New Canvas"
+                    title="New Pad"
                 >
-                    <Plus size={16} />
+                    <NewPadIcon />
                 </button>
             )}
         </div>

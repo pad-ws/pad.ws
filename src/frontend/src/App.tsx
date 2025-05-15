@@ -39,6 +39,8 @@ export default function App() {
     tabs,
     activeTabId,
     isLoading: isLoadingTabs,
+    createNewPad,
+    isCreating
   } = usePadTabs();
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -122,6 +124,7 @@ export default function App() {
             tabs={tabs.map(tab => ({ id: tab.id, label: tab.title }))}
             activeTabId={activeTabId}
             onTabSelect={handleTabSelect}
+            onNewTab={createNewPad}
           />
         </Footer>
       </Excalidraw>
