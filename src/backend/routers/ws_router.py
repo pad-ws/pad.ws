@@ -168,6 +168,7 @@ async def websocket_endpoint(
                     "pad_id": str(pad_id),
                     "timestamp": datetime.now().isoformat()
                 })
+                print(f"Received message from {user.id} on pad {str(pad_id)[:5]}")
                 
                 # Publish the message to Redis stream to be broadcasted to all clients
                 # Convert dict to proper format for Redis xadd (field-value pairs)

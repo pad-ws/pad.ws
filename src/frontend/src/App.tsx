@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Excalidraw, MainMenu, Footer } from "@atyrode/excalidraw";
 import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
 import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
@@ -39,6 +39,23 @@ const defaultInitialData = {
   files: {},
 };
 
+// Create a debounce function
+const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+
+  return (...args: Parameters<F>): ReturnType<F> | undefined => {
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
+
+    timeout = setTimeout(() => {
+      func(...args);
+    }, waitFor);
+
+    return undefined;
+  };
+};
+
 export default function App() {
   const { isAuthenticated } = useAuthStatus();
   const { config: appConfig, isLoadingConfig, configError } = useAppConfig();
@@ -61,20 +78,39 @@ export default function App() {
     setShowSettingsModal(false);
   };
 
-  const handleOnChange = (elements: readonly NonDeletedExcalidrawElement[], state: AppState) => {
-    if (isConnected && selectedTabId) {
-      sendMessage('pad_update', {
-        elements,
-        appState: state
-      });
-    }
-  };
+  // Create debounced version of sendMessage
+  const debouncedSendMessage = useCallback(
+    debounce((type: string, data: any) => {
+      if (isConnected && selectedTabId) {
+        // Only log on failure to avoid noise
+        sendMessage(type, data);
+      } else if (!isConnected && selectedTabId) {
+        // Add a slight delay to check connection status again before showing the error
+        // This helps avoid false alarms during connection establishment
+        setTimeout(() => {
+          if (!isConnected) {
+            console.log(`[App] WebSocket not connected - changes will not be saved`);
+          }
+        }, 100);
+      }
+    }, 250),
+    [isConnected, selectedTabId, sendMessage]
+  );
+
+  const handleOnChange = useCallback((elements: readonly NonDeletedExcalidrawElement[], state: AppState) => {
+    // No logging on every change to reduce noise
+    debouncedSendMessage('pad_update', {
+      elements,
+      appState: state
+    });
+  }, [debouncedSendMessage]);
 
   const handleOnScrollChange = (scrollX: number, scrollY: number) => {
     lockEmbeddables(excalidrawAPI?.getAppState());
   };
 
   const handleTabSelect = async (tabId: string) => {
+    // Only log tab changes to reduce noise
     await selectTab(tabId);
   };
 
