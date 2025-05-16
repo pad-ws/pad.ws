@@ -262,5 +262,21 @@ class Pad:
             "updated_at": self.updated_at.isoformat()
         }
 
+    async def rename(self, session: AsyncSession, new_display_name: str) -> 'Pad':
+        """Rename the pad by updating its display name"""
+        self.display_name = new_display_name
+        self.updated_at = datetime.now()
+        if self._store:
+            self._store.display_name = new_display_name
+            self._store.updated_at = self.updated_at
+            self._store = await self._store.save(session)
+            
+        try:
+            await self.cache()
+        except Exception as e:
+            print(f"Warning: Failed to cache pad {self.id} after rename: {str(e)}")
+            
+        return self
+
 
     
