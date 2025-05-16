@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from "react";
-//import { capture } from "../utils/posthog";
+//import { capture } from "../lib/posthog";
 import { GoogleIcon, GithubIcon } from "../icons";
 import "./AuthDialog.scss";
 

@@ -3,8 +3,8 @@ import { Dialog } from "@atyrode/excalidraw";
 import { Range } from "./Range";
 import { UserSettings, DEFAULT_SETTINGS } from "../types/settings";
 import { RefreshCw } from "lucide-react";
-import { normalizeCanvasData } from "../utils/canvasUtils";
-// import { capture } from "../utils/posthog";
+import { normalizeCanvasData } from "../lib/canvas";
+// import { capture } from "../lib/posthog";
 import "./SettingsDialog.scss";
 
 interface SettingsDialogProps {

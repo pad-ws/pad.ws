@@ -25,12 +25,6 @@ export function normalizeCanvasData(data: any) {
   // Merge existing pad properties with our updates
   appState.pad = { 
     ...existingPad,  // Preserve all existing properties (uniqueId, displayName, etc.)
-    moduleBorderOffset: {
-      left: 10,
-      right: 10,
-      top: 40,
-      bottom: 10,
-    },
     // Merge existing user settings with default settings
     userSettings: {
       ...DEFAULT_SETTINGS,

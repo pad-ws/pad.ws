@@ -10,10 +10,10 @@ import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import { 
   PlacementMode, 
   placeElement 
-} from '../utils/elementPlacement';
+} from './elementPlacement';
 
 // Re-export PlacementMode to maintain backward compatibility
-export { PlacementMode } from '../utils/elementPlacement';
+export { PlacementMode } from './elementPlacement';
 
 // Base interface with common properties for all Excalidraw elements
 interface BaseElementOptions {
@@ -122,7 +122,13 @@ export class ExcalidrawElementFactory {
       link: options.link,
       customData: {
         showHyperlinkIcon: false,
-        showClickableHint: false
+        showClickableHint: false,
+        borderOffsets: {
+          left: 10,
+          right: 10,
+          top: 40,
+          bottom: 10
+        }
       }
     };
   }

@@ -8,7 +8,7 @@ import AccountDialog from './AccountDialog';
 import md5 from 'crypto-js/md5';
 // import { capture } from '../utils/posthog';
 import { useLogout } from '../hooks/useLogout';
-import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
+import { ExcalidrawElementFactory, PlacementMode } from '../lib/elementFactory';
 import "./MainMenu.scss";
 
 // Function to generate gravatar URL

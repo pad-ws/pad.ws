@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
 import type { ExcalidrawElement } from "@atyrode/excalidraw/element/types";
-import { normalizeCanvasData } from '../utils/canvasUtils';
+import { normalizeCanvasData } from '../lib/canvas';
 
 interface PadData {
     elements?: readonly ExcalidrawElement[];

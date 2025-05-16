@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Lock } from 'lucide-react';
-import { debounce } from './utils/debounce';
+import { debounce } from './lib/debounce';
 import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidraw/element/types';
 import type { AppState } from '@atyrode/excalidraw/types';
 import {

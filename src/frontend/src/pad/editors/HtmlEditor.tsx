@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidraw/element/types';
-import { ExcalidrawElementFactory } from '../../lib/ExcalidrawElementFactory';
+import { ExcalidrawElementFactory } from '../../lib/elementFactory';
 import HtmlPreview from './HtmlPreview';
 import './HtmlEditor.scss';
 
