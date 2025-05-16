@@ -60,13 +60,18 @@ async def cleanup_connection(pad_id: UUID, websocket: WebSocket):
 async def handle_redis_messages(websocket: WebSocket, pad_id: UUID, redis_client, stream_key: str):
     """Handle Redis stream messages asynchronously"""
     try:
-        last_id = "0"
+        # Start with latest ID to only get new messages - not entire history
+        last_id = "$"
+        
+        # First, trim the stream to keep only the latest 100 messages
+        await redis_client.xtrim(stream_key, maxlen=100, approximate=True)
         
         while websocket.client_state.CONNECTED:
             try:
                 messages = await redis_client.xread(
                     {stream_key: last_id},
-                    block=1000
+                    block=1000,
+                    count=100  # Limit to fetching 100 messages at a time
                 )
                 
                 if messages and websocket.client_state.CONNECTED:
@@ -79,7 +84,11 @@ async def handle_redis_messages(websocket: WebSocket, pad_id: UUID, redis_client
                             for connection in active_connections[pad_id].copy():
                                 try:
                                     if connection.client_state.CONNECTED:
-                                        await connection.send_json(message_data)
+                                        # Convert message_data from Redis format to JSON-serializable dict
+                                        json_message = {k.decode('utf-8') if isinstance(k, bytes) else k: 
+                                                      v.decode('utf-8') if isinstance(v, bytes) else v 
+                                                      for k, v in message_data.items()}
+                                        await connection.send_json(json_message)
                                 except (WebSocketDisconnect, Exception) as e:
                                     if "close message has been sent" not in str(e):
                                         print(f"Error sending message to client: {e}")
@@ -137,7 +146,10 @@ async def websocket_endpoint(
                     "user_id": str(user.id),
                     "timestamp": datetime.now().isoformat()
                 }
-                await redis_client.xadd(stream_key, join_message)
+                # Convert dict to proper format for Redis xadd
+                field_value_dict = {str(k): str(v) if not isinstance(v, (int, float)) else v 
+                                   for k, v in join_message.items()}
+                await redis_client.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
             except Exception as e:
                 print(f"Error broadcasting join message: {e}")
         
@@ -148,9 +160,28 @@ async def websocket_endpoint(
             try:
                 # Keep the connection alive and handle any incoming messages
                 data = await websocket.receive_text()
-                # Handle any client messages here if needed
+                message_data = json.loads(data)
+                
+                # Add user_id and timestamp to the message
+                message_data.update({
+                    "user_id": str(user.id),
+                    "pad_id": str(pad_id),
+                    "timestamp": datetime.now().isoformat()
+                })
+                
+                # Publish the message to Redis stream to be broadcasted to all clients
+                # Convert dict to proper format for Redis xadd (field-value pairs)
+                field_value_dict = {str(k): str(v) if not isinstance(v, (int, float)) else v 
+                                   for k, v in message_data.items()}
+                await redis_client.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
             except WebSocketDisconnect:
                 break
+            except json.JSONDecodeError as e:
+                print(f"Invalid JSON received: {e}")
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Invalid message format"
+                })
             except Exception as e:
                 print(f"Error in WebSocket connection: {e}")
                 break
@@ -175,7 +206,10 @@ async def websocket_endpoint(
                     "user_id": str(user.id),
                     "timestamp": datetime.now().isoformat()
                 }
-                await redis_client.xadd(stream_key, leave_message)
+                # Convert dict to proper format for Redis xadd
+                field_value_dict = {str(k): str(v) if not isinstance(v, (int, float)) else v 
+                                   for k, v in leave_message.items()}
+                await redis_client.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
         except Exception as e:
             print(f"Error broadcasting leave message: {e}")
             
