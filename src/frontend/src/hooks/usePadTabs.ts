@@ -93,16 +93,6 @@ export const usePadTabs = () => {
 
     const selectTab = async (tabId: string) => {
         setSelectedTabId(tabId);
-        try {
-            const response = await fetch(`/api/pad/${tabId}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch pad data');
-            }
-            const padData = await response.json();
-            queryClient.setQueryData(['pad', tabId], padData);
-        } catch (error) {
-            console.error('Error fetching pad data:', error);
-        }
     };
 
     return {
