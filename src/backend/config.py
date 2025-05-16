@@ -2,7 +2,7 @@ import os
 import json
 import time
 import httpx
-from redis import ConnectionPool, Redis
+from redis import asyncio as aioredis
 import jwt
 from jwt.jwks_client import PyJWKClient
 from typing import Optional, Dict, Any, Tuple
@@ -36,31 +36,54 @@ OIDC_REDIRECT_URI = os.getenv('REDIRECT_URI')
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
 
-# Create a Redis connection pool
-redis_pool = ConnectionPool(
-    host=REDIS_HOST,
-    password=REDIS_PASSWORD,
-    port=REDIS_PORT,
-    db=0,
-    decode_responses=True,
-    max_connections=10,  # Adjust based on your application's needs
-    socket_timeout=5.0,
-    socket_connect_timeout=1.0,
-    health_check_interval=30
-)
+class RedisService:
+    """Service for managing Redis connections with proper lifecycle management."""
+    
+    _instance = None
+    
+    @classmethod
+    async def get_instance(cls) -> aioredis.Redis:
+        """Get or create a Redis client instance."""
+        if cls._instance is None:
+            cls._instance = cls()
+            await cls._instance.initialize()
+        return cls._instance.client
+    
+    def __init__(self):
+        self.client = None
+    
+    async def initialize(self) -> None:
+        """Initialize the Redis client."""
+        self.client = aioredis.from_url(
+            REDIS_URL,
+            password=REDIS_PASSWORD,
+            decode_responses=True,
+            health_check_interval=30
+        )
+        
+    async def close(self) -> None:
+        """Close the Redis client connection."""
+        if self.client:
+            await self.client.close()
+            self.client = None
+            print("Redis client closed.")
 
-# Create a Redis client that uses the connection pool
-redis_client = Redis(connection_pool=redis_pool)
+# Simplified functions to maintain backwards compatibility
+async def get_redis_client() -> aioredis.Redis:
+    """Get a Redis client. Creates one if it doesn't exist."""
+    return await RedisService.get_instance()
 
+async def close_redis_client() -> None:
+    """Close the Redis client connection."""
+    if RedisService._instance:
+        await RedisService._instance.close()
+        RedisService._instance = None
 
-default_pad =  {}
+default_pad = {}
 with open("templates/default.json", 'r') as f:
     default_pad = json.load(f)
-
-def get_redis_client():
-    """Get a Redis client from the connection pool"""
-    return Redis(connection_pool=redis_pool)
 
 # ===== Coder API Configuration =====
 CODER_API_KEY = os.getenv("CODER_API_KEY")
@@ -73,27 +96,27 @@ CODER_WORKSPACE_NAME = os.getenv("CODER_WORKSPACE_NAME", "ubuntu")
 _jwks_client = None
 
 # Session management functions
-def get_session(session_id: str) -> Optional[Dict[str, Any]]:
+async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
     """Get session data from Redis"""
-    client = get_redis_client()
-    session_data = client.get(f"session:{session_id}")
+    client = await get_redis_client()
+    session_data = await client.get(f"session:{session_id}")
     if session_data:
         return json.loads(session_data)
     return None
 
-def set_session(session_id: str, data: Dict[str, Any], expiry: int) -> None:
+async def set_session(session_id: str, data: Dict[str, Any], expiry: int) -> None:
     """Store session data in Redis with expiry in seconds"""
-    client = get_redis_client()
-    client.setex(
-        f"session:{session_id}", 
+    client = await get_redis_client()
+    await client.setex(
+        f"session:{session_id}",
         expiry,
         json.dumps(data)
     )
 
-def delete_session(session_id: str) -> None:
+async def delete_session(session_id: str) -> None:
     """Delete session data from Redis"""
-    client = get_redis_client()
-    client.delete(f"session:{session_id}")
+    client = await get_redis_client()
+    await client.delete(f"session:{session_id}")
 
 def get_auth_url() -> str:
     """Generate the authentication URL for Keycloak login"""
@@ -172,12 +195,13 @@ async def refresh_token(session_id: str, token_data: Dict[str, Any]) -> Tuple[bo
             
             # Update session with new tokens
             expiry = new_token_data['refresh_expires_in']
-            set_session(session_id, new_token_data, expiry)
+            await set_session(session_id, new_token_data, expiry)
             
             return True, new_token_data
     except Exception as e:
         print(f"Error refreshing token: {str(e)}")
         return False, token_data
+
 def get_jwks_client():
     """Get or create a PyJWKClient for token verification"""
     global _jwks_client

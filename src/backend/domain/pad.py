@@ -6,6 +6,7 @@ from config import default_pad, get_redis_client
 import json
 
 from database.models.pad_model import PadStore
+from redis.asyncio import Redis as AsyncRedis
 
 
 class Pad:
@@ -37,7 +38,6 @@ class Pad:
         self.created_at = created_at or datetime.now()
         self.updated_at = updated_at or datetime.now()
         self._store = store
-        self._redis = get_redis_client()
 
     @classmethod
     async def create(
@@ -64,38 +64,46 @@ class Pad:
             data=pad_data
         )
         pad = cls.from_store(store)
-        await pad.cache()
+        
+        try:
+            await pad.cache()
+        except Exception as e:
+            print(f"Warning: Failed to cache pad {pad.id}: {str(e)}")
+            
         return pad
 
     @classmethod
     async def get_by_id(cls, session: AsyncSession, pad_id: UUID) -> Optional['Pad']:
         """Get a pad by ID, first trying Redis cache then falling back to database"""
-        # Try to get from Redis cache first
-        redis_client = get_redis_client()
+        redis = await get_redis_client()
         cache_key = f"pad:{pad_id}"
         
-        # Check if the hash exists
-        if redis_client.exists(cache_key):
-            try:
-                # Get all fields from the hash
-                data = redis_client.hgetall(cache_key)
-                if data:
-                    return cls(
-                        id=UUID(data['id']),
-                        owner_id=UUID(data['owner_id']),
-                        display_name=data['display_name'],
-                        data=json.loads(data['data']),
-                        created_at=datetime.fromisoformat(data['created_at']),
-                        updated_at=datetime.fromisoformat(data['updated_at'])
+        try:
+            if await redis.exists(cache_key):
+                cached_data = await redis.hgetall(cache_key)
+                if cached_data:
+                    pad_instance = cls(
+                        id=UUID(cached_data['id']),
+                        owner_id=UUID(cached_data['owner_id']),
+                        display_name=cached_data['display_name'],
+                        data=json.loads(cached_data['data']),
+                        created_at=datetime.fromisoformat(cached_data['created_at']),
+                        updated_at=datetime.fromisoformat(cached_data['updated_at'])
                     )
-            except (json.JSONDecodeError, KeyError, ValueError):
-                print(f"Error parsing cached pad data, id: {cache_key}")
+                    return pad_instance
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            print(f"Error parsing cached pad data for id {pad_id}: {str(e)}")
+        except Exception as e:
+            print(f"Unexpected error retrieving pad from cache: {str(e)}")
         
         # Fall back to database
         store = await PadStore.get_by_id(session, pad_id)
         if store:
             pad = cls.from_store(store)
-            await pad.cache()  # Cache for future use
+            try:
+                await pad.cache()
+            except Exception as e:
+                print(f"Warning: Failed to cache pad {pad.id}: {str(e)}")
             return pad
         return None
 
@@ -104,9 +112,14 @@ class Pad:
         """Get all pads for a specific owner"""
         stores = await PadStore.get_by_owner(session, owner_id)
         pads = [cls.from_store(store) for store in stores]
-        # Cache all pads
+        
+        # Cache all pads, handling errors for each individually
         for pad in pads:
-            await pad.cache()
+            try:
+                await pad.cache()
+            except Exception as e:
+                print(f"Warning: Failed to cache pad {pad.id}: {str(e)}")
+                
         return pads
 
     @classmethod
@@ -143,8 +156,11 @@ class Pad:
         self.created_at = self._store.created_at
         self.updated_at = self._store.updated_at
         
-        # Update cache
-        await self.cache()
+        try:
+            await self.cache()
+        except Exception as e:
+            print(f"Warning: Failed to cache pad {self.id} after save: {str(e)}")
+            
         return self
 
     async def update_data(self, session: AsyncSession, data: Dict[str, Any]) -> 'Pad':
@@ -153,11 +169,17 @@ class Pad:
         self.updated_at = datetime.now()
         if self._store:
             self._store = await self._store.update_data(session, data)
-        await self.cache()
+            
+        try:
+            await self.cache()
+        except Exception as e:
+            print(f"Warning: Failed to cache pad {self.id} after update: {str(e)}")
+            
         return self
 
     async def broadcast_event(self, event_type: str, event_data: Dict[str, Any]) -> None:
         """Broadcast an event to all connected clients"""
+        redis = await get_redis_client()
         stream_key = f"pad:stream:{self.id}"
         message = {
             "type": event_type,
@@ -165,34 +187,50 @@ class Pad:
             "data": event_data,
             "timestamp": datetime.now().isoformat()
         }
-        self._redis.xadd(stream_key, message)
+        try:
+            await redis.xadd(stream_key, message)
+        except Exception as e:
+            print(f"Error broadcasting event to pad {self.id}: {str(e)}")
 
     async def get_stream_position(self) -> str:
         """Get the current position in the pad's stream"""
+        redis = await get_redis_client()
         stream_key = f"pad:stream:{self.id}"
-        info = self._redis.xinfo_stream(stream_key)
-        return info.get("last-generated-id", "0-0")
+        try:
+            info = await redis.xinfo_stream(stream_key)
+            return info.get("last-generated-id", "0-0")
+        except Exception as e:
+            print(f"Error getting stream position for pad {self.id}: {str(e)}")
+            return "0-0"
 
     async def get_recent_events(self, count: int = 100) -> list[Dict[str, Any]]:
         """Get recent events from the pad's stream"""
+        redis = await get_redis_client()
         stream_key = f"pad:stream:{self.id}"
-        messages = self._redis.xrevrange(stream_key, count=count)
-        return [msg[1] for msg in messages]
+        try:
+            messages = await redis.xrevrange(stream_key, count=count)
+            return [msg[1] for msg in messages]
+        except Exception as e:
+            print(f"Error getting recent events for pad {self.id}: {str(e)}")
+            return []
 
     async def delete(self, session: AsyncSession) -> bool:
         """Delete the pad from both database and cache"""
         if self._store:
             success = await self._store.delete(session)
             if success:
-                await self.invalidate_cache()
+                try:
+                    await self.invalidate_cache()
+                except Exception as e:
+                    print(f"Warning: Failed to invalidate cache for pad {self.id}: {str(e)}")
             return success
         return False
 
     async def cache(self) -> None:
         """Cache the pad data in Redis using hash structure"""
+        redis = await get_redis_client()
         cache_key = f"pad:{self.id}"
         
-        # Store each field separately in the hash
         cache_data = {
             'id': str(self.id),
             'owner_id': str(self.owner_id),
@@ -202,13 +240,16 @@ class Pad:
             'updated_at': self.updated_at.isoformat()
         }
         
-        self._redis.hset(cache_key, mapping=cache_data)
-        self._redis.expire(cache_key, self.CACHE_EXPIRY)
+        async with redis.pipeline() as pipe:
+            await pipe.hset(cache_key, mapping=cache_data)
+            await pipe.expire(cache_key, self.CACHE_EXPIRY)
+            await pipe.execute()
 
     async def invalidate_cache(self) -> None:
         """Remove the pad from Redis cache"""
+        redis = await get_redis_client()
         cache_key = f"pad:{self.id}"
-        self._redis.delete(cache_key)
+        await redis.delete(cache_key)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation"""

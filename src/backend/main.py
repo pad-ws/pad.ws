@@ -10,7 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from database import init_db
-from config import STATIC_DIR, ASSETS_DIR, POSTHOG_API_KEY, POSTHOG_HOST, redis_client, redis_pool
+from config import (
+    STATIC_DIR, ASSETS_DIR, POSTHOG_API_KEY, POSTHOG_HOST, 
+    get_redis_client, close_redis_client
+)
 from dependencies import UserSession, optional_auth
 from routers.auth_router import auth_router
 from routers.users_router import users_router
@@ -30,17 +33,15 @@ async def lifespan(_: FastAPI):
     await init_db()
     print("Database connection established successfully")
     
-    redis_client.ping()
+    # Initialize Redis client and verify connection
+    redis = await get_redis_client()
+    await redis.ping()
     print("Redis connection established successfully")
     
     yield
     
     # Clean up connections when shutting down
-    try:
-        redis_pool.disconnect()
-        print("Redis connections closed")
-    except Exception as e:
-        print(f"Error closing Redis connections: {str(e)}")
+    await close_redis_client()
 
 app = FastAPI(lifespan=lifespan)
 

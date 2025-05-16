@@ -4,37 +4,90 @@ import time
 import jwt
 from jwt.jwks_client import PyJWKClient
 import httpx
-from redis import Redis
+from redis.asyncio import Redis as AsyncRedis
 
 class Session:
     """Domain class for managing user sessions"""
     
-    def __init__(self, redis_client: Redis, oidc_config: Dict[str, str]):
+    def __init__(self, redis_client: AsyncRedis, oidc_config: Dict[str, str]):
+        """
+        Initialize a new Session instance.
+        
+        Args:
+            redis_client: The Redis client to use for session storage
+            oidc_config: Configuration for the OIDC provider
+        """
         self.redis_client = redis_client
         self.oidc_config = oidc_config
         self._jwks_client = None
 
-    def get(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """Get session data from Redis"""
-        session_data = self.redis_client.get(f"session:{session_id}")
-        if session_data:
-            return json.loads(session_data)
+    async def get(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get session data from Redis.
+        
+        Args:
+            session_id: The session ID to retrieve
+            
+        Returns:
+            The session data or None if not found
+        """
+        try:
+            session_data = await self.redis_client.get(f"session:{session_id}")
+            if session_data:
+                return json.loads(session_data)
+        except json.JSONDecodeError as e:
+            print(f"Error decoding session data for {session_id}: {str(e)}")
+        except Exception as e:
+            print(f"Error retrieving session {session_id}: {str(e)}")
         return None
 
-    def set(self, session_id: str, data: Dict[str, Any], expiry: int) -> None:
-        """Store session data in Redis with expiry in seconds"""
-        self.redis_client.setex(
-            f"session:{session_id}", 
-            expiry,
-            json.dumps(data)
-        )
+    async def set(self, session_id: str, data: Dict[str, Any], expiry: int) -> bool:
+        """
+        Store session data in Redis with expiry in seconds.
+        
+        Args:
+            session_id: The session ID to store
+            data: The session data to store
+            expiry: Time to live in seconds
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            await self.redis_client.setex(
+                f"session:{session_id}", 
+                expiry,
+                json.dumps(data)
+            )
+            return True
+        except Exception as e:
+            print(f"Error storing session {session_id}: {str(e)}")
+            return False
 
-    def delete(self, session_id: str) -> None:
-        """Delete session data from Redis"""
-        self.redis_client.delete(f"session:{session_id}")
+    async def delete(self, session_id: str) -> bool:
+        """
+        Delete session data from Redis.
+        
+        Args:
+            session_id: The session ID to delete
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            await self.redis_client.delete(f"session:{session_id}")
+            return True
+        except Exception as e:
+            print(f"Error deleting session {session_id}: {str(e)}")
+            return False
 
     def get_auth_url(self) -> str:
-        """Generate the authentication URL for OIDC login"""
+        """
+        Generate the authentication URL for OIDC login.
+        
+        Returns:
+            The authentication URL
+        """
         auth_url = f"{self.oidc_config['server_url']}/realms/{self.oidc_config['realm']}/protocol/openid-connect/auth"
         params = {
             'client_id': self.oidc_config['client_id'],
@@ -45,11 +98,25 @@ class Session:
         return f"{auth_url}?{'&'.join(f'{k}={v}' for k,v in params.items())}"
 
     def get_token_url(self) -> str:
-        """Get the token endpoint URL"""
+        """
+        Get the token endpoint URL.
+        
+        Returns:
+            The token endpoint URL
+        """
         return f"{self.oidc_config['server_url']}/realms/{self.oidc_config['realm']}/protocol/openid-connect/token"
 
     def is_token_expired(self, token_data: Dict[str, Any], buffer_seconds: int = 30) -> bool:
-        """Check if the access token is expired"""
+        """
+        Check if the access token is expired.
+        
+        Args:
+            token_data: The token data to check
+            buffer_seconds: Buffer time in seconds before actual expiration
+            
+        Returns:
+            True if the token is expired, False otherwise
+        """
         if not token_data or 'access_token' not in token_data:
             return True
             
@@ -77,7 +144,16 @@ class Session:
             return True
 
     async def refresh_token(self, session_id: str, token_data: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
-        """Refresh the access token using the refresh token"""
+        """
+        Refresh the access token using the refresh token.
+        
+        Args:
+            session_id: The session ID
+            token_data: The current token data containing the refresh token
+            
+        Returns:
+            Tuple of (success, token_data)
+        """
         if not token_data or 'refresh_token' not in token_data:
             return False, token_data
             
@@ -102,7 +178,9 @@ class Session:
                 
                 # Update session with new tokens
                 expiry = new_token_data['refresh_expires_in']
-                self.set(session_id, new_token_data, expiry)
+                success = await self.set(session_id, new_token_data, expiry)
+                if not success:
+                    return False, token_data
                 
                 return True, new_token_data
         except Exception as e:
@@ -110,25 +188,45 @@ class Session:
             return False, token_data
 
     def _get_jwks_client(self) -> PyJWKClient:
-        """Get or create a PyJWKClient for token verification"""
+        """
+        Get or create a PyJWKClient for token verification.
+        
+        Returns:
+            The JWKs client
+        """
         if self._jwks_client is None:
             jwks_url = f"{self.oidc_config['server_url']}/realms/{self.oidc_config['realm']}/protocol/openid-connect/certs"
             self._jwks_client = PyJWKClient(jwks_url)
         return self._jwks_client
 
-    def track_event(self, session_id: str, event_type: str, metadata: Dict[str, Any] = None) -> None:
-        """Track a session event (login, logout, etc.)"""
-        session_data = self.get(session_id)
-        if session_data:
-            if 'events' not in session_data:
-                session_data['events'] = []
+    async def track_event(self, session_id: str, event_type: str, metadata: Dict[str, Any] = None) -> bool:
+        """
+        Track a session event (login, logout, etc.).
+        
+        Args:
+            session_id: The session ID
+            event_type: The type of event
+            metadata: Additional metadata for the event
             
-            event = {
-                'type': event_type,
-                'timestamp': time.time(),
-                'metadata': metadata or {}
-            }
-            session_data['events'].append(event)
-            
-            # Update session with new event
-            self.set(session_id, session_data, session_data.get('expires_in', 3600)) 
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            session_data = await self.get(session_id)
+            if session_data:
+                if 'events' not in session_data:
+                    session_data['events'] = []
+                
+                event = {
+                    'type': event_type,
+                    'timestamp': time.time(),
+                    'metadata': metadata or {}
+                }
+                session_data['events'].append(event)
+                
+                # Update session with new event
+                return await self.set(session_id, session_data, session_data.get('expires_in', 3600))
+            return False
+        except Exception as e:
+            print(f"Error tracking event {event_type} for session {session_id}: {str(e)}")
+            return False 

@@ -8,18 +8,24 @@ from typing import Optional
 import time
 
 from config import (FRONTEND_URL, STATIC_DIR)
-from dependencies import get_coder_api, session
+from dependencies import get_coder_api, get_session_domain
 from coder import CoderAPI
 from dependencies import optional_auth, UserSession
+from domain.session import Session
 
 auth_router = APIRouter()
 
 @auth_router.get("/login")
-async def login(request: Request, kc_idp_hint: str = None, popup: str = None):
+async def login(
+    request: Request, 
+    session_domain: Session = Depends(get_session_domain),
+    kc_idp_hint: str = None, 
+    popup: str = None
+):
     
     session_id = secrets.token_urlsafe(32)
 
-    auth_url = session.get_auth_url()
+    auth_url = session_domain.get_auth_url()
     state = "popup" if popup == "1" else "default"
 
     if kc_idp_hint:
@@ -38,7 +44,8 @@ async def callback(
     request: Request, 
     code: str, 
     state: str = "default",
-    coder_api: CoderAPI = Depends(get_coder_api)
+    coder_api: CoderAPI = Depends(get_coder_api),
+    session_domain: Session = Depends(get_session_domain)
 ):
     session_id = request.cookies.get('session_id')
     if not session_id:
@@ -47,13 +54,13 @@ async def callback(
     # Exchange code for token
     async with httpx.AsyncClient() as client:
         token_response = await client.post(
-            session.get_token_url(),
+            session_domain.get_token_url(),
             data={
                 'grant_type': 'authorization_code',
-                'client_id': session.oidc_config['client_id'],
-                'client_secret': session.oidc_config['client_secret'],
+                'client_id': session_domain.oidc_config['client_id'],
+                'client_secret': session_domain.oidc_config['client_secret'],
                 'code': code,
-                'redirect_uri': session.oidc_config['redirect_uri']
+                'redirect_uri': session_domain.oidc_config['redirect_uri']
             }
         )
         
@@ -62,8 +69,14 @@ async def callback(
         
         token_data = token_response.json()
         expiry = token_data['refresh_expires_in']
-        session.set(session_id, token_data, expiry)
-        session.track_event(session_id, 'login')
+        
+        # Store the token data in Redis
+        success = await session_domain.set(session_id, token_data, expiry)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to store session")
+            
+        # Track the login event
+        await session_domain.track_event(session_id, 'login')
         
         access_token = token_data['access_token']
         user_info = jwt.decode(access_token, options={"verify_signature": False})
@@ -83,23 +96,28 @@ async def callback(
         return RedirectResponse('/')
     
 @auth_router.get("/logout")
-async def logout(request: Request):
+async def logout(request: Request, session_domain: Session = Depends(get_session_domain)):
     session_id = request.cookies.get('session_id')
     
-    session_data = session.get(session_id)
+    if not session_id:
+        return RedirectResponse('/')
+    
+    session_data = await session_domain.get(session_id)
     if not session_data:
         return RedirectResponse('/')
     
     id_token = session_data.get('id_token', '')
     
     # Track logout event before deleting session
-    session.track_event(session_id, 'logout')
+    await session_domain.track_event(session_id, 'logout')
     
     # Delete the session from Redis
-    session.delete(session_id)
+    success = await session_domain.delete(session_id)
+    if not success:
+        print(f"Warning: Failed to delete session {session_id}")
     
     # Create the Keycloak logout URL with redirect back to our app
-    logout_url = f"{session.oidc_config['server_url']}/realms/{session.oidc_config['realm']}/protocol/openid-connect/logout"
+    logout_url = f"{session_domain.oidc_config['server_url']}/realms/{session_domain.oidc_config['realm']}/protocol/openid-connect/logout"
     full_logout_url = f"{logout_url}?id_token_hint={id_token}&post_logout_redirect_uri={FRONTEND_URL}"
     
     # Create a response with the logout URL and clear the session cookie
@@ -144,23 +162,23 @@ async def auth_status(
         })
 
 @auth_router.post("/refresh")
-async def refresh_session(request: Request):
+async def refresh_session(request: Request, session_domain: Session = Depends(get_session_domain)):
     """Refresh the current session's access token"""
     session_id = request.cookies.get('session_id')
     if not session_id:
         raise HTTPException(status_code=401, detail="No session found")
     
-    session_data = session.get(session_id)
+    session_data = await session_domain.get(session_id)
     if not session_data:
         raise HTTPException(status_code=401, detail="Invalid session")
     
     # Try to refresh the token
-    success, new_session = await session.refresh_token(session_id, session_data)
+    success, new_token_data = await session_domain.refresh_token(session_id, session_data)
     if not success:
         raise HTTPException(status_code=401, detail="Failed to refresh session")
     
     # Return the new expiry time
     return JSONResponse({
-        "expires_in": new_session.get('expires_in'),
+        "expires_in": new_token_data.get('expires_in'),
         "authenticated": True
     })

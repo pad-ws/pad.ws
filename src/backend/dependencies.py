@@ -9,8 +9,7 @@ from config import get_redis_client
 from domain.session import Session
 from coder import CoderAPI
 
-# Initialize session domain
-redis_client = get_redis_client()
+# oidc_config for session creation and user sessions
 oidc_config = {
     'server_url': os.getenv('OIDC_SERVER_URL'),
     'realm': os.getenv('OIDC_REALM'),
@@ -18,20 +17,25 @@ oidc_config = {
     'client_secret': os.getenv('OIDC_CLIENT_SECRET'),
     'redirect_uri': os.getenv('REDIRECT_URI')
 }
-session = Session(redis_client, oidc_config)
+
+async def get_session_domain() -> Session:
+    """Get a Session domain instance for the current request."""
+    redis_client = await get_redis_client()
+    return Session(redis_client, oidc_config)
 
 class UserSession:
     """
     Unified user session model that integrates authentication data with user information.
     This provides a single interface for accessing both token data and user details.
     """
-    def __init__(self, access_token: str, token_data: dict, user_id: UUID = None):
+    def __init__(self, access_token: str, token_data: dict, session_domain: Session, user_id: UUID = None):
         self.access_token = access_token
         self._user_data = None
+        self._session_domain = session_domain
 
         # Get the signing key and decode with verification
         try:
-            jwks_client = session._get_jwks_client()
+            jwks_client = self._session_domain._get_jwks_client()
             signing_key = jwks_client.get_signing_key_from_jwt(access_token)
             
             self.token_data = jwt.decode(
@@ -109,27 +113,31 @@ class AuthDependency:
         # Get session ID from cookies
         session_id = request.cookies.get('session_id')
         
+        # Get session domain instance
+        current_session_domain = await get_session_domain()
+
         # Handle missing session ID
         if not session_id:
             return self._handle_auth_error("Not authenticated")
             
         # Get session data from Redis
-        session_data = session.get(session_id)
+        session_data = await current_session_domain.get(session_id)
         if not session_data:
             return self._handle_auth_error("Not authenticated")
             
         # Handle token expiration
-        if session.is_token_expired(session_data):
+        if current_session_domain.is_token_expired(session_data):
             # Try to refresh the token
-            success, new_session = await session.refresh_token(session_id, session_data)
+            success, new_session_data = await current_session_domain.refresh_token(session_id, session_data)
             if not success:
                 return self._handle_auth_error("Session expired")
-            session_data = new_session
+            session_data = new_session_data
         
         # Create user session object
         user_session = UserSession(
             access_token=session_data.get('access_token'),
-            token_data=session_data
+            token_data=session_data,
+            session_domain=current_session_domain
         )
         
         # Check admin requirement if specified

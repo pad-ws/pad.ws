@@ -54,43 +54,58 @@ async def get_online_users(
     _: bool = Depends(require_admin),
 ):
     """Get all online users with their information (admin only)"""
-    client = get_redis_client()
-    
-    # Get all session keys
-    session_keys = client.keys("session:*")
-    
-    # Extract user IDs from sessions and fetch user data
-    online_users = []
-    for key in session_keys:
-        session_data = client.get(key)
-        if session_data:
+    try:
+        client = await get_redis_client()
+        
+        # Get all session keys
+        session_keys = await client.keys("session:*")
+        
+        # Extract user IDs from sessions and fetch user data
+        online_users = []
+        jwks_client = get_jwks_client()
+
+        for key in session_keys:
             try:
+                # Get session data
+                session_data_raw = await client.get(key)
+                if not session_data_raw:
+                    continue
+                    
                 # Parse session data
-                session_json = json.loads(session_data)
+                session_json = json.loads(session_data_raw)
                 
                 # Extract user ID from token
                 token_data = session_json.get('access_token')
-                if token_data:
-                    # Decode JWT token to get user ID
-                    jwks_client = get_jwks_client()
-                    signing_key = jwks_client.get_signing_key_from_jwt(token_data)
-                    decoded = jwt.decode(
-                        token_data,
-                        signing_key.key,
-                        algorithms=["RS256"],
-                        audience=OIDC_CLIENT_ID,
-                    )
+                if not token_data:
+                    continue
                     
-                    # Get user ID from token
-                    user_id = UUID(decoded.get('sub'))
-                    
-                    # Fetch user data from database
-                    raise NotImplementedError("/online Not implemented")
-                    user_data = await user_service.get_user(user_id)
-                    if user_data:
-                        online_users.append(user_data)
+                # Decode JWT token to get user ID
+                signing_key = jwks_client.get_signing_key_from_jwt(token_data)
+                decoded = jwt.decode(
+                    token_data,
+                    signing_key.key,
+                    algorithms=["RS256"],
+                    audience=OIDC_CLIENT_ID,
+                )
+                
+                # Get user ID from token
+                user_id = UUID(decoded.get('sub'))
+                
+                # This endpoint is partially implemented - would need to fetch user data
+                raise NotImplementedError("/online Not implemented")
+                
+            except json.JSONDecodeError as e:
+                print(f"Error parsing session data: {str(e)}")
+                continue
+            except jwt.PyJWTError as e:
+                print(f"Error decoding JWT: {str(e)}")
+                continue
             except Exception as e:
                 print(f"Error processing session {key}: {str(e)}")
                 continue
-    
-    return {"online_users": online_users, "count": len(online_users)}
+        
+        return {"online_users": online_users, "count": len(online_users)}
+        
+    except Exception as e:
+        print(f"Error getting online users: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve online users")
