@@ -156,6 +156,29 @@ class Pad:
         await self.cache()
         return self
 
+    async def broadcast_event(self, event_type: str, event_data: Dict[str, Any]) -> None:
+        """Broadcast an event to all connected clients"""
+        stream_key = f"pad:stream:{self.id}"
+        message = {
+            "type": event_type,
+            "pad_id": str(self.id),
+            "data": event_data,
+            "timestamp": datetime.now().isoformat()
+        }
+        self._redis.xadd(stream_key, message)
+
+    async def get_stream_position(self) -> str:
+        """Get the current position in the pad's stream"""
+        stream_key = f"pad:stream:{self.id}"
+        info = self._redis.xinfo_stream(stream_key)
+        return info.get("last-generated-id", "0-0")
+
+    async def get_recent_events(self, count: int = 100) -> list[Dict[str, Any]]:
+        """Get recent events from the pad's stream"""
+        stream_key = f"pad:stream:{self.id}"
+        messages = self._redis.xrevrange(stream_key, count=count)
+        return [msg[1] for msg in messages]
+
     async def delete(self, session: AsyncSession) -> bool:
         """Delete the pad from both database and cache"""
         if self._store:

@@ -8,6 +8,7 @@ import { useAuthStatus } from "./hooks/useAuthStatus";
 import { useAppConfig } from "./hooks/useAppConfig";
 import { usePadTabs } from "./hooks/usePadTabs";
 import { usePad } from "./hooks/usePadData";
+import { usePadWebSocket } from "./hooks/usePadWebSocket";
 
 // Components
 import TabBar from "./ui/TabBar";
@@ -54,13 +55,19 @@ export default function App() {
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
 
   const { padData } = usePad(selectedTabId, excalidrawAPI);
+  const { sendMessage, isConnected } = usePadWebSocket(selectedTabId);
 
   const handleCloseSettingsModal = () => {
     setShowSettingsModal(false);
   };
 
   const handleOnChange = (elements: readonly NonDeletedExcalidrawElement[], state: AppState) => {
-    // TODO: Implement change handling
+    if (isConnected && selectedTabId) {
+      sendMessage('pad_update', {
+        elements,
+        appState: state
+      });
+    }
   };
 
   const handleOnScrollChange = (scrollX: number, scrollY: number) => {

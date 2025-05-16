@@ -17,6 +17,7 @@ from routers.users_router import users_router
 from routers.workspace_router import workspace_router
 from routers.pad_router import pad_router
 from routers.app_router import app_router
+from routers.ws_router import ws_router
 
 # Initialize PostHog if API key is available
 if POSTHOG_API_KEY:
@@ -65,6 +66,7 @@ app.include_router(users_router, prefix="/api/users")
 app.include_router(workspace_router, prefix="/api/workspace")
 app.include_router(pad_router, prefix="/api/pad")
 app.include_router(app_router, prefix="/api/app")
+app.include_router(ws_router)  # WebSocket router doesn't need /api prefix
     
 if __name__ == "__main__":
     import uvicorn
