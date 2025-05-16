@@ -57,55 +57,6 @@ async def cleanup_connection(pad_id: UUID, websocket: WebSocket):
         if "already completed" not in str(e) and "close message has been sent" not in str(e):
             print(f"Error closing WebSocket connection: {e}")
 
-async def handle_redis_messages(websocket: WebSocket, pad_id: UUID, redis_client, stream_key: str):
-    """Handle Redis stream messages asynchronously"""
-    try:
-        # Start with latest ID to only get new messages - not entire history
-        last_id = "$"
-        
-        # First, trim the stream to keep only the latest 100 messages
-        await redis_client.xtrim(stream_key, maxlen=100, approximate=True)
-        
-        while websocket.client_state.CONNECTED:
-            try:
-                messages = await redis_client.xread(
-                    {stream_key: last_id},
-                    block=1000,
-                    count=100  # Limit to fetching 100 messages at a time
-                )
-                
-                if messages and websocket.client_state.CONNECTED:
-                    for stream, stream_messages in messages:
-                        for message_id, message_data in stream_messages:
-                            # Update last_id to avoid processing the same message twice
-                            last_id = message_id
-                            
-                            # Forward message to all connected clients
-                            for connection in active_connections[pad_id].copy():
-                                try:
-                                    if connection.client_state.CONNECTED:
-                                        # Convert message_data from Redis format to JSON-serializable dict
-                                        json_message = {k.decode('utf-8') if isinstance(k, bytes) else k: 
-                                                      v.decode('utf-8') if isinstance(v, bytes) else v 
-                                                      for k, v in message_data.items()}
-                                        await connection.send_json(json_message)
-                                except (WebSocketDisconnect, Exception) as e:
-                                    if "close message has been sent" not in str(e):
-                                        print(f"Error sending message to client: {e}")
-                                    await cleanup_connection(pad_id, connection)
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:
-                print(f"Error handling Redis stream: {e}")
-                await asyncio.sleep(1)  # Throttle reconnection attempts
-                
-    except asyncio.CancelledError:
-        raise
-    except Exception as e:
-        print(f"Fatal error in Redis message handling: {e}")
-    finally:
-        await cleanup_connection(pad_id, websocket)
-
 @ws_router.websocket("/ws/pad/{pad_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
@@ -124,7 +75,6 @@ async def websocket_endpoint(
     active_connections[pad_id].add(websocket)
     
     redis_client = None
-    redis_task = None
     
     try:
         redis_client = await get_redis_client()
@@ -153,8 +103,6 @@ async def websocket_endpoint(
             except Exception as e:
                 print(f"Error broadcasting join message: {e}")
         
-        redis_task = asyncio.create_task(handle_redis_messages(websocket, pad_id, redis_client, stream_key))
-        
         # Wait for WebSocket disconnect
         while websocket.client_state.CONNECTED:
             try:
@@ -175,6 +123,17 @@ async def websocket_endpoint(
                 field_value_dict = {str(k): str(v) if not isinstance(v, (int, float)) else v 
                                    for k, v in message_data.items()}
                 await redis_client.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
+                
+                # Forward message to all connected clients for this pad
+                for connection in active_connections[pad_id].copy():
+                    try:
+                        if connection.client_state.CONNECTED:
+                            await connection.send_json(message_data)
+                    except (WebSocketDisconnect, Exception) as e:
+                        if "close message has been sent" not in str(e):
+                            print(f"Error sending message to client: {e}")
+                        await cleanup_connection(pad_id, connection)
+                        
             except WebSocketDisconnect:
                 break
             except json.JSONDecodeError as e:
@@ -190,14 +149,6 @@ async def websocket_endpoint(
     except Exception as e:
         print(f"Error in WebSocket endpoint: {e}")
     finally:
-        # Clean up
-        if redis_task:
-            redis_task.cancel()
-            try:
-                await redis_task
-            except asyncio.CancelledError:
-                pass
-            
         # Broadcast user left message before cleanup
         try:
             if redis_client:
@@ -211,6 +162,14 @@ async def websocket_endpoint(
                 field_value_dict = {str(k): str(v) if not isinstance(v, (int, float)) else v 
                                    for k, v in leave_message.items()}
                 await redis_client.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
+                
+                # Notify other clients about user leaving
+                for connection in active_connections[pad_id].copy():
+                    if connection != websocket and connection.client_state.CONNECTED:
+                        try:
+                            await connection.send_json(leave_message)
+                        except Exception:
+                            pass
         except Exception as e:
             print(f"Error broadcasting leave message: {e}")
             
