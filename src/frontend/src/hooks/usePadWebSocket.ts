@@ -11,97 +11,80 @@ interface WebSocketMessage {
 
 export const usePadWebSocket = (padId: string | null) => {
     const wsRef = useRef<WebSocket | null>(null);
-    const { user } = useAuthStatus();
+    const { isAuthenticated, isLoading } = useAuthStatus();
     const [isConnected, setIsConnected] = useState(false);
+    const currentPadIdRef = useRef<string | null>(null);
 
     const connect = useCallback(() => {
-        if (!padId || !user) {
-            // Ensure any existing connection is closed if padId becomes null or user logs out
+        // Don't connect if auth is still loading or requirements aren't met
+        if (isLoading || !padId || !isAuthenticated) {
             if (wsRef.current) {
                 wsRef.current.close();
-                // wsRef.current = null; // Let onclose handle this
+                currentPadIdRef.current = null;
             }
-            setIsConnected(false); // Explicitly set to false
+            setIsConnected(false);
             return;
         }
 
-        // Close existing connection if any (from a *different* padId)
-        if (wsRef.current && !wsRef.current.url.endsWith(padId)) {
-            wsRef.current.close();
-            // wsRef.current = null; // Let onclose handle setting wsRef.current to null
-        } else if (wsRef.current && wsRef.current.url.endsWith(padId)) {
-            // Already connected or connecting to the same padId, do nothing.
-            // The useEffect dependency on `connect` (which depends on `padId`) handles this.
-            return () => { // Return the existing cleanup if we're not making a new ws
+        // Don't reconnect if already connected to same pad
+        if (wsRef.current && currentPadIdRef.current === padId && wsRef.current.readyState === WebSocket.OPEN) {
+            return () => {
                 if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {
-                    // This is tricky, if connect is called but we don't make a new ws,
-                    // what cleanup should be returned? The one for the existing ws.
-                    // However, this path should ideally not be hit if deps are correct.
-                    // For safety, we can return a no-op or the existing ws's close.
+                    wsRef.current.close();
+                    currentPadIdRef.current = null;
                 }
             };
         }
 
+        // Close any existing connection before creating a new one
+        if (wsRef.current) {
+            wsRef.current.close();
+        }
+
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/pad/${padId}`;
-        const ws = new WebSocket(wsUrl);
-        wsRef.current = ws;
 
-        ws.onopen = () => {
-            console.log(`[pad.ws] Connected to pad ${padId}`);
-            setIsConnected(true);
-        };
+        try {
+            const ws = new WebSocket(wsUrl);
+            wsRef.current = ws;
 
-        ws.onmessage = (event) => {
-            try {
-                const message: WebSocketMessage = JSON.parse(event.data);
-                console.log(`[pad.ws] Received message:`, message);
+            ws.onopen = () => {
+                setIsConnected(true);
+                currentPadIdRef.current = padId;
+            };
 
-                switch (message.type) {
-                    case 'connected':
-                        console.log(`[pad.ws] Successfully connected to pad ${message.pad_id}`);
-                        break;
-                    case 'user_joined':
-                        console.log(`[pad.ws] User ${message.user_id} joined pad ${message.pad_id}`);
-                        break;
-                    case 'user_left':
-                        console.log(`[pad.ws] User ${message.user_id} left pad ${message.pad_id}`);
-                        break;
-                    case 'pad_update':
-                        console.log(`[pad.ws] Pad ${message.pad_id} updated by user ${message.user_id}`);
-                        break;
-                    default:
-                        // Default handler for any message type
-                        console.log(`[pad.ws] Received ${message.type} message:`, {
-                            pad_id: message.pad_id,
-                            user_id: message.user_id,
-                            timestamp: message.timestamp,
-                            data: message.data
-                        });
+            ws.onmessage = (event) => {
+                try {
+                    const message: WebSocketMessage = JSON.parse(event.data);
+                    // Process message if needed
+                } catch (error) {
+                    console.error('[pad.ws] Error parsing message:', error);
                 }
-            } catch (error) {
-                console.error('[pad.ws] Error parsing message:', error);
-            }
-        };
+            };
 
-        ws.onerror = (error) => {
-            console.error('[pad.ws] Error:', error);
-        };
+            ws.onerror = (error) => {
+                console.error('[pad.ws] WebSocket error:', error);
+            };
 
-        ws.onclose = () => {
-            console.log(`[pad.ws] Disconnected from pad ${padId}`);
-            setIsConnected(false);
-            if (wsRef.current === ws) {
-                wsRef.current = null;
-            }
-        };
+            ws.onclose = () => {
+                setIsConnected(false);
+                if (wsRef.current === ws) {
+                    wsRef.current = null;
+                    currentPadIdRef.current = null;
+                }
+            };
 
-        return () => {
-            if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-                ws.close();
-            }
-        };
-    }, [padId, user]);
+            return () => {
+                if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+                    ws.close();
+                    currentPadIdRef.current = null;
+                }
+            };
+        } catch (error) {
+            console.error('[pad.ws] Error creating WebSocket:', error);
+            return () => { };
+        }
+    }, [padId, isAuthenticated, isLoading]);
 
     useEffect(() => {
         const cleanup = connect();
@@ -118,6 +101,8 @@ export const usePadWebSocket = (padId: string | null) => {
                 data,
                 timestamp: new Date().toISOString()
             }));
+        } else {
+            console.warn(`[pad.ws] Cannot send message: WebSocket not connected`);
         }
     }, [padId]);
 
