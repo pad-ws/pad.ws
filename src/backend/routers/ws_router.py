@@ -68,7 +68,7 @@ async def _handle_received_data(
     message_data.setdefault("timestamp", datetime.now().isoformat())
     message_data.setdefault("connection_id", connection_id)
 
-    print(f"[WS] {datetime.now().strftime('%H:%M:%S')} - {message_data.get('type', 'Unknown')} from [{str(user.id)[:5]}] on pad ({str(pad_id)[:5]})")
+    print(f"[WS] {datetime.now().strftime('%H:%M:%S')} - {message_data.get('type', 'Unknown')} from [{str(connection_id)[:5]}] on pad ({str(pad_id)[:5]})")
 
     await publish_event_to_redis(redis_client, stream_key, message_data)
 
@@ -96,21 +96,17 @@ async def consume_redis_stream(
                             value = v
                         formatted_message[key] = value
                     
-                    # print(f"Received message from {formatted_message}")
                     message_origin_connection_id = formatted_message.get('connection_id')
 
-                    # Only send if the message did not originate from this same connection
                     if message_origin_connection_id != current_connection_id:
                         await websocket.send_json(formatted_message)
                     else:
-                        # Optional: log that an echo was prevented
-                        # print(f"Echo prevented for connection {current_connection_id} on pad {formatted_message.get('pad_id', 'N/A')[:5]}")
                         pass
                     
                     last_id = message_id
             
-            # Brief pause to prevent CPU hogging
-            await asyncio.sleep(0.01)
+            # Release asyncio lock to prevent CPU hogging
+            await asyncio.sleep(0)
     except Exception as e:
         print(f"Error in Redis stream consumer: {e}")
 
@@ -145,18 +141,14 @@ async def websocket_endpoint(
             })
             
             # Publish user joined message
-            try:
-                join_message = {
-                    "type": "user_joined",
-                    "pad_id": str(pad_id),
-                    "user_id": str(user.id),
-                    "connection_id": connection_id,
-                    "timestamp": datetime.now().isoformat()
-                }
-                if redis_client:
-                    await publish_event_to_redis(redis_client, stream_key, join_message)
-            except Exception as e:
-                print(f"Error publishing join message: {e}")
+            join_message = {
+                "type": "user_joined",
+                "pad_id": str(pad_id),
+                "user_id": str(user.id),
+                "connection_id": connection_id,
+                "timestamp": datetime.now().isoformat()
+            }
+            await publish_event_to_redis(redis_client, stream_key, join_message)
         
         # Create tasks for WebSocket message handling and Redis stream reading
         async def handle_websocket_messages():
