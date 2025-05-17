@@ -59,25 +59,22 @@ const fetchUserPads = async (): Promise<PadResponse> => {
     };
 };
 
-// Assuming the backend returns an object with these fields for a new pad
 interface NewPadApiResponse {
     id: string;
     display_name: string;
     created_at: string;
     updated_at: string;
-    // Potentially other fields like 'data' if the full pad object is returned
 }
 
-const createNewPad = async (): Promise<Tab> => { // Return type is Tab
+const createNewPad = async (): Promise<Tab> => {
     const response = await fetch('/api/pad/new', {
         method: 'POST',
     });
     if (!response.ok) {
-        // Try to parse error message from backend
         let errorMessage = 'Failed to create new pad';
         try {
             const errorData = await response.json();
-            if (errorData && errorData.detail) { // FastAPI often uses 'detail'
+            if (errorData && errorData.detail) {
                 errorMessage = errorData.detail;
             } else if (errorData && errorData.message) {
                 errorMessage = errorData.message;

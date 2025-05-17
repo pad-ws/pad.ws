@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Excalidraw, MainMenu, Footer } from "@atyrode/excalidraw";
 import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
-import type { NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
+import type { ExcalidrawEmbeddableElement, NonDeleted, NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
 
 // Hooks
 import { useAuthStatus } from "./hooks/useAuthStatus";
-import { useAppConfig } from "./hooks/useAppConfig";
 import { usePadTabs } from "./hooks/usePadTabs";
-import { usePad } from "./hooks/usePadData";
 import { usePadWebSocket } from "./hooks/usePadWebSocket";
 
 // Components
@@ -34,7 +32,6 @@ export const defaultInitialData = {
 
 export default function App() {
   const { isAuthenticated } = useAuthStatus();
-  const { config: appConfig, isLoadingConfig, configError } = useAppConfig();
   const { 
     tabs, 
     selectedTabId, 
@@ -49,7 +46,6 @@ export default function App() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
 
-  const { padData } = usePad(selectedTabId, excalidrawAPI);
   const { sendMessage, isConnected } = usePadWebSocket(selectedTabId);
 
   const handleCloseSettingsModal = () => {
@@ -103,7 +99,7 @@ export default function App() {
         name="Pad.ws"
         onScrollChange={handleOnScrollChange}
         validateEmbeddable={true}
-        renderEmbeddable={(element, appState) => renderCustomEmbeddable(element, appState, excalidrawAPI)}
+        renderEmbeddable={(element: NonDeleted<ExcalidrawEmbeddableElement>, appState: AppState) => renderCustomEmbeddable(element, appState, excalidrawAPI)}
         renderTopRightUI={() => (
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <DiscordButton />
