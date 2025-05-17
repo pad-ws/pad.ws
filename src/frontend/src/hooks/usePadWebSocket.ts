@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAuthStatus } from './useAuthStatus';
 
 interface WebSocketMessage {
@@ -11,7 +11,8 @@ interface WebSocketMessage {
 
 export const usePadWebSocket = (padId: string | null) => {
     const wsRef = useRef<WebSocket | null>(null);
-    const { user } = useAuthStatus();
+    const { user, expires_in } = useAuthStatus();
+    const [isConnected, setIsConnected] = useState(false);
 
     const connect = useCallback(() => {
         if (!padId || !user) {
@@ -20,6 +21,7 @@ export const usePadWebSocket = (padId: string | null) => {
                 wsRef.current.close();
                 // wsRef.current = null; // Let onclose handle this
             }
+            setIsConnected(false); // Explicitly set to false
             return;
         }
 
@@ -47,6 +49,7 @@ export const usePadWebSocket = (padId: string | null) => {
 
         ws.onopen = () => {
             console.log(`[pad.ws] Connected to pad ${padId}`);
+            setIsConnected(true);
         };
 
         ws.onmessage = (event) => {
@@ -54,7 +57,6 @@ export const usePadWebSocket = (padId: string | null) => {
                 const message: WebSocketMessage = JSON.parse(event.data);
                 console.log(`[pad.ws] Received message:`, message);
 
-                // Handle different message types here
                 switch (message.type) {
                     case 'connected':
                         console.log(`[pad.ws] Successfully connected to pad ${message.pad_id}`);
@@ -86,9 +88,9 @@ export const usePadWebSocket = (padId: string | null) => {
             console.error('[pad.ws] Error:', error);
         };
 
-        ws.onclose = () => { // Removed event param as it's not used after removing logs
+        ws.onclose = () => {
             console.log(`[pad.ws] Disconnected from pad ${padId}`);
-            // Only nullify if wsRef.current is THIS instance that just closed
+            setIsConnected(false);
             if (wsRef.current === ws) {
                 wsRef.current = null;
             }
@@ -99,7 +101,7 @@ export const usePadWebSocket = (padId: string | null) => {
                 ws.close();
             }
         };
-    }, [padId, user]);
+    }, [padId, user, expires_in]);
 
     useEffect(() => {
         const cleanup = connect();
@@ -121,6 +123,6 @@ export const usePadWebSocket = (padId: string | null) => {
 
     return {
         sendMessage,
-        isConnected: wsRef.current?.readyState === WebSocket.OPEN
+        isConnected
     };
 };
