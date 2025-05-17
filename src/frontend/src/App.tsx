@@ -31,7 +31,7 @@ export const defaultInitialData = {
 };
 
 export default function App() {
-  const { isAuthenticated } = useAuthStatus();
+  const { isAuthenticated, isLoading: isLoadingAuth } = useAuthStatus();
   const {
     tabs,
     selectedTabId,
@@ -105,7 +105,7 @@ export default function App() {
           setShowSettingsModal={setShowSettingsModal}
         />
 
-        {!isAuthenticated && (
+        {!isLoadingAuth && !isAuthenticated && (
           <AuthDialog onClose={() => { }} />
         )}
 

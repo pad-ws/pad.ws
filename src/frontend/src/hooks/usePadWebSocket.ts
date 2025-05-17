@@ -150,6 +150,18 @@ export const usePadWebSocket = (padId: string | null) => {
             return;
         }
 
+        if (padId && padId.startsWith('temp-')) {
+            console.info(`[pad.ws] Holding WebSocket connection for temporary pad ID: ${padId}`);
+            if (connStateRef.current.ws) {
+                connStateRef.current.ws.close();
+                connStateRef.current.ws = null;
+            }
+            clearReconnectTimeout();
+            connStateRef.current.reconnectAttempts = 0;
+            setConnectionState(ConnectionState.DISCONNECTED);
+            return;
+        }
+
         // Don't reconnect if already connected to same pad
         if (connStateRef.current.ws &&
             connStateRef.current.currentPadId === padId &&
@@ -174,7 +186,7 @@ export const usePadWebSocket = (padId: string | null) => {
             console.error('[pad.ws] Error creating WebSocket:', error);
             attemptReconnect();
         }
-    }, [padId, isAuthenticated, isLoading, createWebSocket, attemptReconnect]);
+    }, [padId, isAuthenticated, isLoading, createWebSocket, attemptReconnect, clearReconnectTimeout]);
 
     // Connect when dependencies change
     useEffect(() => {
