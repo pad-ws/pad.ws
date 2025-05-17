@@ -64,8 +64,8 @@ async def _handle_received_data(
     # Add other metadata if not present or to ensure consistency
     message_data.setdefault("pad_id", str(pad_id))
     message_data.setdefault("timestamp", datetime.now().isoformat())
-    
-    print(f"Received message from {user.id} (event user_id: {message_data.get('user_id')}) on pad {str(pad_id)[:5]}")
+
+    print(f"[WS] {datetime.now().strftime('%H:%M:%S')} - {message_data.get('type', 'Unknown')} from [{str(user.id)[:5]}] on pad ({str(pad_id)[:5]})")
 
     await publish_event_to_redis(redis_client, stream_key, message_data)
 
