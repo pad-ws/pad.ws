@@ -1,252 +1,206 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useCallback, useMemo, useEffect, useState } from 'react';
+import useWebSocket, { ReadyState } from 'react-use-websocket';
+import { z } from 'zod'; // Import Zod
 import { useAuthStatus } from './useAuthStatus';
 
-interface WebSocketMessage {
-    type: string;
-    pad_id: string;
-    data: any;
-    timestamp: string;
-    user_id?: string;
-}
+// 1. Define Zod Schema for your WebSocketMessage
+// Adjust the 'data' part of the schema based on the actual structure of your messages.
+// Using z.any() for data is a placeholder; more specific schemas are better.
+// If 'data' can have different structures based on 'type', consider Zod's discriminated unions.
+const WebSocketMessageSchema = z.object({
+    type: z.string(),
+    pad_id: z.string().nullable(),
+    data: z.any().optional(), // Make 'data' optional
+    timestamp: z.string().datetime({ message: "Invalid timestamp format, expected ISO 8601" }).optional(),
+    user_id: z.string().optional(),
+});
 
-// WebSocket connection states
-enum ConnectionState {
-    DISCONNECTED = 'disconnected',
-    CONNECTING = 'connecting',
-    CONNECTED = 'connected',
-    RECONNECTING = 'reconnecting'
-}
+// Type inferred from the Zod schema
+type WebSocketMessage = z.infer<typeof WebSocketMessageSchema>;
 
-// Connection state object to consolidate multiple refs
-interface ConnectionStateRef {
-    ws: WebSocket | null;
-    reconnectTimeout: NodeJS.Timeout | null;
-    reconnectAttempts: number;
-    currentPadId: string | null;
-}
+const MAX_RECONNECT_ATTEMPTS = 5;
+const INITIAL_RECONNECT_DELAY = 1000; // 1 second
+
+// For user-friendly connection status
+type ConnectionStatus = 'Uninstantiated' | 'Connecting' | 'Open' | 'Closing' | 'Closed' | 'Reconnecting' | 'Failed';
 
 export const usePadWebSocket = (padId: string | null) => {
     const { isAuthenticated, isLoading, refetchAuthStatus } = useAuthStatus();
-    const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.DISCONNECTED);
+    const [isPermanentlyDisconnected, setIsPermanentlyDisconnected] = useState(false);
+    const [reconnectAttemptCount, setReconnectAttemptCount] = useState(0);
 
-    // Consolidated connection state
-    const connStateRef = useRef<ConnectionStateRef>({
-        ws: null,
-        reconnectTimeout: null,
-        reconnectAttempts: 0,
-        currentPadId: null
-    });
-
-    const MAX_RECONNECT_ATTEMPTS = 5;
-    const INITIAL_RECONNECT_DELAY = 1000; // 1 second
-
-    // Clear any reconnect timeout
-    const clearReconnectTimeout = useCallback(() => {
-        if (connStateRef.current.reconnectTimeout) {
-            clearTimeout(connStateRef.current.reconnectTimeout);
-            connStateRef.current.reconnectTimeout = null;
+    const getSocketUrl = useCallback((): string | null => {
+        if (!padId || padId.startsWith('temp-')) {
+            console.debug(`[pad.ws] getSocketUrl: Invalid padId (${padId}), returning null.`);
+            return null;
         }
-    }, []);
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const url = `${protocol}//${window.location.host}/ws/pad/${padId}`;
+        console.debug(`[pad.ws] getSocketUrl: Generated URL: ${url} for padId: ${padId}`);
+        return url;
+    }, [padId]);
 
-    // Reset connection state
-    const resetConnection = useCallback(() => {
-        clearReconnectTimeout();
-        connStateRef.current.reconnectAttempts = 0;
-        connStateRef.current.currentPadId = null;
-        setConnectionState(ConnectionState.DISCONNECTED);
-    }, [clearReconnectTimeout]);
+    const memoizedSocketUrl = useMemo(() => getSocketUrl(), [getSocketUrl]);
 
-    // Function to create and setup a WebSocket connection
-    const createWebSocket = useCallback((url: string, isReconnecting: boolean) => {
-        const ws = new WebSocket(url);
-        connStateRef.current.ws = ws;
+    const shouldBeConnected = useMemo(() => {
+        const conditionsMet = !!memoizedSocketUrl && isAuthenticated && !isLoading && !isPermanentlyDisconnected;
+        console.debug(
+            `[pad.ws] shouldBeConnected for pad ${padId}: ${conditionsMet} (URL: ${!!memoizedSocketUrl}, Auth: ${isAuthenticated}, Loading: ${isLoading}, PermanentDisconnect: ${isPermanentlyDisconnected})`
+        );
+        return conditionsMet;
+    }, [memoizedSocketUrl, isAuthenticated, isLoading, isPermanentlyDisconnected, padId]);
 
-        setConnectionState(isReconnecting ? ConnectionState.RECONNECTING : ConnectionState.CONNECTING);
-
-        ws.onopen = () => {
-            console.log(`[pad.ws] Connection established to pad ${padId}`);
-            setConnectionState(ConnectionState.CONNECTED);
-            connStateRef.current.currentPadId = padId;
-            connStateRef.current.reconnectAttempts = 0;
-        };
-
-        ws.onmessage = (event) => {
-            try {
-                const message: WebSocketMessage = JSON.parse(event.data);
-                console.debug("[pad.ws] Received message", message);
-                // Process message if needed
-            } catch (error) {
-                console.error('[pad.ws] Error parsing message:', error);
-            }
-        };
-
-        ws.onerror = (error) => {
-            console.error('[pad.ws] WebSocket error:', error);
-        };
-
-        ws.onclose = (event) => {
-            console.log(`[pad.ws] Connection closed with code ${event.code}`);
-            setConnectionState(ConnectionState.DISCONNECTED);
-
-            if (connStateRef.current.ws === ws) {
-                connStateRef.current.ws = null;
-
-                // Only attempt to reconnect if it wasn't a normal closure and we have a pad ID
-                const isAbnormalClosure = event.code !== 1000 && event.code !== 1001;
-                if (padId && isAbnormalClosure && connStateRef.current.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                    attemptReconnect();
-                } else if (!isAbnormalClosure) {
-                    resetConnection();
-                }
-            }
-        };
-
-        return ws;
-    }, [padId, resetConnection]);
-
-    // Forward declaration for connectWebSocket to be used in attemptReconnect
-    const connectWebSocketRef = useRef<((isReconnecting?: boolean) => void) | null>(null);
-
-    // Attempt to reconnect with exponential backoff
-    const attemptReconnect = useCallback(() => {
-        clearReconnectTimeout();
-
-        // Safety check if we've reached max attempts
-        if (connStateRef.current.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            console.warn('[pad.ws] Max reconnect attempts reached');
-            resetConnection();
-            return;
-        }
-
-        // Calculate delay with exponential backoff
-        const attempt = connStateRef.current.reconnectAttempts + 1;
-        const delay = INITIAL_RECONNECT_DELAY * Math.pow(2, connStateRef.current.reconnectAttempts);
-        console.info(`[pad.ws] Reconnecting in ${delay}ms (attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS})`);
-
-        // Increment counter before scheduling reconnect
-        connStateRef.current.reconnectAttempts = attempt;
-
-        // Schedule reconnect
-        connStateRef.current.reconnectTimeout = setTimeout(() => {
-            if (connectWebSocketRef.current) {
-                connectWebSocketRef.current(true);
-            }
-        }, delay);
-    }, [clearReconnectTimeout, resetConnection]);
-
-    // Core connection function
-    const connectWebSocket = useCallback((isReconnecting = false) => {
-        // Check if we can/should connect
-        const canConnect = isAuthenticated && !isLoading && padId;
-        console.log('[pad.ws] trying to connect', canConnect, isAuthenticated, !isLoading, padId);
-        if (!canConnect) {
-            // Clean up existing connection if we can't connect now
-            if (connStateRef.current.ws) {
-                connStateRef.current.ws.close();
-                connStateRef.current.ws = null;
-            }
-            setConnectionState(ConnectionState.DISCONNECTED);
-
-            // Preserve reconnection sequence if needed
-            if (isReconnecting &&
-                connStateRef.current.reconnectAttempts > 0 &&
-                connStateRef.current.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                
-                // If auth status is unknown and not loading, try to refetch it
+    const {
+        sendMessage: librarySendMessage,
+        lastMessage: rawLastMessage,
+        readyState,
+    } = useWebSocket(
+        memoizedSocketUrl,
+        {
+            onOpen: () => {
+                console.log(`[pad.ws] Connection established for pad: ${padId}`);
+                setIsPermanentlyDisconnected(false);
+                setReconnectAttemptCount(0);
+            },
+            onClose: (event: CloseEvent) => {
+                console.log(`[pad.ws] Connection closed for pad: ${padId}. Code: ${event.code}, Reason: '${event.reason}'`);
                 if (isAuthenticated === undefined && !isLoading) {
-                    console.log('[pad.ws] Auth status is unknown and not loading, attempting to refetch auth status.');
+                    console.log('[pad.ws] Auth status unknown on close, attempting to refetch auth status.');
+                    refetchAuthStatus();
+                }
+            },
+            onError: (event: Event) => {
+                console.error(`[pad.ws] WebSocket error for pad: ${padId}:`, event);
+            },
+            shouldReconnect: (closeEvent: CloseEvent) => {
+                const isAbnormalClosure = closeEvent.code !== 1000 && closeEvent.code !== 1001;
+                const conditionsStillMetForConnection = !!getSocketUrl() && isAuthenticated && !isLoading;
+
+                if (isAbnormalClosure && !conditionsStillMetForConnection && isAuthenticated === undefined && !isLoading) {
+                    console.log('[pad.ws] Abnormal closure for pad ${padId}, auth status unknown. Refetching auth before deciding on reconnect.');
                     refetchAuthStatus();
                 }
                 
-                console.log(`[pad.ws] Can't connect now but preserving reconnection sequence, scheduling next attempt`);
-                attemptReconnect();
-            }
-            return;
-        }
-
-        if (padId && padId.startsWith('temp-')) {
-            console.info(`[pad.ws] Holding WebSocket connection for temporary pad ID: ${padId}`);
-            if (connStateRef.current.ws) {
-                connStateRef.current.ws.close();
-                connStateRef.current.ws = null;
-            }
-            clearReconnectTimeout();
-            connStateRef.current.reconnectAttempts = 0;
-            setConnectionState(ConnectionState.DISCONNECTED);
-            return;
-        }
-
-        // Don't reconnect if already connected to same pad
-        if (connStateRef.current.ws &&
-            connStateRef.current.currentPadId === padId &&
-            connStateRef.current.ws.readyState === WebSocket.OPEN) {
-            return;
-        }
-
-        console.log(`[pad.ws] ${isReconnecting ? 'Re' : ''}Connecting to pad ${padId} (attempt ${isReconnecting ? connStateRef.current.reconnectAttempts : 0}/${MAX_RECONNECT_ATTEMPTS})`);
-
-        // Close any existing connection before creating a new one
-        if (connStateRef.current.ws) {
-            connStateRef.current.ws.close();
-        }
-
-        // Create the WebSocket URL
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws/pad/${padId}`;
-
-        try {
-            createWebSocket(wsUrl, isReconnecting);
-        } catch (error) {
-            console.error('[pad.ws] Error creating WebSocket:', error);
-            attemptReconnect();
-        }
-    }, [padId, isAuthenticated, isLoading, refetchAuthStatus, createWebSocket, attemptReconnect, clearReconnectTimeout]);
-    
-    // Assign the connectWebSocket function to the ref after its definition
-    useEffect(() => {
-        connectWebSocketRef.current = connectWebSocket;
-    }, [connectWebSocket]);
-
-    // Connect when dependencies change
-    useEffect(() => {
-        connectWebSocket(false);
-
-        // Cleanup function - preserve reconnection attempts
-        return () => {
-            if (connStateRef.current.ws) {
-                // Only close if this is a normal unmount, not a reconnection attempt
-                if (connStateRef.current.reconnectAttempts === 0) {
-                    connStateRef.current.ws.close();
-                    connStateRef.current.currentPadId = null;
-                } else {
-                    console.log(`[pad.ws] Component unmounting but preserving connection attempt ${connStateRef.current.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+                const decision = isAbnormalClosure && conditionsStillMetForConnection && !isPermanentlyDisconnected;
+                if (decision) {
+                    setReconnectAttemptCount(prev => prev + 1);
                 }
+                console.log(
+                    `[pad.ws] shouldReconnect for pad ${padId}: ${decision} (Abnormal: ${isAbnormalClosure}, ConditionsMet: ${conditionsStillMetForConnection}, PermanentDisconnect: ${isPermanentlyDisconnected}, Code: ${closeEvent.code})`
+                );
+                return decision;
+            },
+            reconnectAttempts: MAX_RECONNECT_ATTEMPTS,
+            reconnectInterval: (attemptNumber: number) => {
+                const delay = INITIAL_RECONNECT_DELAY * Math.pow(2, attemptNumber);
+                console.info(
+                    `[pad.ws] Reconnecting attempt ${attemptNumber + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms for pad: ${padId}`
+                );
+                return delay;
+            },
+            onReconnectStop: (numAttempts: number) => {
+                console.warn(`[pad.ws] Failed to reconnect to pad ${padId} after ${numAttempts} attempts. Stopping.`);
+                setIsPermanentlyDisconnected(true);
+                setReconnectAttemptCount(numAttempts); // Store the final attempt count
+            },
+        },
+        shouldBeConnected
+    );
+
+    const lastJsonMessage = useMemo((): WebSocketMessage | null => {
+        if (rawLastMessage && rawLastMessage.data) {
+            try {
+                const parsedData = JSON.parse(rawLastMessage.data as string);
+                const validationResult = WebSocketMessageSchema.safeParse(parsedData);
+                if (validationResult.success) {
+                    return validationResult.data;
+                } else {
+                    console.error(`[pad.ws] Incoming message validation failed for pad ${padId}:`, validationResult.error.issues);
+                    return null;
+                }
+            } catch (error) {
+                console.error(`[pad.ws] Error parsing incoming JSON message for pad ${padId}:`, error);
+                return null;
             }
-            // Only clear the timeout, don't reset the counter or close active reconnection attempts
-            clearReconnectTimeout();
-        };
-    }, [connectWebSocket, clearReconnectTimeout]);
-
-    // Check if we're connected
-    const isConnected = connectionState === ConnectionState.CONNECTED;
-
-    // Send message over WebSocket
-    const sendMessage = useCallback((type: string, data: any) => {
-        if (connStateRef.current.ws?.readyState === WebSocket.OPEN) {
-            connStateRef.current.ws.send(JSON.stringify({
-                type,
-                pad_id: padId,
-                data,
-                timestamp: new Date().toISOString()
-            }));
-            return true;
         }
-        console.warn(`[pad.ws] Cannot send message: WebSocket not connected - changes will not be saved`);
-        return false;
-    }, [padId]);
+        return null;
+    }, [rawLastMessage, padId]);
+
+    const sendJsonMessage = useCallback((payload: WebSocketMessage) => {
+        // Validate outgoing message structure (optional, but good practice)
+        const validationResult = WebSocketMessageSchema.safeParse(payload);
+        if (!validationResult.success) {
+            console.error(`[pad.ws] Outgoing message validation failed for pad ${padId}:`, validationResult.error.issues);
+            // Decide if you want to throw an error or just log and not send
+            return;
+        }
+
+        if (readyState === ReadyState.OPEN) {
+            console.debug(`[pad.ws] Sending message for pad ${padId}:`, payload);
+            librarySendMessage(JSON.stringify(payload));
+        } else {
+            console.warn(`[pad.ws] WebSocket not open for pad ${padId}. State: ${readyState}. Message not sent:`, payload);
+            // react-use-websocket queues messages if sent before open, but this explicit check can be useful for logging.
+            // If you rely purely on the library's queueing, you might remove this check.
+            // However, for critical messages, knowing it wasn't sent immediately can be good.
+            // For now, let's assume librarySendMessage handles queueing if not open.
+            librarySendMessage(JSON.stringify(payload));
+        }
+    }, [padId, librarySendMessage, readyState]);
+
+    // Wrapper to maintain the original `sendMessage(type, data)` signature if preferred by consuming components
+    const sendMessage = useCallback((type: string, data: any) => {
+        const messagePayload: WebSocketMessage = {
+            type,
+            pad_id: padId,
+            data,
+            timestamp: new Date().toISOString(),
+            // user_id: can be added here if available and needed from context
+        };
+        sendJsonMessage(messagePayload);
+    }, [padId, sendJsonMessage]);
+
+    useEffect(() => {
+        if (lastJsonMessage) {
+            console.debug(`[pad.ws] Validated JSON message received for pad ${padId}:`, lastJsonMessage);
+            // TODO: Dispatch to a store, update context, or trigger other side effects based on the message
+        }
+    }, [lastJsonMessage, padId]);
+
+    const connectionStatus = useMemo((): ConnectionStatus => {
+        if (isPermanentlyDisconnected) return 'Failed';
+        
+        switch (readyState) {
+            case ReadyState.UNINSTANTIATED:
+                return 'Uninstantiated';
+            case ReadyState.CONNECTING:
+                // Differentiate between initial connecting and reconnecting
+                if (reconnectAttemptCount > 0 && reconnectAttemptCount < MAX_RECONNECT_ATTEMPTS && !isPermanentlyDisconnected) {
+                    return 'Reconnecting';
+                }
+                return 'Connecting';
+            case ReadyState.OPEN:
+                return 'Open';
+            case ReadyState.CLOSING:
+                return 'Closing';
+            case ReadyState.CLOSED:
+                 // If it's closed but not permanently, and shouldBeConnected is true, it might be about to reconnect
+                if (shouldBeConnected && reconnectAttemptCount > 0 && reconnectAttemptCount < MAX_RECONNECT_ATTEMPTS && !isPermanentlyDisconnected) {
+                    return 'Reconnecting';
+                }
+                return 'Closed';
+            default:
+                return 'Uninstantiated';
+        }
+    }, [readyState, isPermanentlyDisconnected, reconnectAttemptCount, shouldBeConnected]);
 
     return {
-        sendMessage,
-        isConnected
+        sendMessage, // Original simple signature
+        sendJsonMessage, // For sending pre-formed WebSocketMessage objects
+        lastJsonMessage, // Validated JSON message
+        rawLastMessage,  // Raw message, for debugging or non-JSON cases
+        readyState,      // Numerical readyState
+        connectionStatus,// User-friendly status string
+        isPermanentlyDisconnected,
     };
 };

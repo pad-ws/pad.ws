@@ -16,7 +16,9 @@
     "lucide-react": "^0.488.0",
     "posthog-js": "^1.236.0",
     "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react-dom": "19.0.0",
+    "react-use-websocket": "^4.13.0",
+    "zod": "^3.24.4"
   },
   "resolutions": {
     "cytoscape": "3.31.2",
