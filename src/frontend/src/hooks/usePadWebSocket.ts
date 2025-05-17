@@ -135,18 +135,8 @@ export const usePadWebSocket = (padId: string | null) => {
             return;
         }
 
-        if (readyState === ReadyState.OPEN) {
-            console.debug(`[pad.ws] Sending message for pad ${padId}:`, payload);
-            librarySendMessage(JSON.stringify(payload));
-        } else {
-            console.warn(`[pad.ws] WebSocket not open for pad ${padId}. State: ${readyState}. Message not sent:`, payload);
-            // react-use-websocket queues messages if sent before open, but this explicit check can be useful for logging.
-            // If you rely purely on the library's queueing, you might remove this check.
-            // However, for critical messages, knowing it wasn't sent immediately can be good.
-            // For now, let's assume librarySendMessage handles queueing if not open.
-            librarySendMessage(JSON.stringify(payload));
-        }
-    }, [padId, librarySendMessage, readyState]);
+        librarySendMessage(JSON.stringify(payload));
+    }, [padId, librarySendMessage]);
 
     // Wrapper to maintain the original `sendMessage(type, data)` signature if preferred by consuming components
     const sendMessage = useCallback((type: string, data: any) => {

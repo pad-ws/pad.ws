@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Excalidraw, MainMenu, Footer } from "@atyrode/excalidraw";
 import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
 import type { ExcalidrawEmbeddableElement, NonDeleted, NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
@@ -46,25 +46,25 @@ export default function App() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
 
-  const { sendMessage, isConnected } = usePadWebSocket(selectedTabId);
+  const { sendMessage } = usePadWebSocket(selectedTabId);
+
+  // Memoized debounced function for pad updates
+  const debouncedPadUpdate = useMemo(() => {
+    return debounce((elements: readonly NonDeletedExcalidrawElement[], state: AppState) => {
+      if (sendMessage && selectedTabId) {
+        // console.log('[pad.ws] Debounced pad_update sending:', { elements, state }); 
+        sendMessage("pad_update", { elements, state });
+      }
+    }, 250); // 250ms delay
+  }, [sendMessage, selectedTabId]); // Dependencies for useMemo
 
   const handleCloseSettingsModal = () => {
     setShowSettingsModal(false);
   };
 
-  const debouncedSendMessage = useCallback(
-    debounce((type: string, data: any) => {
-      sendMessage(type, data);
-    }, 250),
-    [sendMessage]
-  );
-
   const handleOnChange = useCallback((elements: readonly NonDeletedExcalidrawElement[], state: AppState) => {
-    debouncedSendMessage('pad_update', {
-      elements,
-      appState: state
-    });
-  }, [debouncedSendMessage]);
+    debouncedPadUpdate(elements, state);
+  }, [debouncedPadUpdate]); // Dependency for useCallback is now the debounced function
 
   const handleOnScrollChange = (scrollX: number, scrollY: number) => {
     lockEmbeddables(excalidrawAPI?.getAppState());
