@@ -8,6 +8,7 @@ import AccountDialog from './AccountDialog';
 import md5 from 'crypto-js/md5';
 // import { capture } from '../utils/posthog';
 import { useLogout } from '../hooks/useLogout';
+import { useAuthStatus } from '../hooks/useAuthStatus';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/elementFactory';
 import "./MainMenu.scss";
 
@@ -33,29 +34,17 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
 }) => {
   const [showAccountModal, setShowAccountModal] = useState(false);
   const { mutate: logoutMutation, isPending: isLoggingOut } = useLogout();
-
-  const data = { // TODO
-    id: '1234567890',
-    email: 'test@example.com',
-    username: 'testuser',
-    name: 'Test User',
-    given_name: 'Test',
-    family_name: 'User',
-    email_verified: true,
-  }
-
-  const isLoading = false; //TODO
-  const isError = false; //TODO
+  const { user, isLoading, isError } = useAuthStatus();
 
   let username = "";
   let email = "";
   if (isLoading) {
     username = "Loading...";
-  } else if (isError || !data?.username) {
+  } else if (isError || !user?.username) {
     username = "Unknown";
   } else {
-    username = data.username;
-    email = data.email || "";
+    username = user.username;
+    email = user.email || "";
   }
 
   const handleDashboardButtonClick = () => {
