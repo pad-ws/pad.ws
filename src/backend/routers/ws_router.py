@@ -1,5 +1,6 @@
 import json
 import asyncio
+import uuid
 from uuid import UUID
 from typing import Optional
 from datetime import datetime
@@ -53,7 +54,8 @@ async def _handle_received_data(
     pad_id: UUID,
     user: UserSession,
     redis_client: aioredis.Redis,
-    stream_key: str
+    stream_key: str,
+    connection_id: str
 ):
     """Processes decoded message data and publishes to Redis."""
     message_data = json.loads(raw_data)
@@ -64,6 +66,7 @@ async def _handle_received_data(
     # Add other metadata if not present or to ensure consistency
     message_data.setdefault("pad_id", str(pad_id))
     message_data.setdefault("timestamp", datetime.now().isoformat())
+    message_data.setdefault("connection_id", connection_id)
 
     print(f"[WS] {datetime.now().strftime('%H:%M:%S')} - {message_data.get('type', 'Unknown')} from [{str(user.id)[:5]}] on pad ({str(pad_id)[:5]})")
 
@@ -73,7 +76,7 @@ async def consume_redis_stream(
     redis_client: aioredis.Redis,
     stream_key: str,
     websocket: WebSocket,
-    current_connection_user_id: str, # Added to identify the user of this specific WebSocket connection
+    current_connection_id: str,  # Changed to identify the specific connection
     last_id: str = '$'
 ):
     """Consumes messages from Redis stream and forwards them to the WebSocket, avoiding echo."""
@@ -93,14 +96,15 @@ async def consume_redis_stream(
                             value = v
                         formatted_message[key] = value
                     
-                    message_origin_user_id = formatted_message.get('user_id')
+                    # print(f"Received message from {formatted_message}")
+                    message_origin_connection_id = formatted_message.get('connection_id')
 
-                    # Only send if the message did not originate from this same user connection
-                    if message_origin_user_id != current_connection_user_id:
+                    # Only send if the message did not originate from this same connection
+                    if message_origin_connection_id != current_connection_id:
                         await websocket.send_json(formatted_message)
                     else:
                         # Optional: log that an echo was prevented
-                        # print(f"Echo prevented for user {current_connection_user_id} on pad {formatted_message.get('pad_id', 'N/A')[:5]}")
+                        # print(f"Echo prevented for connection {current_connection_id} on pad {formatted_message.get('pad_id', 'N/A')[:5]}")
                         pass
                     
                     last_id = message_id
@@ -128,12 +132,16 @@ async def websocket_endpoint(
         redis_client = await get_redis_client()
         stream_key = f"pad:stream:{pad_id}"
         
+        # Generate a unique connection ID for this WebSocket session
+        connection_id = str(uuid.uuid4())
+        
         # Send initial connection success
         if websocket.client_state.CONNECTED:
             await websocket.send_json({
                 "type": "connected",
                 "pad_id": str(pad_id),
-                "user_id": str(user.id)
+                "user_id": str(user.id),
+                "connection_id": connection_id
             })
             
             # Publish user joined message
@@ -142,6 +150,7 @@ async def websocket_endpoint(
                     "type": "user_joined",
                     "pad_id": str(pad_id),
                     "user_id": str(user.id),
+                    "connection_id": connection_id,
                     "timestamp": datetime.now().isoformat()
                 }
                 if redis_client:
@@ -154,7 +163,7 @@ async def websocket_endpoint(
             while websocket.client_state.CONNECTED:
                 try:
                     data = await websocket.receive_text()
-                    await _handle_received_data(data, pad_id, user, redis_client, stream_key)
+                    await _handle_received_data(data, pad_id, user, redis_client, stream_key, connection_id)
                 except WebSocketDisconnect:
                     break
                 except json.JSONDecodeError as e:
@@ -171,7 +180,7 @@ async def websocket_endpoint(
         # Run both tasks concurrently
         ws_task = asyncio.create_task(handle_websocket_messages())
         redis_task = asyncio.create_task(
-            consume_redis_stream(redis_client, stream_key, websocket, str(user.id), last_id='$')
+            consume_redis_stream(redis_client, stream_key, websocket, connection_id, last_id='$')
         )
         
         # Wait for either task to complete
@@ -194,6 +203,7 @@ async def websocket_endpoint(
                     "type": "user_left",
                     "pad_id": str(pad_id),
                     "user_id": str(user.id),
+                    "connection_id": connection_id,
                     "timestamp": datetime.now().isoformat()
                 }
                 await publish_event_to_redis(redis_client, stream_key, leave_message)
