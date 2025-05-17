@@ -82,13 +82,31 @@ class Pad:
             if await redis.exists(cache_key):
                 cached_data = await redis.hgetall(cache_key)
                 if cached_data:
+                    pad_id = UUID(cached_data['id'])
+                    owner_id = UUID(cached_data['owner_id'])
+                    display_name = cached_data['display_name']
+                    data = json.loads(cached_data['data'])
+                    created_at = datetime.fromisoformat(cached_data['created_at'])
+                    updated_at = datetime.fromisoformat(cached_data['updated_at'])
+                    
+                    # Create a minimal PadStore instance
+                    store = PadStore(
+                        id=pad_id,
+                        owner_id=owner_id,
+                        display_name=display_name,
+                        data=data,
+                        created_at=created_at,
+                        updated_at=updated_at
+                    )
+                    
                     pad_instance = cls(
-                        id=UUID(cached_data['id']),
-                        owner_id=UUID(cached_data['owner_id']),
-                        display_name=cached_data['display_name'],
-                        data=json.loads(cached_data['data']),
-                        created_at=datetime.fromisoformat(cached_data['created_at']),
-                        updated_at=datetime.fromisoformat(cached_data['updated_at'])
+                        id=pad_id,
+                        owner_id=owner_id,
+                        display_name=display_name,
+                        data=data,
+                        created_at=created_at,
+                        updated_at=updated_at,
+                        store=store
                     )
                     return pad_instance
         except (json.JSONDecodeError, KeyError, ValueError) as e:
@@ -216,8 +234,11 @@ class Pad:
 
     async def delete(self, session: AsyncSession) -> bool:
         """Delete the pad from both database and cache"""
+        print(f"Deleting pad {self.id}", flush=True)
+        print(f"self._store: {self._store}", flush=True)
         if self._store:
             success = await self._store.delete(session)
+            
             if success:
                 try:
                     await self.invalidate_cache()
