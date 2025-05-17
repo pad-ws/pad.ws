@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { scheduleTokenRefresh, AUTH_STATUS_KEY } from '../lib/authRefreshManager';
 
 interface UserInfo {
+  id?: string;
   username?: string;
   email?: string;
   name?: string;
