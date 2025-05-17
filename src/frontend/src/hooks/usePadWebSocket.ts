@@ -11,7 +11,7 @@ interface WebSocketMessage {
 
 export const usePadWebSocket = (padId: string | null) => {
     const wsRef = useRef<WebSocket | null>(null);
-    const { user, expires_in } = useAuthStatus();
+    const { user } = useAuthStatus();
     const [isConnected, setIsConnected] = useState(false);
 
     const connect = useCallback(() => {
@@ -101,7 +101,7 @@ export const usePadWebSocket = (padId: string | null) => {
                 ws.close();
             }
         };
-    }, [padId, user, expires_in]);
+    }, [padId, user]);
 
     useEffect(() => {
         const cleanup = connect();
