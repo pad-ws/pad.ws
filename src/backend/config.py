@@ -82,7 +82,7 @@ async def close_redis_client() -> None:
         RedisService._instance = None
 
 default_pad = {}
-with open("templates/default.json", 'r') as f:
+with open("templates/dev.json", 'r') as f:
     default_pad = json.load(f)
 
 # ===== Coder API Configuration =====
