@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 
-import { LogOut, SquarePlus, LayoutDashboard, User, Text, Settings, Terminal, FileText } from 'lucide-react';
+import { LogOut, SquarePlus, LayoutDashboard, User, Text, Settings, Terminal, FileText, FlaskConical } from 'lucide-react';
 import AccountDialog from './AccountDialog';
 import md5 from 'crypto-js/md5';
 // import { capture } from '../utils/posthog';
@@ -57,6 +57,22 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     });
     
     ExcalidrawElementFactory.placeInScene(dashboardElement, excalidrawAPI, {
+      mode: PlacementMode.NEAR_VIEWPORT_CENTER,
+      bufferPercentage: 10,
+      scrollToView: true
+    });
+  };
+
+  const handleDevToolsClick = () => {
+    if (!excalidrawAPI) return;
+    
+    const devToolsElement = ExcalidrawElementFactory.createEmbeddableElement({
+      link: "!dev",
+      width: 800,
+      height: 500
+    });
+    
+    ExcalidrawElementFactory.placeInScene(devToolsElement, excalidrawAPI, {
       mode: PlacementMode.NEAR_VIEWPORT_CENTER,
       bufferPercentage: 10,
       scrollToView: true
@@ -244,6 +260,12 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
           onClick={handleInsertButtonClick}
         >
           Action Button
+        </MainMenu.Item>
+        <MainMenu.Item
+          icon={<FlaskConical />}
+          onClick={handleDevToolsClick}
+        >
+          Dev. Tools
         </MainMenu.Item>
       </MainMenu.Group>
       
