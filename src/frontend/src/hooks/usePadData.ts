@@ -37,7 +37,7 @@ export const usePad = (padId: string, excalidrawAPI: ExcalidrawImperativeAPI | n
     useEffect(() => {
         if (data && excalidrawAPI) {
             const normalizedData = normalizeCanvasData(data);
-            console.log(`[Pad] Loading pad ${padId}`);
+            console.log(`[pad.ws] Loading pad ${padId}`);
             excalidrawAPI.updateScene(normalizedData);
         }
     }, [data, excalidrawAPI, padId]);

@@ -14,18 +14,35 @@ export const usePadWebSocket = (padId: string | null) => {
     const { user } = useAuthStatus();
 
     const connect = useCallback(() => {
-        if (!padId || !user) return;
-
-        // Close existing connection if any
-        if (wsRef.current) {
-            console.log(`[WebSocket] Closing connection to previous pad`);
-            wsRef.current.close();
-            wsRef.current = null;
+        if (!padId || !user) {
+            // Ensure any existing connection is closed if padId becomes null or user logs out
+            if (wsRef.current) {
+                wsRef.current.close();
+                // wsRef.current = null; // Let onclose handle this
+            }
+            return; 
         }
 
-        // Determine WebSocket protocol based on current page protocol
+        // Close existing connection if any (from a *different* padId)
+        if (wsRef.current && !wsRef.current.url.endsWith(padId)) {
+            wsRef.current.close();
+            // wsRef.current = null; // Let onclose handle setting wsRef.current to null
+        } else if (wsRef.current && wsRef.current.url.endsWith(padId)) {
+            // Already connected or connecting to the same padId, do nothing.
+            // The useEffect dependency on `connect` (which depends on `padId`) handles this.
+            return () => { // Return the existing cleanup if we're not making a new ws
+                if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {
+                    // This is tricky, if connect is called but we don't make a new ws,
+                    // what cleanup should be returned? The one for the existing ws.
+                    // However, this path should ideally not be hit if deps are correct.
+                    // For safety, we can return a no-op or the existing ws's close.
+                }
+            };
+        }
+
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const ws = new WebSocket(`${protocol}//${window.location.host}/ws/pad/${padId}`);
+        const wsUrl = `${protocol}//${window.location.host}/ws/pad/${padId}`;
+        const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -69,27 +86,28 @@ export const usePadWebSocket = (padId: string | null) => {
             console.error('[WebSocket] Error:', error);
         };
 
-        ws.onclose = () => {
+        ws.onclose = () => { // Removed event param as it's not used after removing logs
             console.log(`[WebSocket] Disconnected from pad ${padId}`);
-            wsRef.current = null;
+            // Only nullify if wsRef.current is THIS instance that just closed
+            if (wsRef.current === ws) {
+                wsRef.current = null;
+            }
         };
 
-        return () => {
-            if (ws.readyState === WebSocket.OPEN) {
+        return () => { 
+            if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
                 ws.close();
             }
         };
     }, [padId, user]);
 
-    // Connect when padId changes
     useEffect(() => {
-        const cleanup = connect();
+        const cleanup = connect(); 
         return () => {
             cleanup?.();
         };
     }, [connect]);
 
-    // Function to send messages through WebSocket
     const sendMessage = useCallback((type: string, data: any) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({
@@ -105,4 +123,4 @@ export const usePadWebSocket = (padId: string | null) => {
         sendMessage,
         isConnected: wsRef.current?.readyState === WebSocket.OPEN
     };
-}; 
+};

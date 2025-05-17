@@ -11,15 +11,16 @@ import { usePad } from "./hooks/usePadData";
 import { usePadWebSocket } from "./hooks/usePadWebSocket";
 
 // Components
-import TabBar from "./ui/TabBar";
 import DiscordButton from './ui/DiscordButton';
 import { MainMenuConfig } from './ui/MainMenu';
 import AuthDialog from './ui/AuthDialog';
 import SettingsDialog from './ui/SettingsDialog';
 
 // Utils
-import { initializePostHog } from "./utils/posthog";
+// import { initializePostHog } from "./lib/posthog";
 import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRenderer';
+import { debounce } from './lib/debounce';
+import Tabs from "./ui/Tabs";
 
 const defaultInitialData = {
   elements: [],
@@ -39,33 +40,18 @@ const defaultInitialData = {
   files: {},
 };
 
-// Create a debounce function
-const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
-
-  return (...args: Parameters<F>): ReturnType<F> | undefined => {
-    if (timeout !== null) {
-      clearTimeout(timeout);
-    }
-
-    timeout = setTimeout(() => {
-      func(...args);
-    }, waitFor);
-
-    return undefined;
-  };
-};
-
 export default function App() {
   const { isAuthenticated } = useAuthStatus();
   const { config: appConfig, isLoadingConfig, configError } = useAppConfig();
-  const {
-    tabs,
-    selectedTabId,
-    isLoading: isLoadingTabs,
-    createNewPad,
-    isCreating,
-    selectTab
+  const { 
+    tabs, 
+    selectedTabId, 
+    isLoading: isLoadingTabs, 
+    createNewPadAsync, 
+    isCreating: isCreatingPad, 
+    renamePad, 
+    deletePad, 
+    selectTab 
   } = usePadTabs();
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -78,18 +64,14 @@ export default function App() {
     setShowSettingsModal(false);
   };
 
-  // Create debounced version of sendMessage
   const debouncedSendMessage = useCallback(
     debounce((type: string, data: any) => {
       if (isConnected && selectedTabId) {
-        // Only log on failure to avoid noise
         sendMessage(type, data);
       } else if (!isConnected && selectedTabId) {
-        // Add a slight delay to check connection status again before showing the error
-        // This helps avoid false alarms during connection establishment
         setTimeout(() => {
           if (!isConnected) {
-            console.log(`[App] WebSocket not connected - changes will not be saved`);
+            console.log(`[pad.ws] WebSocket not connected - changes will not be saved`);
           }
         }, 100);
       }
@@ -98,7 +80,6 @@ export default function App() {
   );
 
   const handleOnChange = useCallback((elements: readonly NonDeletedExcalidrawElement[], state: AppState) => {
-    // No logging on every change to reduce noise
     debouncedSendMessage('pad_update', {
       elements,
       appState: state
@@ -109,21 +90,16 @@ export default function App() {
     lockEmbeddables(excalidrawAPI?.getAppState());
   };
 
-  const handleTabSelect = async (tabId: string) => {
-    // Only log tab changes to reduce noise
-    await selectTab(tabId);
-  };
-
-  useEffect(() => {
-    if (appConfig?.posthogKey && appConfig?.posthogHost) {
-      initializePostHog({
-        posthogKey: appConfig.posthogKey,
-        posthogHost: appConfig.posthogHost,
-      });
-    } else if (configError) {
-      console.error('[pad.ws] Failed to load app config:', configError);
-    }
-  }, [appConfig, configError]);
+  // useEffect(() => {
+  //   if (appConfig?.posthogKey && appConfig?.posthogHost) {
+  //     initializePostHog({
+  //       posthogKey: appConfig.posthogKey,
+  //       posthogHost: appConfig.posthogHost,
+  //     });
+  //   } else if (configError) {
+  //     console.error('[pad.ws] Failed to load app config:', configError);
+  //   }
+  // }, [appConfig, configError]);
 
   return (
     <>
@@ -160,14 +136,21 @@ export default function App() {
           />
         )}
 
-        <Footer>
-          <TabBar
-            tabs={tabs.map(tab => ({ id: tab.id, label: tab.title }))}
-            activeTabId={selectedTabId}
-            onTabSelect={handleTabSelect}
-            onNewTab={createNewPad}
-          />
-        </Footer>
+        {excalidrawAPI && (
+          <Footer>
+            <Tabs
+              excalidrawAPI={excalidrawAPI}
+              tabs={tabs}
+              selectedTabId={selectedTabId}
+              isLoading={isLoadingTabs}
+              isCreatingPad={isCreatingPad}
+              createNewPadAsync={createNewPadAsync}
+              renamePad={renamePad}
+              deletePad={deletePad}
+              selectTab={selectTab}
+            />
+          </Footer>
+        )}
       </Excalidraw>
     </>
   );
