@@ -1,11 +1,13 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Cookie
-from typing import Dict, Set, Optional
-from uuid import UUID
 import json
-import asyncio
+from uuid import UUID
+from typing import Dict, Set, Optional
+from datetime import datetime
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Cookie
+from redis import asyncio as aioredis
+
 from config import get_redis_client
 from dependencies import UserSession, get_session_domain
-from datetime import datetime
 
 ws_router = APIRouter()
 
@@ -57,6 +59,50 @@ async def cleanup_connection(pad_id: UUID, websocket: WebSocket):
         if "already completed" not in str(e) and "close message has been sent" not in str(e):
             print(f"Error closing WebSocket connection: {e}")
 
+async def broadcast_message(pad_id: UUID, message: Dict, sender_websocket: WebSocket):
+    """Broadcasts a message to all connected clients in a pad, except the sender."""
+    if pad_id in active_connections:
+        for connection in active_connections[pad_id].copy():  # Iterate over a copy for safe removal
+            if connection != sender_websocket and connection.client_state.CONNECTED:
+                try:
+                    await connection.send_json(message)
+                except (WebSocketDisconnect, Exception) as e:
+                    # Log error if it's not a standard "already closed" type
+                    if "close message has been sent" not in str(e) and "already completed" not in str(e):
+                        print(f"Error sending message to client during broadcast: {e}")
+                    # Attempt to clean up the problematic connection
+                    await cleanup_connection(pad_id, connection)
+
+async def publish_event_to_redis(redis_client: aioredis.Redis, stream_key: str, event_data: Dict):
+    """Formats event data and publishes it to a Redis stream."""
+    field_value_dict = {
+        str(k): str(v) if not isinstance(v, (int, float)) else v
+        for k, v in event_data.items()
+    }
+    await redis_client.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
+
+async def _handle_received_data(
+    raw_data: str,
+    pad_id: UUID,
+    user: UserSession,
+    redis_client: aioredis.Redis, 
+    stream_key: str,
+    websocket: WebSocket
+):
+    """Processes decoded message data, publishes to Redis, and broadcasts."""
+    message_data = json.loads(raw_data) 
+
+    message_data.update({
+        "user_id": str(user.id),
+        "pad_id": str(pad_id),
+        "timestamp": datetime.now().isoformat()
+    })
+    print(f"Received message from {user.id} on pad {str(pad_id)[:5]}")
+
+    if redis_client:
+        await publish_event_to_redis(redis_client, stream_key, message_data)
+    await broadcast_message(pad_id, message_data, websocket)
+
 @ws_router.websocket("/ws/pad/{pad_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
@@ -96,60 +142,28 @@ async def websocket_endpoint(
                     "user_id": str(user.id),
                     "timestamp": datetime.now().isoformat()
                 }
-                # Convert dict to proper format for Redis xadd
-                field_value_dict = {str(k): str(v) if not isinstance(v, (int, float)) else v 
-                                   for k, v in join_message.items()}
-                await redis_client.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
+                if redis_client:
+                    await publish_event_to_redis(redis_client, stream_key, join_message)
 
                 # Notify other clients about user joining
-                for connection in active_connections[pad_id].copy():
-                    if connection != websocket and connection.client_state.CONNECTED:
-                        try:
-                            await connection.send_json(join_message)
-                        except Exception:
-                            pass
+                await broadcast_message(pad_id, join_message, websocket)
             except Exception as e:
                 print(f"Error broadcasting join message: {e}")
         
         # Wait for WebSocket disconnect
         while websocket.client_state.CONNECTED:
             try:
-                # Keep the connection alive and handle any incoming messages
                 data = await websocket.receive_text()
-                message_data = json.loads(data)
-                
-                # Add user_id and timestamp to the message
-                message_data.update({
-                    "user_id": str(user.id),
-                    "pad_id": str(pad_id),
-                    "timestamp": datetime.now().isoformat()
-                })
-                print(f"Received message from {user.id} on pad {str(pad_id)[:5]}")
-                
-                # Publish the message to Redis stream to be broadcasted to all clients
-                # Convert dict to proper format for Redis xadd (field-value pairs)
-                field_value_dict = {str(k): str(v) if not isinstance(v, (int, float)) else v 
-                                   for k, v in message_data.items()}
-                await redis_client.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
-                
-                # Forward message to all connected clients for this pad
-                for connection in active_connections[pad_id].copy():
-                    try:
-                        if connection.client_state.CONNECTED:
-                            await connection.send_json(message_data)
-                    except (WebSocketDisconnect, Exception) as e:
-                        if "close message has been sent" not in str(e):
-                            print(f"Error sending message to client: {e}")
-                        await cleanup_connection(pad_id, connection)
-                        
+                await _handle_received_data(data, pad_id, user, redis_client, stream_key, websocket)
             except WebSocketDisconnect:
                 break
             except json.JSONDecodeError as e:
                 print(f"Invalid JSON received: {e}")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "Invalid message format"
-                })
+                if websocket.client_state.CONNECTED:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "Invalid message format"
+                    })
             except Exception as e:
                 print(f"Error in WebSocket connection: {e}")
                 break
@@ -159,26 +173,18 @@ async def websocket_endpoint(
     finally:
         # Broadcast user left message before cleanup
         try:
-            if redis_client:
+            if redis_client: # Ensure redis_client was initialized
                 leave_message = {
                     "type": "user_left",
                     "pad_id": str(pad_id),
                     "user_id": str(user.id),
                     "timestamp": datetime.now().isoformat()
                 }
-                # Convert dict to proper format for Redis xadd
-                field_value_dict = {str(k): str(v) if not isinstance(v, (int, float)) else v 
-                                   for k, v in leave_message.items()}
-                await redis_client.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
+                await publish_event_to_redis(redis_client, stream_key, leave_message)
                 
                 # Notify other clients about user leaving
-                for connection in active_connections[pad_id].copy():
-                    if connection != websocket and connection.client_state.CONNECTED:
-                        try:
-                            await connection.send_json(leave_message)
-                        except Exception:
-                            pass
+                await broadcast_message(pad_id, leave_message, websocket)
         except Exception as e:
             print(f"Error broadcasting leave message: {e}")
             
-        await cleanup_connection(pad_id, websocket) 
+        await cleanup_connection(pad_id, websocket)
