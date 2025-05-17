@@ -26,7 +26,7 @@ interface ConnectionStateRef {
 }
 
 export const usePadWebSocket = (padId: string | null) => {
-    const { isAuthenticated, isLoading } = useAuthStatus();
+    const { isAuthenticated, isLoading, refetchAuthStatus } = useAuthStatus();
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.DISCONNECTED);
 
     // Consolidated connection state
@@ -104,6 +104,9 @@ export const usePadWebSocket = (padId: string | null) => {
         return ws;
     }, [padId, resetConnection]);
 
+    // Forward declaration for connectWebSocket to be used in attemptReconnect
+    const connectWebSocketRef = useRef<((isReconnecting?: boolean) => void) | null>(null);
+
     // Attempt to reconnect with exponential backoff
     const attemptReconnect = useCallback(() => {
         clearReconnectTimeout();
@@ -125,7 +128,9 @@ export const usePadWebSocket = (padId: string | null) => {
 
         // Schedule reconnect
         connStateRef.current.reconnectTimeout = setTimeout(() => {
-            connectWebSocket(true);
+            if (connectWebSocketRef.current) {
+                connectWebSocketRef.current(true);
+            }
         }, delay);
     }, [clearReconnectTimeout, resetConnection]);
 
@@ -133,6 +138,7 @@ export const usePadWebSocket = (padId: string | null) => {
     const connectWebSocket = useCallback((isReconnecting = false) => {
         // Check if we can/should connect
         const canConnect = isAuthenticated && !isLoading && padId;
+        console.log('[pad.ws] trying to connect', canConnect, isAuthenticated, !isLoading, padId);
         if (!canConnect) {
             // Clean up existing connection if we can't connect now
             if (connStateRef.current.ws) {
@@ -145,6 +151,13 @@ export const usePadWebSocket = (padId: string | null) => {
             if (isReconnecting &&
                 connStateRef.current.reconnectAttempts > 0 &&
                 connStateRef.current.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                
+                // If auth status is unknown and not loading, try to refetch it
+                if (isAuthenticated === undefined && !isLoading) {
+                    console.log('[pad.ws] Auth status is unknown and not loading, attempting to refetch auth status.');
+                    refetchAuthStatus();
+                }
+                
                 console.log(`[pad.ws] Can't connect now but preserving reconnection sequence, scheduling next attempt`);
                 attemptReconnect();
             }
@@ -187,7 +200,12 @@ export const usePadWebSocket = (padId: string | null) => {
             console.error('[pad.ws] Error creating WebSocket:', error);
             attemptReconnect();
         }
-    }, [padId, isAuthenticated, isLoading, createWebSocket, attemptReconnect, clearReconnectTimeout]);
+    }, [padId, isAuthenticated, isLoading, refetchAuthStatus, createWebSocket, attemptReconnect, clearReconnectTimeout]);
+    
+    // Assign the connectWebSocket function to the ref after its definition
+    useEffect(() => {
+        connectWebSocketRef.current = connectWebSocket;
+    }, [connectWebSocket]);
 
     // Connect when dependencies change
     useEffect(() => {
