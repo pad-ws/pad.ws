@@ -66,18 +66,33 @@ class PadStore(Base, BaseModel):
         return result.scalars().all()
 
     async def save(self, session: AsyncSession) -> 'PadStore':
-        """Save the current pad state"""
-        if self.id is None:
-            session.add(self)
-        await session.commit()
-        await session.refresh(self)
-        return self
-
-    async def update_data(self, session: AsyncSession, data: Dict[str, Any]) -> 'PadStore':
-        """Update the pad's data"""
-        self.data = data
+        """Update the pad in the database"""
         self.updated_at = datetime.now()
-        return await self.save(session)
+        try:
+            # Just execute the update statement without adding to session
+            stmt = update(self.__class__).where(self.__class__.id == self.id).values(
+                owner_id=self.owner_id,
+                display_name=self.display_name,
+                data=self.data,
+                updated_at=self.updated_at
+            )
+            await session.execute(stmt)
+            await session.commit()
+            
+            # After update, get the fresh object from the database
+            refreshed = await self.get_by_id(session, self.id)
+            if refreshed:
+                # Update this object's attributes from the database
+                self.owner_id = refreshed.owner_id
+                self.display_name = refreshed.display_name
+                self.data = refreshed.data
+                self.created_at = refreshed.created_at
+                self.updated_at = refreshed.updated_at
+                
+            return self
+        except Exception as e:
+            print(f"Error saving pad {self.id}: {str(e)}", flush=True)
+            raise e
 
     async def delete(self, session: AsyncSession) -> bool:
         """Delete the pad"""

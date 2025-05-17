@@ -181,20 +181,6 @@ class Pad:
             
         return self
 
-    async def update_data(self, session: AsyncSession, data: Dict[str, Any]) -> 'Pad':
-        """Update the pad's data and refresh cache"""
-        self.data = data
-        self.updated_at = datetime.now()
-        if self._store:
-            self._store = await self._store.update_data(session, data)
-            
-        try:
-            await self.cache()
-        except Exception as e:
-            print(f"Warning: Failed to cache pad {self.id} after update: {str(e)}")
-            
-        return self
-
     async def broadcast_event(self, event_type: str, event_data: Dict[str, Any]) -> None:
         """Broadcast an event to all connected clients"""
         redis = await get_redis_client()

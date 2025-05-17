@@ -111,7 +111,7 @@ class UserStore(Base, BaseModel):
             PadStore.display_name,
             PadStore.created_at,
             PadStore.updated_at
-        ).where(PadStore.owner_id == user_id)
+        ).where(PadStore.owner_id == user_id).order_by(PadStore.created_at)
         
         result = await session.execute(stmt)
         pads = result.all()
