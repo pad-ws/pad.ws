@@ -32,15 +32,15 @@ export const defaultInitialData = {
 
 export default function App() {
   const { isAuthenticated } = useAuthStatus();
-  const { 
-    tabs, 
-    selectedTabId, 
-    isLoading: isLoadingTabs, 
-    createNewPadAsync, 
-    isCreating: isCreatingPad, 
-    renamePad, 
-    deletePad, 
-    selectTab 
+  const {
+    tabs,
+    selectedTabId,
+    isLoading: isLoadingTabs,
+    createNewPadAsync,
+    isCreating: isCreatingPad,
+    renamePad,
+    deletePad,
+    selectTab
   } = usePadTabs();
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -54,17 +54,9 @@ export default function App() {
 
   const debouncedSendMessage = useCallback(
     debounce((type: string, data: any) => {
-      if (isConnected && selectedTabId) {
-        sendMessage(type, data);
-      } else if (!isConnected && selectedTabId) {
-        setTimeout(() => {
-          if (!isConnected) {
-            console.log(`[pad.ws] WebSocket not connected - changes will not be saved`);
-          }
-        }, 100);
-      }
+      sendMessage(type, data);
     }, 250),
-    [isConnected, selectedTabId, sendMessage]
+    [sendMessage]
   );
 
   const handleOnChange = useCallback((elements: readonly NonDeletedExcalidrawElement[], state: AppState) => {
