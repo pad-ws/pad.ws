@@ -4,27 +4,19 @@ import type { ExcalidrawImperativeAPI } from "@atyrode/excalidraw/types";
 import { Stack, Button, Section, Tooltip } from "@atyrode/excalidraw";
 import { FilePlus2, ChevronLeft, ChevronRight } from "lucide-react";
 
-// Removed: import { usePadTabs } from "../hooks/usePadTabs";
-import { usePad } from "../hooks/usePadData"; // Keep usePad for isPadLoading and padError
+import { usePad } from "../hooks/usePadData";
+import type { Tab } from "../hooks/usePadTabs";
 import { capture } from "../lib/posthog";
 import TabContextMenu from "./TabContextMenu";
 import "./Tabs.scss";
 
-// Define PadTab type if not already globally available or imported from usePadTabs
-interface PadTab {
-    id: string;
-    title: string;
-    createdAt: string;
-    updatedAt: string;
-}
-
 interface TabsProps {
   excalidrawAPI: ExcalidrawImperativeAPI;
-  tabs: PadTab[];
-  selectedTabId: string | null; // Can be null if no tab is selected
-  isLoading: boolean; // Loading state for the tab list
+  tabs: Tab[];
+  selectedTabId: string | null;
+  isLoading: boolean;
   isCreatingPad: boolean;
-  createNewPadAsync: () => Promise<PadTab | null | undefined>; // Adjusted based on usePadTabs return
+  createNewPadAsync: () => Promise<Tab | null | undefined>;
   renamePad: (args: { padId: string; newName: string }) => void;
   deletePad: (padId: string) => void;
   selectTab: (tabId: string) => void;
@@ -41,9 +33,8 @@ const Tabs: React.FC<TabsProps> = ({
   deletePad,
   selectTab,
 }) => {
-    // Use the usePad hook to handle loading pad data when selectedTabId changes
-    // Note: selectedTabId comes from props now
     const { isLoading: isPadLoading, error: padError } = usePad(selectedTabId, excalidrawAPI);
+    const [displayPadLoadingIndicator, setDisplayPadLoadingIndicator] = useState(false);
 
     const appState = excalidrawAPI.getAppState();
     const [startPadIndex, setStartPadIndex] = useState(0);
@@ -63,7 +54,7 @@ const Tabs: React.FC<TabsProps> = ({
         padName: ''
     });
 
-    const handlePadSelect = (pad: PadTab) => {
+    const handlePadSelect = (pad: Tab) => {
         selectTab(pad.id);
     };
 
@@ -79,16 +70,11 @@ const Tabs: React.FC<TabsProps> = ({
                     padName: newPad.title
                 });
                 
-                // Scroll to the new tab if it's off-screen
-                // The `tabs` list will be updated by react-query. Need to wait for that update.
-                // This logic might need to be in a useEffect that watches `tabs` and `selectedTabId`.
-                // For now, we assume `usePadTabs` handles selection, and scrolling might need adjustment.
-                const newPadIndex = tabs.findIndex(tab => tab.id === newPad.id); // This will be based on PREVIOUS tabs list
-                if (newPadIndex !== -1) { // This check might be problematic due to timing
+                const newPadIndex = tabs.findIndex((tab: { id: any; }) => tab.id === newPad.id);
+                if (newPadIndex !== -1) {
                     const newStartIndex = Math.max(0, Math.min(newPadIndex - PADS_PER_PAGE + 1, tabs.length - PADS_PER_PAGE));
                     setStartPadIndex(newStartIndex);
                 } else {
-                    // If newPad is not in current `tabs` (due to async update), try to scroll to end
                     if (tabs.length >= PADS_PER_PAGE) {
                          setStartPadIndex(Math.max(0, tabs.length + 1 - PADS_PER_PAGE));
                     }
@@ -99,13 +85,31 @@ const Tabs: React.FC<TabsProps> = ({
         }
     };
 
-    // Adjust scrolling logic when tabs array changes (e.g. after delete)
     useEffect(() => {
         if (tabs && startPadIndex > 0 && startPadIndex + PADS_PER_PAGE > tabs.length) {
             const newIndex = Math.max(0, tabs.length - PADS_PER_PAGE);
             setStartPadIndex(newIndex);
         }
     }, [tabs, startPadIndex, PADS_PER_PAGE]);
+
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (isPadLoading && selectedTabId) {
+            if (!displayPadLoadingIndicator) {
+                timer = setTimeout(() => {
+                    if (isPadLoading) {
+                        setDisplayPadLoadingIndicator(true);
+                    }
+                }, 200);
+            }
+        } else {
+            setDisplayPadLoadingIndicator(false);
+        }
+
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [isPadLoading, selectedTabId, displayPadLoadingIndicator]);
 
 
     const showPreviousPads = () => {
@@ -190,16 +194,11 @@ const Tabs: React.FC<TabsProps> = ({
                                             Loading pads...
                                         </div>
                                     )}
-                                    {isPadLoading && (
-                                        <div className="loading-indicator">
-                                            Loading pad content...
-                                        </div>
-                                    )}
                                 
-                                    {!isLoading && !isPadLoading && tabs && tabs.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).map((tab, index) => (
+                                    {!isLoading && tabs && tabs.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).map((tab: Tab, index: any) => (
                                     <div 
                                         key={tab.id}
-                                        onContextMenu={(e) => {
+                                        onContextMenu={(e: { preventDefault: () => void; clientX: any; clientY: any; }) => {
                                             e.preventDefault();
                                             setContextMenu({
                                                 visible: true,
@@ -225,9 +224,9 @@ const Tabs: React.FC<TabsProps> = ({
                                                         className={selectedTabId === tab.id ? "active-pad" : ""}
                                                         children={
                                                             <div className="tab-content">
-                                                                {tab.title.length > 8 ? `${tab.title.substring(0, 11)}...` : tab.title}
+                                                                {selectedTabId === tab.id && displayPadLoadingIndicator ? "..." : (tab.title.length > 8 ? `${tab.title.substring(0, 11)}...` : tab.title)}
                                                                 {/* Calculate position based on overall index in `tabs` if needed, or `startPadIndex + index + 1` */}
-                                                                <span className="tab-position">{tabs.findIndex(t => t.id === tab.id) + 1}</span>
+                                                                <span className="tab-position">{tabs.findIndex((t: { id: any; }) => t.id === tab.id) + 1}</span>
                                                             </div>
                                                         }
                                                     />
@@ -240,7 +239,7 @@ const Tabs: React.FC<TabsProps> = ({
                                                 children={
                                                     <div className="tab-content">
                                                         {tab.title}
-                                                        <span className="tab-position">{tabs.findIndex(t => t.id === tab.id) + 1}</span>
+                                                        <span className="tab-position">{tabs.findIndex((t: { id: any; }) => t.id === tab.id) + 1}</span>
                                                     </div>
                                                 }
                                             />
@@ -298,22 +297,22 @@ const Tabs: React.FC<TabsProps> = ({
                     y={contextMenu.y}
                     padId={contextMenu.padId}
                     padName={contextMenu.padName}
-                    onRename={(padId, newName) => {
+                    onRename={(padId: any, newName: any) => {
                         capture("pad_renamed", { padId, newName });
                         renamePad({ padId, newName });
                     }}
-                    onDelete={(padId) => {
+                    onDelete={(padId: any) => {
                         if (tabs && tabs.length <= 1) {
                             alert("Cannot delete the last pad");
                             return;
                         }
                         
-                        const tabToDelete = tabs?.find(t => t.id === padId);
+                        const tabToDelete = tabs?.find((t: { id: any; }) => t.id === padId);
                         const padName = tabToDelete?.title || "";
                         capture("pad_deleted", { padId, padName });
                         
                         if (padId === selectedTabId && tabs) {
-                            const otherTab = tabs.find(t => t.id !== padId);
+                            const otherTab = tabs.find((t: { id: any; }) => t.id !== padId);
                             if (otherTab) {
                                 // Before deleting, select another tab.
                                 // The actual deletion will trigger a list update and selection adjustment in usePadTabs.
@@ -325,7 +324,7 @@ const Tabs: React.FC<TabsProps> = ({
                         deletePad(padId);
                     }}
                     onClose={() => {
-                        setContextMenu(prev => ({ ...prev, visible: false }));
+                        setContextMenu((prev: any) => ({ ...prev, visible: false }));
                     }}
                 />
             )}

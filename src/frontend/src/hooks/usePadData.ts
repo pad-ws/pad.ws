@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
 import type { ExcalidrawElement } from "@atyrode/excalidraw/element/types";
 import { normalizeCanvasData } from '../lib/canvas';
-
+import { defaultInitialData } from '../App';
 interface PadData {
     elements?: readonly ExcalidrawElement[];
     appState?: Pick<AppState, keyof AppState>;
@@ -27,20 +27,40 @@ const fetchPadById = async (padId: string): Promise<PadData> => {
     return response.json();
 };
 
-export const usePad = (padId: string, excalidrawAPI: ExcalidrawImperativeAPI | null) => {
+export const usePad = (padId: string | null, excalidrawAPI: ExcalidrawImperativeAPI | null) => {
+    const isTemporaryPad = padId?.startsWith('temp-');
+
     const { data, isLoading, error, isError } = useQuery<PadData, Error>({
         queryKey: ['pad', padId],
-        queryFn: () => fetchPadById(padId),
-        enabled: !!padId, // Only run the query if padId is provided
+        queryFn: () => {
+            if (!padId) throw new Error("padId is required");
+            return fetchPadById(padId);
+        },
+        enabled: !!padId && !isTemporaryPad, 
     });
 
     useEffect(() => {
-        if (data && excalidrawAPI) {
+        if (isTemporaryPad && excalidrawAPI) {
+            console.log(`[pad.ws] Initializing new temporary pad ${padId}`);
+            excalidrawAPI.updateScene(defaultInitialData);
+            return; 
+        }
+
+        if (data && excalidrawAPI && !isTemporaryPad) {
             const normalizedData = normalizeCanvasData(data);
             console.log(`[pad.ws] Loading pad ${padId}`);
             excalidrawAPI.updateScene(normalizedData);
         }
-    }, [data, excalidrawAPI, padId]);
+    }, [data, excalidrawAPI, padId, isTemporaryPad]);
+
+    if (isTemporaryPad) {
+        return {
+            padData: defaultInitialData,
+            isLoading: false,
+            error: null,
+            isError: false,
+        };
+    }
 
     return {
         padData: data,
@@ -48,4 +68,4 @@ export const usePad = (padId: string, excalidrawAPI: ExcalidrawImperativeAPI | n
         error,
         isError
     };
-}; 
+};

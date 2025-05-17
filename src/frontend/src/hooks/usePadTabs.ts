@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 
-interface Tab {
+export interface Tab {
     id: string;
     title: string;
     createdAt: string;
@@ -122,24 +122,65 @@ export const usePadTabs = () => {
     }, [data, isLoading]);
 
 
-    const createPadMutation = useMutation<Tab, Error, void>({ // Result: Tab, Error, Variables: void
-        mutationFn: createNewPad, // createNewPad now returns Promise<Tab>
-        onSuccess: (newlyCreatedTab) => {
-            // Optimistically update the cache and select the new tab
-            queryClient.setQueryData<PadResponse>(['padTabs'], (oldData) => {
-                const newTabs = oldData ? [...oldData.tabs, newlyCreatedTab] : [newlyCreatedTab];
-                // Determine the activeTabId for PadResponse. If oldData exists, use its activeTabId,
-                // otherwise, it's the first fetch, so newTab is the one.
-                // However, fetchUserPads sets activeTabId to tabs[0].id.
-                // For consistency, let's mimic that or just ensure tabs are updated.
-                const currentActiveId = oldData?.activeTabId || newlyCreatedTab.id;
+    const createPadMutation = useMutation<Tab, Error, void, { previousTabsResponse?: PadResponse, tempTabId?: string }>({
+        mutationFn: createNewPad,
+        onMutate: async () => {
+            await queryClient.cancelQueries({ queryKey: ['padTabs'] });
+            const previousTabsResponse = queryClient.getQueryData<PadResponse>(['padTabs']);
+            
+            const tempTabId = `temp-${Date.now()}`;
+            const tempTab: Tab = {
+                id: tempTabId,
+                title: 'New pad',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            };
+
+            queryClient.setQueryData<PadResponse>(['padTabs'], (old) => {
+                const newTabs = old ? [...old.tabs, tempTab] : [tempTab];
                 return {
                     tabs: newTabs,
-                    activeTabId: currentActiveId // This might not be strictly necessary if selectedTabId drives UI
+                    activeTabId: old?.activeTabId || tempTab.id, // Keep old active or use new if first
                 };
             });
-            setSelectedTabId(newlyCreatedTab.id);
-            // Invalidate to ensure eventual consistency with the backend
+            setSelectedTabId(tempTabId);
+
+            return { previousTabsResponse, tempTabId };
+        },
+        onError: (err, variables, context) => {
+            if (context?.previousTabsResponse) {
+                queryClient.setQueryData<PadResponse>(['padTabs'], context.previousTabsResponse);
+            }
+            // Revert selectedTabId if it was the temporary one
+            if (selectedTabId === context?.tempTabId && context?.previousTabsResponse?.activeTabId) {
+                 setSelectedTabId(context.previousTabsResponse.activeTabId);
+            } else if (selectedTabId === context?.tempTabId && context?.previousTabsResponse?.tabs && context.previousTabsResponse.tabs.length > 0) {
+                setSelectedTabId(context.previousTabsResponse.tabs[0].id);
+            } else if (selectedTabId === context?.tempTabId) {
+                setSelectedTabId('');
+            }
+            // Optionally: display error to user
+        },
+        onSuccess: (newlyCreatedTab, variables, context) => {
+            queryClient.setQueryData<PadResponse>(['padTabs'], (old) => {
+                if (!old) return { tabs: [newlyCreatedTab], activeTabId: newlyCreatedTab.id };
+                const newTabs = old.tabs.map(tab => 
+                    tab.id === context?.tempTabId ? newlyCreatedTab : tab
+                );
+                // If the temp tab wasn't found (e.g., cache was cleared), add the new tab
+                if (!newTabs.find(tab => tab.id === newlyCreatedTab.id)) {
+                    newTabs.push(newlyCreatedTab);
+                }
+                return {
+                    tabs: newTabs,
+                    activeTabId: old.activeTabId === context?.tempTabId ? newlyCreatedTab.id : old.activeTabId,
+                };
+            });
+            if (selectedTabId === context?.tempTabId) {
+                setSelectedTabId(newlyCreatedTab.id);
+            }
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['padTabs'] });
         },
     });
@@ -157,9 +198,33 @@ export const usePadTabs = () => {
         }
     };
 
-    const renamePadMutation = useMutation({
+    const renamePadMutation = useMutation<void, Error, { padId: string, newName: string }, { previousTabsResponse?: PadResponse, padId?: string, oldName?: string }>({
         mutationFn: renamePadAPI,
-        onSuccess: () => {
+        onMutate: async ({ padId, newName }) => {
+            await queryClient.cancelQueries({ queryKey: ['padTabs'] });
+            const previousTabsResponse = queryClient.getQueryData<PadResponse>(['padTabs']);
+            let oldName: string | undefined;
+
+            queryClient.setQueryData<PadResponse>(['padTabs'], (old) => {
+                if (!old) return undefined;
+                const newTabs = old.tabs.map(tab => {
+                    if (tab.id === padId) {
+                        oldName = tab.title;
+                        return { ...tab, title: newName, updatedAt: new Date().toISOString() };
+                    }
+                    return tab;
+                });
+                return { ...old, tabs: newTabs };
+            });
+            return { previousTabsResponse, padId, oldName };
+        },
+        onError: (err, variables, context) => {
+            if (context?.previousTabsResponse) {
+                queryClient.setQueryData<PadResponse>(['padTabs'], context.previousTabsResponse);
+            }
+            // Optionally: display error to user
+        },
+        onSettled: (data, error, variables, context) => {
             queryClient.invalidateQueries({ queryKey: ['padTabs'] });
         },
     });
@@ -173,9 +238,47 @@ export const usePadTabs = () => {
         }
     };
 
-    const deletePadMutation = useMutation({
-        mutationFn: deletePadAPI,
-        onSuccess: () => {
+    const deletePadMutation = useMutation<void, Error, string, { previousTabsResponse?: PadResponse, previousSelectedTabId?: string, deletedTab?: Tab }>({
+        mutationFn: deletePadAPI, // padId is the variable passed to mutate
+        onMutate: async (padIdToDelete) => {
+            await queryClient.cancelQueries({ queryKey: ['padTabs'] });
+            const previousTabsResponse = queryClient.getQueryData<PadResponse>(['padTabs']);
+            const previousSelectedTabId = selectedTabId;
+            let deletedTab: Tab | undefined;
+
+            queryClient.setQueryData<PadResponse>(['padTabs'], (old) => {
+                if (!old) return { tabs: [], activeTabId: '' };
+                deletedTab = old.tabs.find(tab => tab.id === padIdToDelete);
+                const newTabs = old.tabs.filter(tab => tab.id !== padIdToDelete);
+                
+                let newSelectedTabId = selectedTabId;
+                if (selectedTabId === padIdToDelete) {
+                    if (newTabs.length > 0) {
+                        const currentIndex = old.tabs.findIndex(tab => tab.id === padIdToDelete);
+                        newSelectedTabId = newTabs[Math.max(0, currentIndex -1)]?.id || newTabs[0]?.id;
+                    } else {
+                        newSelectedTabId = '';
+                    }
+                    setSelectedTabId(newSelectedTabId);
+                }
+
+                return {
+                    tabs: newTabs,
+                    activeTabId: newSelectedTabId, // Update activeTabId in cache as well
+                };
+            });
+            return { previousTabsResponse, previousSelectedTabId, deletedTab };
+        },
+        onError: (err, padId, context) => {
+            if (context?.previousTabsResponse) {
+                queryClient.setQueryData<PadResponse>(['padTabs'], context.previousTabsResponse);
+            }
+            if (context?.previousSelectedTabId) {
+                setSelectedTabId(context.previousSelectedTabId);
+            }
+            // Optionally: display error to user
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['padTabs'] });
         },
     });

@@ -270,12 +270,7 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
 
   // Create a wrapper for onClose that handles the callback
   const handleClose = (callback?: () => void) => {
-    console.debug('[pad.ws] TabContextMenu handleClose called, has callback:', !!callback);
-    
-    // First call the original onClose
     onClose();
-    
-    // Then execute the callback if provided
     if (callback) {
       callback();
     }

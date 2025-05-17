@@ -20,7 +20,7 @@ export const usePadWebSocket = (padId: string | null) => {
                 wsRef.current.close();
                 // wsRef.current = null; // Let onclose handle this
             }
-            return; 
+            return;
         }
 
         // Close existing connection if any (from a *different* padId)
@@ -46,31 +46,31 @@ export const usePadWebSocket = (padId: string | null) => {
         wsRef.current = ws;
 
         ws.onopen = () => {
-            console.log(`[WebSocket] Connected to pad ${padId}`);
+            console.log(`[pad.ws] Connected to pad ${padId}`);
         };
 
         ws.onmessage = (event) => {
             try {
                 const message: WebSocketMessage = JSON.parse(event.data);
-                console.log(`[WebSocket] Received message:`, message);
+                console.log(`[pad.ws] Received message:`, message);
 
                 // Handle different message types here
                 switch (message.type) {
                     case 'connected':
-                        console.log(`[WebSocket] Successfully connected to pad ${message.pad_id}`);
+                        console.log(`[pad.ws] Successfully connected to pad ${message.pad_id}`);
                         break;
                     case 'user_joined':
-                        console.log(`[WebSocket] User ${message.user_id} joined pad ${message.pad_id}`);
+                        console.log(`[pad.ws] User ${message.user_id} joined pad ${message.pad_id}`);
                         break;
                     case 'user_left':
-                        console.log(`[WebSocket] User ${message.user_id} left pad ${message.pad_id}`);
+                        console.log(`[pad.ws] User ${message.user_id} left pad ${message.pad_id}`);
                         break;
                     case 'pad_update':
-                        console.log(`[WebSocket] Pad ${message.pad_id} updated by user ${message.user_id}`);
+                        console.log(`[pad.ws] Pad ${message.pad_id} updated by user ${message.user_id}`);
                         break;
                     default:
                         // Default handler for any message type
-                        console.log(`[WebSocket] Received ${message.type} message:`, {
+                        console.log(`[pad.ws] Received ${message.type} message:`, {
                             pad_id: message.pad_id,
                             user_id: message.user_id,
                             timestamp: message.timestamp,
@@ -78,23 +78,23 @@ export const usePadWebSocket = (padId: string | null) => {
                         });
                 }
             } catch (error) {
-                console.error('[WebSocket] Error parsing message:', error);
+                console.error('[pad.ws] Error parsing message:', error);
             }
         };
 
         ws.onerror = (error) => {
-            console.error('[WebSocket] Error:', error);
+            console.error('[pad.ws] Error:', error);
         };
 
         ws.onclose = () => { // Removed event param as it's not used after removing logs
-            console.log(`[WebSocket] Disconnected from pad ${padId}`);
+            console.log(`[pad.ws] Disconnected from pad ${padId}`);
             // Only nullify if wsRef.current is THIS instance that just closed
             if (wsRef.current === ws) {
                 wsRef.current = null;
             }
         };
 
-        return () => { 
+        return () => {
             if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
                 ws.close();
             }
@@ -102,7 +102,7 @@ export const usePadWebSocket = (padId: string | null) => {
     }, [padId, user]);
 
     useEffect(() => {
-        const cleanup = connect(); 
+        const cleanup = connect();
         return () => {
             cleanup?.();
         };

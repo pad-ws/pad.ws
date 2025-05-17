@@ -22,20 +22,12 @@ import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRende
 import { debounce } from './lib/debounce';
 import Tabs from "./ui/Tabs";
 
-const defaultInitialData = {
+export const defaultInitialData = {
   elements: [],
   appState: {
     gridModeEnabled: true,
     gridSize: 20,
     gridStep: 5,
-    pad: {
-      moduleBorderOffset: {
-        top: 40,
-        right: 5,
-        bottom: 5,
-        left: 5,
-      },
-    },
   },
   files: {},
 };
