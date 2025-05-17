@@ -100,6 +100,14 @@ async def websocket_endpoint(
                 field_value_dict = {str(k): str(v) if not isinstance(v, (int, float)) else v 
                                    for k, v in join_message.items()}
                 await redis_client.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
+
+                # Notify other clients about user joining
+                for connection in active_connections[pad_id].copy():
+                    if connection != websocket and connection.client_state.CONNECTED:
+                        try:
+                            await connection.send_json(join_message)
+                        except Exception:
+                            pass
             except Exception as e:
                 print(f"Error broadcasting join message: {e}")
         
