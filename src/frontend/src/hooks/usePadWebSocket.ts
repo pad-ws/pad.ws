@@ -73,7 +73,7 @@ export const usePadWebSocket = (padId: string | null) => {
         ws.onmessage = (event) => {
             try {
                 const message: WebSocketMessage = JSON.parse(event.data);
-                console.log("[pad.ws] Received message", message);
+                console.debug("[pad.ws] Received message", message);
                 // Process message if needed
             } catch (error) {
                 console.error('[pad.ws] Error parsing message:', error);
