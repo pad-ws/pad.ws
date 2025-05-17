@@ -52,50 +52,57 @@ async def _handle_received_data(
     raw_data: str,
     pad_id: UUID,
     user: UserSession,
-    redis_client: aioredis.Redis, 
+    redis_client: aioredis.Redis,
     stream_key: str
 ):
     """Processes decoded message data and publishes to Redis."""
-    message_data = json.loads(raw_data) 
+    message_data = json.loads(raw_data)
 
-    message_data.update({
-        "user_id": str(user.id),
-        "pad_id": str(pad_id),
-        "timestamp": datetime.now().isoformat()
-    })
-    print(f"Received message from {user.id} on pad {str(pad_id)[:5]}")
+    if 'user_id' not in message_data: # Should not happen if client sends it, but as a safeguard
+        message_data['user_id'] = str(user.id)
+    
+    # Add other metadata if not present or to ensure consistency
+    message_data.setdefault("pad_id", str(pad_id))
+    message_data.setdefault("timestamp", datetime.now().isoformat())
+    
+    print(f"Received message from {user.id} (event user_id: {message_data.get('user_id')}) on pad {str(pad_id)[:5]}")
 
     await publish_event_to_redis(redis_client, stream_key, message_data)
 
-async def consume_redis_stream(redis_client: aioredis.Redis, stream_key: str, websocket: WebSocket, last_id: str = '$'):
-    """Consumes messages from Redis stream and forwards them to the WebSocket"""
+async def consume_redis_stream(
+    redis_client: aioredis.Redis,
+    stream_key: str,
+    websocket: WebSocket,
+    current_connection_user_id: str, # Added to identify the user of this specific WebSocket connection
+    last_id: str = '$'
+):
+    """Consumes messages from Redis stream and forwards them to the WebSocket, avoiding echo."""
     try:
         while websocket.client_state.CONNECTED:
-            # Read new messages from the stream
             streams = await redis_client.xread({stream_key: last_id}, count=5, block=1000)
             
-            # Process received messages
             if streams:
                 stream_name, stream_messages = streams[0]
-                for message_id, message_data in stream_messages:
-                    # Convert message data to a format suitable for WebSocket
+                for message_id, message_data_raw in stream_messages:
                     formatted_message = {}
-                    for k, v in message_data.items():
-                        # Handle key - could be bytes or string
+                    for k, v in message_data_raw.items():
                         key = k.decode() if isinstance(k, bytes) else k
-                        
-                        # Handle value - could be bytes or string
                         if isinstance(v, bytes):
                             value = v.decode()
                         else:
                             value = v
-                        
                         formatted_message[key] = value
                     
-                    # Send to WebSocket
-                    await websocket.send_json(formatted_message)
+                    message_origin_user_id = formatted_message.get('user_id')
+
+                    # Only send if the message did not originate from this same user connection
+                    if message_origin_user_id != current_connection_user_id:
+                        await websocket.send_json(formatted_message)
+                    else:
+                        # Optional: log that an echo was prevented
+                        # print(f"Echo prevented for user {current_connection_user_id} on pad {formatted_message.get('pad_id', 'N/A')[:5]}")
+                        pass
                     
-                    # Update last_id to get newer messages next time
                     last_id = message_id
             
             # Brief pause to prevent CPU hogging
@@ -163,8 +170,9 @@ async def websocket_endpoint(
         
         # Run both tasks concurrently
         ws_task = asyncio.create_task(handle_websocket_messages())
-        # Start from current - only get new messages
-        redis_task = asyncio.create_task(consume_redis_stream(redis_client, stream_key, websocket, last_id='$'))
+        redis_task = asyncio.create_task(
+            consume_redis_stream(redis_client, stream_key, websocket, str(user.id), last_id='$')
+        )
         
         # Wait for either task to complete
         done, pending = await asyncio.wait(
