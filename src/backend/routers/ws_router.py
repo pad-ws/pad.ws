@@ -3,7 +3,7 @@ import asyncio
 import uuid
 from uuid import UUID
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from redis import asyncio as aioredis
@@ -65,10 +65,10 @@ async def _handle_received_data(
     
     # Add other metadata if not present or to ensure consistency
     message_data.setdefault("pad_id", str(pad_id))
-    message_data.setdefault("timestamp", datetime.now().isoformat())
+    message_data.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
     message_data.setdefault("connection_id", connection_id)
 
-    print(f"[WS] {datetime.now().strftime('%H:%M:%S')} - {message_data.get('type', 'Unknown')} from [{str(connection_id)[:5]}] on pad ({str(pad_id)[:5]})")
+    print(f"[WS] {datetime.now(timezone.utc).strftime('%H:%M:%S')} - {message_data.get('type', 'Unknown')} from [{str(connection_id)[:5]}] on pad ({str(pad_id)[:5]})")
 
     await publish_event_to_redis(redis_client, stream_key, message_data)
 
@@ -137,7 +137,8 @@ async def websocket_endpoint(
                 "type": "connected",
                 "pad_id": str(pad_id),
                 "user_id": str(user.id),
-                "connection_id": connection_id
+                "connection_id": connection_id,
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
             
             # Publish user joined message
@@ -146,7 +147,7 @@ async def websocket_endpoint(
                 "pad_id": str(pad_id),
                 "user_id": str(user.id),
                 "connection_id": connection_id,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             await publish_event_to_redis(redis_client, stream_key, join_message)
         
@@ -163,7 +164,8 @@ async def websocket_endpoint(
                     if websocket.client_state.CONNECTED:
                         await websocket.send_json({
                             "type": "error",
-                            "message": "Invalid message format"
+                            "message": "Invalid message format",
+                            "timestamp": datetime.now(timezone.utc).isoformat()
                         })
                 except Exception as e:
                     print(f"Error in WebSocket connection: {e}")
@@ -196,7 +198,7 @@ async def websocket_endpoint(
                     "pad_id": str(pad_id),
                     "user_id": str(user.id),
                     "connection_id": connection_id,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
                 await publish_event_to_redis(redis_client, stream_key, leave_message)
         except Exception as e:

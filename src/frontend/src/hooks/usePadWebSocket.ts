@@ -11,7 +11,7 @@ const WebSocketMessageSchema = z.object({
     type: z.string(),
     pad_id: z.string().nullable(),
     data: z.any().optional(), // Make 'data' optional
-    timestamp: z.string().datetime({ message: "Invalid timestamp format, expected ISO 8601" }).optional(),
+    timestamp: z.string().datetime({ offset: true, precision: 6, message: "Invalid timestamp format, expected ISO 8601 with offset and 6 fractional seconds" }).optional(),
     user_id: z.string().optional(),
 });
 
@@ -31,12 +31,10 @@ export const usePadWebSocket = (padId: string | null) => {
 
     const getSocketUrl = useCallback((): string | null => {
         if (!padId || padId.startsWith('temp-')) {
-            console.debug(`[pad.ws] getSocketUrl: Invalid padId (${padId}), returning null.`);
             return null;
         }
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const url = `${protocol}//${window.location.host}/ws/pad/${padId}`;
-        console.debug(`[pad.ws] getSocketUrl: Generated URL: ${url} for padId: ${padId}`);
         return url;
     }, [padId]);
 
@@ -44,9 +42,6 @@ export const usePadWebSocket = (padId: string | null) => {
 
     const shouldBeConnected = useMemo(() => {
         const conditionsMet = !!memoizedSocketUrl && isAuthenticated && !isLoading && !isPermanentlyDisconnected;
-        console.debug(
-            `[pad.ws] shouldBeConnected for pad ${padId}: ${conditionsMet} (URL: ${!!memoizedSocketUrl}, Auth: ${isAuthenticated}, Loading: ${isLoading}, PermanentDisconnect: ${isPermanentlyDisconnected})`
-        );
         return conditionsMet;
     }, [memoizedSocketUrl, isAuthenticated, isLoading, isPermanentlyDisconnected, padId]);
 
@@ -116,6 +111,7 @@ export const usePadWebSocket = (padId: string | null) => {
                     return validationResult.data;
                 } else {
                     console.error(`[pad.ws] Incoming message validation failed for pad ${padId}:`, validationResult.error.issues);
+                    console.error(`[pad.ws] Raw message: ${rawLastMessage.data}`);
                     return null;
                 }
             } catch (error) {
@@ -147,12 +143,14 @@ export const usePadWebSocket = (padId: string | null) => {
             timestamp: new Date().toISOString(),
             // user_id: can be added here if available and needed from context
         };
+        console.debug(`[pad.ws] Sending message`, messagePayload.type);
         sendJsonMessage(messagePayload);
     }, [padId, sendJsonMessage]);
 
     useEffect(() => {
         if (lastJsonMessage) {
-            console.debug(`[pad.ws] Validated JSON message received for pad ${padId}:`, lastJsonMessage);
+            // console.debug(`[pad.ws] Validated JSON message received for pad ${padId}:`, lastJsonMessage);
+            console.debug(`[pad.ws] Received message`, lastJsonMessage?.type);
             // TODO: Dispatch to a store, update context, or trigger other side effects based on the message
         }
     }, [lastJsonMessage, padId]);
