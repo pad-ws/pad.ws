@@ -11,7 +11,7 @@ const WebSocketMessageSchema = z.object({
     type: z.string(),
     pad_id: z.string().nullable(),
     data: z.any().optional(), // Make 'data' optional
-    timestamp: z.string().datetime({ offset: true, precision: 6, message: "Invalid timestamp format, expected ISO 8601 with offset and 6 fractional seconds" }).optional(),
+    timestamp: z.string().datetime({ offset: true, message: "Invalid timestamp format, expected ISO 8601 with offset" }).optional(),
     user_id: z.string().optional(),
 });
 
@@ -140,7 +140,7 @@ export const usePadWebSocket = (padId: string | null) => {
             type,
             pad_id: padId,
             data,
-            timestamp: new Date().toISOString(),
+            timestamp: new Date().toISOString().replace('Z', '+00:00'),
             // user_id: can be added here if available and needed from context
         };
         console.debug(`[pad.ws] Sending message`, messagePayload.type);
