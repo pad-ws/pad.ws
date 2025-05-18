@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Excalidraw, MainMenu, Footer } from "@atyrode/excalidraw";
 import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
 import type { ExcalidrawEmbeddableElement, NonDeleted, NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
@@ -48,23 +48,35 @@ export default function App() {
 
   const { sendMessage } = usePadWebSocket(selectedTabId);
 
-  // Memoized debounced function for pad updates
-  const debouncedPadUpdate = useMemo(() => {
-    return debounce((elements: readonly NonDeletedExcalidrawElement[], state: AppState) => {
-      if (sendMessage && selectedTabId) {
-        // console.log('[pad.ws] Debounced pad_update sending:', { elements, state }); 
-        sendMessage("pad_update", { elements, state });
-      }
-    }, 250); // 250ms delay
-  }, [sendMessage, selectedTabId]); // Dependencies for useMemo
+  const lastSentCanvasDataRef = useRef<string>("");
+
+  const debouncedLogChange = useCallback(
+    debounce(
+      (elements: NonDeletedExcalidrawElement[], state: AppState, files: any) => {
+        if (!isAuthenticated || !selectedTabId) return;
+
+        const canvasData = {
+          elements,
+          appState: state,
+          files
+        };
+
+        const serialized = JSON.stringify(canvasData);
+
+        if (serialized !== lastSentCanvasDataRef.current) {
+          lastSentCanvasDataRef.current = serialized;
+          
+          sendMessage("pad_update", canvasData);
+        }
+      },
+      1200
+    ),
+    [sendMessage, isAuthenticated]
+  );
 
   const handleCloseSettingsModal = () => {
     setShowSettingsModal(false);
   };
-
-  const handleOnChange = useCallback((elements: readonly NonDeletedExcalidrawElement[], state: AppState) => {
-    debouncedPadUpdate(elements, state);
-  }, [debouncedPadUpdate]); // Dependency for useCallback is now the debounced function
 
   const handleOnScrollChange = (scrollX: number, scrollY: number) => {
     lockEmbeddables(excalidrawAPI?.getAppState());
@@ -87,7 +99,7 @@ export default function App() {
         excalidrawAPI={(api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api)}
         theme="dark"
         initialData={defaultInitialData}
-        onChange={handleOnChange}
+        onChange={debouncedLogChange}
         name="Pad.ws"
         onScrollChange={handleOnScrollChange}
         validateEmbeddable={true}
