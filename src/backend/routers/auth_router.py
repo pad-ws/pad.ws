@@ -145,10 +145,11 @@ async def auth_status(
     
     try:
         expires_in = user_session.token_data.get('exp') - time.time()
-        
+                
         return JSONResponse({
             "authenticated": True,
             "user": {
+                "id": str(user_session.id),
                 "username": user_session.username,
                 "email": user_session.email,
                 "name": user_session.name
