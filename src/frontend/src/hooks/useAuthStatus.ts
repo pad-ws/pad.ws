@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { scheduleTokenRefresh, AUTH_STATUS_KEY } from '../lib/authRefreshManager';
 
-interface UserInfo {
+export interface UserInfo {
   id?: string;
   username?: string;
   email?: string;
