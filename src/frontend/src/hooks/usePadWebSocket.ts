@@ -148,7 +148,7 @@ export const usePadWebSocket = (padId: string | null) => {
 
     useEffect(() => {
         if (lastJsonMessage) {
-            console.debug(`[pad.ws] Received message of type: ${lastJsonMessage?.type} for pad ${padId}:`, lastJsonMessage);
+            console.debug(`[pad.ws] Received message of type: ${lastJsonMessage?.type}`);
         }
     }, [lastJsonMessage, padId]);
 
