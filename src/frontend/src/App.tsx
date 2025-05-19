@@ -7,6 +7,7 @@ import type { ExcalidrawEmbeddableElement, NonDeleted, NonDeletedExcalidrawEleme
 import { useAuthStatus } from "./hooks/useAuthStatus";
 import { usePadTabs } from "./hooks/usePadTabs";
 import { usePadWebSocket } from "./hooks/usePadWebSocket";
+// import { useCollabManager } from "./hooks/useCollabManager"; // Added import
 
 // Components
 import DiscordButton from './ui/DiscordButton';
@@ -18,7 +19,6 @@ import Collab from './Collab';
 // Utils
 // import { initializePostHog } from "./lib/posthog";
 import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRenderer';
-import { debounce } from './lib/debounce';
 import Tabs from "./ui/Tabs";
 
 export const defaultInitialData = {
@@ -48,33 +48,15 @@ export default function App() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
 
-  const { sendMessage, lastJsonMessage } = usePadWebSocket(selectedTabId); // Added lastJsonMessage
+  const { sendMessage, lastJsonMessage, connectionStatus } = usePadWebSocket(selectedTabId);
 
-  const lastSentCanvasDataRef = useRef<string>("");
-
-  const debouncedLogChange = useCallback(
-    debounce(
-      (elements: NonDeletedExcalidrawElement[], state: AppState, files: any) => {
-        if (!isAuthenticated || !selectedTabId) return;
-
-        const canvasData = {
-          elements,
-          appState: state,
-          files
-        };
-
-        const serialized = JSON.stringify(canvasData);
-
-        if (serialized !== lastSentCanvasDataRef.current) {
-          lastSentCanvasDataRef.current = serialized;
-          
-          sendMessage("pad_update", canvasData);
-        }
-      },
-      1200
-    ),
-    [sendMessage, isAuthenticated]
-  );
+  // useCollabManager({
+  //   excalidrawAPI,
+  //   lastJsonMessage,
+  //   user,
+  //   sendMessage,
+  //   isOnline: connectionStatus === 'Open',
+  // });
 
   const handleCloseSettingsModal = () => {
     setShowSettingsModal(false);
@@ -101,7 +83,6 @@ export default function App() {
         excalidrawAPI={(api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api)}
         theme="dark"
         initialData={defaultInitialData}
-        onChange={debouncedLogChange}
         name="Pad.ws"
         onScrollChange={handleOnScrollChange}
         validateEmbeddable={true}
@@ -145,13 +126,13 @@ export default function App() {
             />
           </Footer>
         )}
-
         {excalidrawAPI && user && (
           <Collab
             excalidrawAPI={excalidrawAPI}
             lastJsonMessage={lastJsonMessage}
-            userId={user.id}
+            user={user}
             sendMessage={sendMessage}
+            isOnline={connectionStatus === 'Open'}
           />
         )}
       </Excalidraw>
