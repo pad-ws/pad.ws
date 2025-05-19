@@ -13,6 +13,8 @@ from dependencies import UserSession, get_session_domain
 from cache import RedisClient
 ws_router = APIRouter()
 
+STREAM_EXPIRY = 3600
+
 class WebSocketMessage(BaseModel):
     type: str
     pad_id: Optional[str] = None
@@ -81,7 +83,15 @@ async def publish_event_to_redis(redis_client: aioredis.Redis, stream_key: str, 
         else:
             field_value_dict[k] = str(v)
             
-    await redis_client.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
+    try:
+        async with redis_client.pipeline() as pipe:
+            # Add message to stream
+            await pipe.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
+            # Set expiration on the stream key
+            await pipe.expire(stream_key, STREAM_EXPIRY)
+            await pipe.execute()
+    except Exception as e:
+        print(f"Error publishing event to Redis stream {stream_key}: {str(e)}")
 
 
 async def _handle_received_data(
