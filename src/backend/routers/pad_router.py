@@ -12,30 +12,6 @@ from domain.pad import Pad
 
 pad_router = APIRouter()
 
-@pad_router.get("/")
-async def initialize_pad(
-    user: UserSession = Depends(require_auth),
-    session: AsyncSession = Depends(get_session)
-) -> Dict[str, Any]:
-    # First try to get any existing pads for the user
-    existing_pads = await PadStore.get_by_owner(session, user.id)
-    
-    if existing_pads:
-        # User already has pads, load the first one
-        pad = await Pad.get_by_id(session, existing_pads[0].id)
-       
-    else:
-        # Create a new pad for first-time user
-        pad = await Pad.create(
-            session=session,
-            owner_id=user.id,
-            display_name="My First Pad"
-        )
-
-    pad_dict = pad.to_dict()
-    user_app_state = pad_dict["data"]["appState"].get(str(user.id), {})
-    pad_dict["data"]["appState"] = user_app_state
-    return pad_dict["data"]
 
 @pad_router.post("/new")
 async def create_new_pad(

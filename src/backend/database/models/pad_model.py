@@ -58,13 +58,6 @@ class PadStore(Base, BaseModel):
         result = await session.execute(stmt)
         return result.scalars().first()
 
-    @classmethod
-    async def get_by_owner(cls, session: AsyncSession, owner_id: UUID) -> List['PadStore']:
-        """Get all pads for a specific owner"""
-        stmt = select(cls).where(cls.owner_id == owner_id).order_by(cls.created_at)
-        result = await session.execute(stmt)
-        return result.scalars().all()
-
     async def save(self, session: AsyncSession) -> 'PadStore':
         """Update the pad in the database"""
         self.updated_at = datetime.now()

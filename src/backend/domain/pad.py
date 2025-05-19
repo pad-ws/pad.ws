@@ -126,21 +126,6 @@ class Pad:
         return None
 
     @classmethod
-    async def get_by_owner(cls, session: AsyncSession, owner_id: UUID) -> list['Pad']:
-        """Get all pads for a specific owner"""
-        stores = await PadStore.get_by_owner(session, owner_id)
-        pads = [cls.from_store(store) for store in stores]
-        
-        # Cache all pads, handling errors for each individually
-        for pad in pads:
-            try:
-                await pad.cache()
-            except Exception as e:
-                print(f"Warning: Failed to cache pad {pad.id}: {str(e)}")
-                
-        return pads
-
-    @classmethod
     def from_store(cls, store: PadStore) -> 'Pad':
         """Create a Pad instance from a store"""
         return cls(
@@ -181,42 +166,21 @@ class Pad:
             
         return self
 
-    async def broadcast_event(self, event_type: str, event_data: Dict[str, Any]) -> None:
-        """Broadcast an event to all connected clients"""
-        redis = await get_redis_client()
-        stream_key = f"pad:stream:{self.id}"
-        message = {
-            "type": event_type,
-            "pad_id": str(self.id),
-            "data": event_data,
-            "timestamp": datetime.now().isoformat()
-        }
+    async def rename(self, session: AsyncSession, new_display_name: str) -> 'Pad':
+        """Rename the pad by updating its display name"""
+        self.display_name = new_display_name
+        self.updated_at = datetime.now()
+        if self._store:
+            self._store.display_name = new_display_name
+            self._store.updated_at = self.updated_at
+            self._store = await self._store.save(session)
+            
         try:
-            await redis.xadd(stream_key, message)
+            await self.cache()
         except Exception as e:
-            print(f"Error broadcasting event to pad {self.id}: {str(e)}")
-
-    async def get_stream_position(self) -> str:
-        """Get the current position in the pad's stream"""
-        redis = await get_redis_client()
-        stream_key = f"pad:stream:{self.id}"
-        try:
-            info = await redis.xinfo_stream(stream_key)
-            return info.get("last-generated-id", "0-0")
-        except Exception as e:
-            print(f"Error getting stream position for pad {self.id}: {str(e)}")
-            return "0-0"
-
-    async def get_recent_events(self, count: int = 100) -> list[Dict[str, Any]]:
-        """Get recent events from the pad's stream"""
-        redis = await get_redis_client()
-        stream_key = f"pad:stream:{self.id}"
-        try:
-            messages = await redis.xrevrange(stream_key, count=count)
-            return [msg[1] for msg in messages]
-        except Exception as e:
-            print(f"Error getting recent events for pad {self.id}: {str(e)}")
-            return []
+            print(f"Warning: Failed to cache pad {self.id} after rename: {str(e)}")
+            
+        return self
 
     async def delete(self, session: AsyncSession) -> bool:
         """Delete the pad from both database and cache"""
@@ -269,21 +233,7 @@ class Pad:
             "updated_at": self.updated_at.isoformat()
         }
 
-    async def rename(self, session: AsyncSession, new_display_name: str) -> 'Pad':
-        """Rename the pad by updating its display name"""
-        self.display_name = new_display_name
-        self.updated_at = datetime.now()
-        if self._store:
-            self._store.display_name = new_display_name
-            self._store.updated_at = self.updated_at
-            self._store = await self._store.save(session)
-            
-        try:
-            await self.cache()
-        except Exception as e:
-            print(f"Warning: Failed to cache pad {self.id} after rename: {str(e)}")
-            
-        return self
+
 
 
     
