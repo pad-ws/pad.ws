@@ -1,22 +1,19 @@
 import { useCallback, useMemo, useEffect, useState } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
-import { z } from 'zod'; // Import Zod
+import { z } from 'zod';
 import { useAuthStatus } from './useAuthStatus';
 
-// 1. Define Zod Schema for your WebSocketMessage
-// Adjust the 'data' part of the schema based on the actual structure of your messages.
-// Using z.any() for data is a placeholder; more specific schemas are better.
-// If 'data' can have different structures based on 'type', consider Zod's discriminated unions.
-const WebSocketMessageSchema = z.object({
-    type: z.string(),
+export const WebSocketMessageSchema = z.object({
+    type: z.string(), // e.g., "connected", "user_joined", "user_left", "pad_update", "error"
     pad_id: z.string().nullable(),
-    data: z.any().optional(), // Make 'data' optional
-    timestamp: z.string().datetime({ offset: true, message: "Invalid timestamp format, expected ISO 8601 with offset" }).optional(),
-    user_id: z.string().optional(),
+    timestamp: z.string().datetime({ offset: true, message: "Invalid timestamp format" }),
+    user_id: z.string().optional(),       // ID of the user related to the event or sending the message
+    connection_id: z.string().optional(), // Connection ID related to the event or sending the message
+    data: z.any().optional(),             // Payload; structure depends entirely on 'type'
 });
 
-// Type inferred from the Zod schema
-type WebSocketMessage = z.infer<typeof WebSocketMessageSchema>;
+// TypeScript type inferred from the Zod schema
+export type WebSocketMessage = z.infer<typeof WebSocketMessageSchema>;
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY = 1000; // 1 second
@@ -25,7 +22,7 @@ const INITIAL_RECONNECT_DELAY = 1000; // 1 second
 type ConnectionStatus = 'Uninstantiated' | 'Connecting' | 'Open' | 'Closing' | 'Closed' | 'Reconnecting' | 'Failed';
 
 export const usePadWebSocket = (padId: string | null) => {
-    const { isAuthenticated, isLoading, refetchAuthStatus } = useAuthStatus();
+    const { isAuthenticated, isLoading, refetchAuthStatus, user } = useAuthStatus(); // Assuming user object has id
     const [isPermanentlyDisconnected, setIsPermanentlyDisconnected] = useState(false);
     const [reconnectAttemptCount, setReconnectAttemptCount] = useState(0);
 
@@ -43,7 +40,7 @@ export const usePadWebSocket = (padId: string | null) => {
     const shouldBeConnected = useMemo(() => {
         const conditionsMet = !!memoizedSocketUrl && isAuthenticated && !isLoading && !isPermanentlyDisconnected;
         return conditionsMet;
-    }, [memoizedSocketUrl, isAuthenticated, isLoading, isPermanentlyDisconnected, padId]);
+    }, [memoizedSocketUrl, isAuthenticated, isLoading, isPermanentlyDisconnected]);
 
     const {
         sendMessage: librarySendMessage,
@@ -53,14 +50,14 @@ export const usePadWebSocket = (padId: string | null) => {
         memoizedSocketUrl,
         {
             onOpen: () => {
-                console.log(`[pad.ws] Connection established for pad: ${padId}`);
+                console.debug(`[pad.ws] Connection established for pad: ${padId}`);
                 setIsPermanentlyDisconnected(false);
                 setReconnectAttemptCount(0);
             },
             onClose: (event: CloseEvent) => {
-                console.log(`[pad.ws] Connection closed for pad: ${padId}. Code: ${event.code}, Reason: '${event.reason}'`);
+                console.debug(`[pad.ws] Connection closed for pad: ${padId}. Code: ${event.code}, Reason: '${event.reason}'`);
                 if (isAuthenticated === undefined && !isLoading) {
-                    console.log('[pad.ws] Auth status unknown on close, attempting to refetch auth status.');
+                    console.debug('[pad.ws] Auth status unknown on close, attempting to refetch auth status.');
                     refetchAuthStatus();
                 }
             },
@@ -72,7 +69,7 @@ export const usePadWebSocket = (padId: string | null) => {
                 const conditionsStillMetForConnection = !!getSocketUrl() && isAuthenticated && !isLoading;
 
                 if (isAbnormalClosure && !conditionsStillMetForConnection && isAuthenticated === undefined && !isLoading) {
-                    console.log('[pad.ws] Abnormal closure for pad ${padId}, auth status unknown. Refetching auth before deciding on reconnect.');
+                    console.debug(`[pad.ws] Abnormal closure for pad ${padId}, auth status unknown. Refetching auth before deciding on reconnect.`);
                     refetchAuthStatus();
                 }
                 
@@ -80,7 +77,7 @@ export const usePadWebSocket = (padId: string | null) => {
                 if (decision) {
                     setReconnectAttemptCount(prev => prev + 1);
                 }
-                console.log(
+                console.debug(
                     `[pad.ws] shouldReconnect for pad ${padId}: ${decision} (Abnormal: ${isAbnormalClosure}, ConditionsMet: ${conditionsStillMetForConnection}, PermanentDisconnect: ${isPermanentlyDisconnected}, Code: ${closeEvent.code})`
                 );
                 return decision;
@@ -88,7 +85,7 @@ export const usePadWebSocket = (padId: string | null) => {
             reconnectAttempts: MAX_RECONNECT_ATTEMPTS,
             reconnectInterval: (attemptNumber: number) => {
                 const delay = INITIAL_RECONNECT_DELAY * Math.pow(2, attemptNumber);
-                console.info(
+                console.debug(
                     `[pad.ws] Reconnecting attempt ${attemptNumber + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms for pad: ${padId}`
                 );
                 return delay;
@@ -123,35 +120,35 @@ export const usePadWebSocket = (padId: string | null) => {
     }, [rawLastMessage, padId]);
 
     const sendJsonMessage = useCallback((payload: WebSocketMessage) => {
-        // Validate outgoing message structure (optional, but good practice)
         const validationResult = WebSocketMessageSchema.safeParse(payload);
         if (!validationResult.success) {
             console.error(`[pad.ws] Outgoing message validation failed for pad ${padId}:`, validationResult.error.issues);
-            // Decide if you want to throw an error or just log and not send
             return;
         }
-
         librarySendMessage(JSON.stringify(payload));
     }, [padId, librarySendMessage]);
 
-    // Wrapper to maintain the original `sendMessage(type, data)` signature if preferred by consuming components
-    const sendMessage = useCallback((type: string, data: any) => {
+    // Simplified sendMessage wrapper.
+    // The 'type' parameter dictates the message type.
+    // The 'data' parameter is the payload for the 'data' field in WebSocketMessage.
+    const sendMessage = useCallback((type: string, messageData?: any) => {
         const messagePayload: WebSocketMessage = {
             type,
             pad_id: padId,
-            data,
-            timestamp: new Date().toISOString().replace('Z', '+00:00'),
-            // user_id: can be added here if available and needed from context
+            timestamp: new Date().toISOString(), // Ensure ISO 8601 with Z or offset
+            user_id: user?.id, // Add sender's user_id if available
+            // connection_id is typically set by the server or known on connection,
+            // client might not need to send it explicitly unless for specific cases.
+            data: messageData,
         };
-        console.debug(`[pad.ws] Sending message`, messagePayload.type);
+        
+        console.debug(`[pad.ws] Sending message of type: ${messagePayload.type}`);
         sendJsonMessage(messagePayload);
-    }, [padId, sendJsonMessage]);
+    }, [padId, sendJsonMessage, user?.id]);
 
     useEffect(() => {
         if (lastJsonMessage) {
-            // console.debug(`[pad.ws] Validated JSON message received for pad ${padId}:`, lastJsonMessage);
-            console.debug(`[pad.ws] Received message`, lastJsonMessage?.type);
-            // TODO: Dispatch to a store, update context, or trigger other side effects based on the message
+            console.debug(`[pad.ws] Received message of type: ${lastJsonMessage?.type} for pad ${padId}:`, lastJsonMessage);
         }
     }, [lastJsonMessage, padId]);
 
@@ -162,7 +159,6 @@ export const usePadWebSocket = (padId: string | null) => {
             case ReadyState.UNINSTANTIATED:
                 return 'Uninstantiated';
             case ReadyState.CONNECTING:
-                // Differentiate between initial connecting and reconnecting
                 if (reconnectAttemptCount > 0 && reconnectAttemptCount < MAX_RECONNECT_ATTEMPTS && !isPermanentlyDisconnected) {
                     return 'Reconnecting';
                 }
@@ -172,7 +168,6 @@ export const usePadWebSocket = (padId: string | null) => {
             case ReadyState.CLOSING:
                 return 'Closing';
             case ReadyState.CLOSED:
-                 // If it's closed but not permanently, and shouldBeConnected is true, it might be about to reconnect
                 if (shouldBeConnected && reconnectAttemptCount > 0 && reconnectAttemptCount < MAX_RECONNECT_ATTEMPTS && !isPermanentlyDisconnected) {
                     return 'Reconnecting';
                 }
@@ -183,12 +178,12 @@ export const usePadWebSocket = (padId: string | null) => {
     }, [readyState, isPermanentlyDisconnected, reconnectAttemptCount, shouldBeConnected]);
 
     return {
-        sendMessage, // Original simple signature
-        sendJsonMessage, // For sending pre-formed WebSocketMessage objects
-        lastJsonMessage, // Validated JSON message
-        rawLastMessage,  // Raw message, for debugging or non-JSON cases
-        readyState,      // Numerical readyState
-        connectionStatus,// User-friendly status string
+        sendMessage,
+        sendJsonMessage, // Kept for sending pre-formed WebSocketMessage objects
+        lastJsonMessage,
+        rawLastMessage,
+        readyState,
+        connectionStatus,
         isPermanentlyDisconnected,
     };
 };

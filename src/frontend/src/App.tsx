@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Excalidraw, MainMenu, Footer } from "@atyrode/excalidraw";
-import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
+import type { ExcalidrawImperativeAPI, AppState, Collaborator as ExcalidrawCollaborator } from "@atyrode/excalidraw/types"; // Added Collaborator
 import type { ExcalidrawEmbeddableElement, NonDeleted, NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
 
 // Hooks
@@ -13,6 +13,7 @@ import DiscordButton from './ui/DiscordButton';
 import { MainMenuConfig } from './ui/MainMenu';
 import AuthDialog from './ui/AuthDialog';
 import SettingsDialog from './ui/SettingsDialog';
+import Collab from './Collab';
 
 // Utils
 // import { initializePostHog } from "./lib/posthog";
@@ -31,7 +32,8 @@ export const defaultInitialData = {
 };
 
 export default function App() {
-  const { isAuthenticated, isLoading: isLoadingAuth } = useAuthStatus();
+  const { isAuthenticated, isLoading: isLoadingAuth, user } = useAuthStatus(); // Changed userProfile to user
+
   const {
     tabs,
     selectedTabId,
@@ -46,7 +48,7 @@ export default function App() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
 
-  const { sendMessage } = usePadWebSocket(selectedTabId);
+  const { sendMessage, lastJsonMessage } = usePadWebSocket(selectedTabId); // Added lastJsonMessage
 
   const lastSentCanvasDataRef = useRef<string>("");
 
@@ -142,6 +144,15 @@ export default function App() {
               selectTab={selectTab}
             />
           </Footer>
+        )}
+
+        {excalidrawAPI && user && (
+          <Collab
+            excalidrawAPI={excalidrawAPI}
+            lastJsonMessage={lastJsonMessage}
+            userId={user.id}
+            sendMessage={sendMessage}
+          />
         )}
       </Excalidraw>
     </>
