@@ -65,10 +65,7 @@ class Pad:
         )
         pad = cls.from_store(store)
         
-        try:
-            await pad.cache()
-        except Exception as e:
-            print(f"Warning: Failed to cache pad {pad.id}: {str(e)}")
+        await pad.cache()
             
         return pad
 
@@ -118,10 +115,7 @@ class Pad:
         store = await PadStore.get_by_id(session, pad_id)
         if store:
             pad = cls.from_store(store)
-            try:
-                await pad.cache()
-            except Exception as e:
-                print(f"Warning: Failed to cache pad {pad.id}: {str(e)}")
+            await pad.cache()
             return pad
         return None
 
@@ -159,10 +153,7 @@ class Pad:
         self.created_at = self._store.created_at
         self.updated_at = self._store.updated_at
         
-        try:
-            await self.cache()
-        except Exception as e:
-            print(f"Warning: Failed to cache pad {self.id} after save: {str(e)}")
+        await self.cache()
             
         return self
 
@@ -175,17 +166,13 @@ class Pad:
             self._store.updated_at = self.updated_at
             self._store = await self._store.save(session)
             
-        try:
-            await self.cache()
-        except Exception as e:
-            print(f"Warning: Failed to cache pad {self.id} after rename: {str(e)}")
+        await self.cache()
             
         return self
 
     async def delete(self, session: AsyncSession) -> bool:
         """Delete the pad from both database and cache"""
-        print(f"Deleting pad {self.id}", flush=True)
-        print(f"self._store: {self._store}", flush=True)
+        print(f"Deleting pad {self.id}")
         if self._store:
             success = await self._store.delete(session)
             
@@ -210,11 +197,13 @@ class Pad:
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
-        
-        async with redis.pipeline() as pipe:
-            await pipe.hset(cache_key, mapping=cache_data)
-            await pipe.expire(cache_key, self.CACHE_EXPIRY)
-            await pipe.execute()
+        try:
+            async with redis.pipeline() as pipe:
+                await pipe.hset(cache_key, mapping=cache_data)
+                await pipe.expire(cache_key, self.CACHE_EXPIRY)
+                await pipe.execute()
+        except Exception as e:
+            print(f"Error caching pad {self.id}: {str(e)}")
 
     async def invalidate_cache(self) -> None:
         """Remove the pad from Redis cache"""
