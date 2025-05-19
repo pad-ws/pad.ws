@@ -1,6 +1,7 @@
 from uuid import UUID
 from typing import Dict, Any, Optional
 from datetime import datetime
+from redis import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 from config import default_pad
 import json
@@ -8,7 +9,6 @@ import json
 from cache import RedisClient
 from database.models.pad_model import PadStore
 from redis.asyncio import Redis as AsyncRedis
-
 
 class Pad:
     """
@@ -36,11 +36,11 @@ class Pad:
         self.id = id
         self.owner_id = owner_id
         self.display_name = display_name
-        self.data = data or {}
         self.created_at = created_at or datetime.now()
         self.updated_at = updated_at or datetime.now()
         self._store = store
         self._redis = redis
+        self.data = data or {}
 
     @classmethod
     async def create(
@@ -113,8 +113,7 @@ class Pad:
                 store=store,
                 redis=redis
             )
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
-            print(f"Error parsing cached pad data for id {pad_id}: {str(e)}")
+        except (json.JSONDecodeError, KeyError, ValueError, RedisError) as e:
             return None
         except Exception as e:
             print(f"Unexpected error retrieving pad from cache: {str(e)}")

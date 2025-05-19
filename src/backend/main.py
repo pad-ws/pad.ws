@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from database import init_db
+from database import init_db, engine
 from config import (
     STATIC_DIR, ASSETS_DIR, POSTHOG_API_KEY, POSTHOG_HOST, 
 )
@@ -41,11 +41,11 @@ async def lifespan(_: FastAPI):
     yield
     
     # Clean up connections when shutting down
-    await RedisClient.close(redis)
+    await redis.close()
+    await engine.dispose()
 
 app = FastAPI(lifespan=lifespan)
 
-# CORS middleware setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -61,13 +61,12 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 async def read_root(request: Request, auth: Optional[UserSession] = Depends(optional_auth)):
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
-# Include routers in the main app with the /api prefix
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(users_router, prefix="/api/users")
 app.include_router(workspace_router, prefix="/api/workspace")
 app.include_router(pad_router, prefix="/api/pad")
 app.include_router(app_router, prefix="/api/app")
-app.include_router(ws_router)  # WebSocket router doesn't need /api prefix
+app.include_router(ws_router)
     
 if __name__ == "__main__":
     import uvicorn
