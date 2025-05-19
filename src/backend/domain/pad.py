@@ -2,9 +2,10 @@ from uuid import UUID
 from typing import Dict, Any, Optional
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from config import default_pad, RedisService
+from config import default_pad
 import json
 
+from cache import RedisClient
 from database.models.pad_model import PadStore
 from redis.asyncio import Redis as AsyncRedis
 
@@ -65,7 +66,7 @@ class Pad:
             display_name=display_name,
             data=pad_data
         )
-        redis = await RedisService.get_instance()
+        redis = await RedisClient.get_instance()
         pad = cls.from_store(store, redis)
         
         await pad.cache()
@@ -122,7 +123,7 @@ class Pad:
     @classmethod
     async def get_by_id(cls, session: AsyncSession, pad_id: UUID) -> Optional['Pad']:
         """Get a pad by ID, first trying Redis cache then falling back to database"""
-        redis = await RedisService.get_instance()
+        redis = await RedisClient.get_instance()
         
         # Try to get from cache first
         pad = await cls.from_redis(redis, pad_id)

@@ -12,8 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from database import init_db
 from config import (
     STATIC_DIR, ASSETS_DIR, POSTHOG_API_KEY, POSTHOG_HOST, 
-    get_redis_client, close_redis_client
 )
+from cache import RedisClient
 from dependencies import UserSession, optional_auth
 from routers.auth_router import auth_router
 from routers.users_router import users_router
@@ -34,14 +34,14 @@ async def lifespan(_: FastAPI):
     print("Database connection established successfully")
     
     # Initialize Redis client and verify connection
-    redis = await get_redis_client()
+    redis = await RedisClient.get_instance()
     await redis.ping()
     print("Redis connection established successfully")
     
     yield
     
     # Clean up connections when shutting down
-    await close_redis_client()
+    await RedisClient.close(redis)
 
 app = FastAPI(lifespan=lifespan)
 

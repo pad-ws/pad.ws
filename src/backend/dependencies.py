@@ -5,7 +5,7 @@ import os
 
 from fastapi import Request, HTTPException
 
-from config import get_redis_client
+from cache import RedisClient
 from domain.session import Session
 from coder import CoderAPI
 
@@ -20,7 +20,7 @@ oidc_config = {
 
 async def get_session_domain() -> Session:
     """Get a Session domain instance for the current request."""
-    redis_client = await get_redis_client()
+    redis_client = await RedisClient.get_instance()
     return Session(redis_client, oidc_config)
 
 class UserSession:

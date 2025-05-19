@@ -2,11 +2,11 @@ import os
 import json
 import time
 import httpx
-from redis import asyncio as aioredis
 import jwt
 from jwt.jwks_client import PyJWKClient
 from typing import Optional, Dict, Any, Tuple
 from dotenv import load_dotenv
+from cache import RedisClient
 
 # Load environment variables once
 load_dotenv()
@@ -32,55 +32,6 @@ OIDC_SERVER_URL = os.getenv('OIDC_SERVER_URL')
 OIDC_REALM = os.getenv('OIDC_REALM')
 OIDC_REDIRECT_URI = os.getenv('REDIRECT_URI')
 
-# ===== Redis Configuration =====
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
-REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
-
-class RedisService:
-    """Service for managing Redis connections with proper lifecycle management."""
-    
-    _instance = None
-    
-    @classmethod
-    async def get_instance(cls) -> aioredis.Redis:
-        """Get or create a Redis client instance."""
-        if cls._instance is None:
-            cls._instance = cls()
-            await cls._instance.initialize()
-        return cls._instance.client
-    
-    def __init__(self):
-        self.client = None
-    
-    async def initialize(self) -> None:
-        """Initialize the Redis client."""
-        self.client = aioredis.from_url(
-            REDIS_URL,
-            password=REDIS_PASSWORD,
-            decode_responses=True,
-            health_check_interval=30
-        )
-        
-    async def close(self) -> None:
-        """Close the Redis client connection."""
-        if self.client:
-            await self.client.close()
-            self.client = None
-            print("Redis client closed.")
-
-# Simplified functions to maintain backwards compatibility
-async def get_redis_client() -> aioredis.Redis:
-    """Get a Redis client. Creates one if it doesn't exist."""
-    return await RedisService.get_instance()
-
-async def close_redis_client() -> None:
-    """Close the Redis client connection."""
-    if RedisService._instance:
-        await RedisService._instance.close()
-        RedisService._instance = None
-
 default_pad = {}
 with open("templates/dev.json", 'r') as f:
     default_pad = json.load(f)
@@ -98,7 +49,7 @@ _jwks_client = None
 # Session management functions
 async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
     """Get session data from Redis"""
-    client = await get_redis_client()
+    client = await RedisClient.get_instance()
     session_data = await client.get(f"session:{session_id}")
     if session_data:
         return json.loads(session_data)
@@ -106,7 +57,7 @@ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
 
 async def set_session(session_id: str, data: Dict[str, Any], expiry: int) -> None:
     """Store session data in Redis with expiry in seconds"""
-    client = await get_redis_client()
+    client = await RedisClient.get_instance()
     await client.setex(
         f"session:{session_id}",
         expiry,
@@ -115,7 +66,7 @@ async def set_session(session_id: str, data: Dict[str, Any], expiry: int) -> Non
 
 async def delete_session(session_id: str) -> None:
     """Delete session data from Redis"""
-    client = await get_redis_client()
+    client = await RedisClient.get_instance()
     await client.delete(f"session:{session_id}")
 
 def get_auth_url() -> str:

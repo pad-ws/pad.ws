@@ -9,9 +9,8 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from pydantic import BaseModel, Field, field_validator
 from redis import asyncio as aioredis
 
-from config import get_redis_client
 from dependencies import UserSession, get_session_domain
-
+from cache import RedisClient
 ws_router = APIRouter()
 
 class WebSocketMessage(BaseModel):
@@ -186,7 +185,7 @@ async def websocket_endpoint(
     stream_key = f"pad:stream:{pad_id}"
     
     try:
-        redis_client = await get_redis_client()
+        redis_client = await RedisClient.get_instance()
         
         # Send initial connection success message
         if websocket.client_state.CONNECTED:

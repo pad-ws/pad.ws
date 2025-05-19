@@ -7,7 +7,8 @@ import jwt
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import get_redis_client, get_jwks_client, OIDC_CLIENT_ID, FRONTEND_URL
+from cache import RedisClient
+from config import get_jwks_client, OIDC_CLIENT_ID, FRONTEND_URL
 from dependencies import UserSession, require_admin, require_auth
 from database.database import get_session
 from domain.user import User
@@ -56,7 +57,7 @@ async def get_online_users(
 ):
     """Get all online users with their information (admin only)"""
     try:
-        client = await get_redis_client()
+        client = await RedisClient.get_instance()
         
         # Get all session keys
         session_keys = await client.keys("session:*")

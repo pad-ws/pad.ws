@@ -67,11 +67,11 @@ export default function App() {
 
         if (serialized !== lastSentCanvasDataRef.current) {
           lastSentCanvasDataRef.current = serialized;
-          
+
           sendMessage("pad_update", canvasData);
         }
       },
-      1200
+      200
     ),
     [sendMessage, isAuthenticated]
   );
