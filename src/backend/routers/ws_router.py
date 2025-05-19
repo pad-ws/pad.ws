@@ -88,10 +88,10 @@ async def publish_event_to_redis(redis_client: aioredis.Redis, stream_key: str, 
 async def _handle_received_data(
     raw_data: str,
     pad_id: UUID,
-    user: UserSession, # Authenticated user session
+    user: UserSession,
     redis_client: aioredis.Redis,
     stream_key: str,
-    current_connection_id: str # This specific connection's ID
+    connection_id: str
 ):
     """Processes decoded message data, wraps it in WebSocketMessage, and publishes to Redis."""
     try:
@@ -103,7 +103,7 @@ async def _handle_received_data(
             type=client_message_dict.get("type", "unknown_client_message"), # Get type from client
             pad_id=str(pad_id), # Server sets/overrides pad_id
             user_id=str(user.id), # Server sets/overrides user_id from authenticated session
-            connection_id=current_connection_id, # Server sets/overrides connection_id
+            connection_id=connection_id, # Server sets/overrides connection_id
             timestamp=datetime.now(timezone.utc), # Server sets timestamp
             data=client_message_dict.get("data") # Pass through client's data payload
         )
@@ -113,24 +113,16 @@ async def _handle_received_data(
         await publish_event_to_redis(redis_client, stream_key, processed_message)
 
     except json.JSONDecodeError:
-        print(f"Invalid JSON received from {current_connection_id[:5]}")
-        # Optionally send an error message back to this client
-        error_msg = WebSocketMessage(
-            type="error",
-            pad_id=str(pad_id),
-            data={"message": "Invalid JSON format received."}
-        )
-        # This send is tricky as _handle_received_data doesn't have websocket object.
-        # Error handling might need to be closer to websocket.receive_text()
+        print(f"Invalid JSON received from {connection_id[:5]}")
     except Exception as e:
-        print(f"Error processing message from {current_connection_id[:5]}: {e}")
+        print(f"Error processing message from {connection_id[:5]}: {e}")
 
 
 async def consume_redis_stream(
     redis_client: aioredis.Redis,
     stream_key: str,
     websocket: WebSocket,
-    current_connection_id: str,
+    connection_id: str,
     last_id: str = '$'
 ):
     """Consumes messages from Redis stream, parses to WebSocketMessage, and forwards them."""
@@ -163,7 +155,7 @@ async def consume_redis_stream(
                         message_to_send = WebSocketMessage(**redis_dict)
                         
                         # Avoid echoing messages to the sender
-                        if message_to_send.connection_id != current_connection_id:
+                        if message_to_send.connection_id != connection_id:
                             await websocket.send_text(message_to_send.model_dump_json())
                         else:
                             pass # Message originated from this connection, don't echo
@@ -173,7 +165,7 @@ async def consume_redis_stream(
 
                     last_id = message_id
             
-            await asyncio.sleep(0.01) # Small sleep to yield control
+            await asyncio.sleep(0)
     except Exception as e:
         print(f"Error in Redis stream consumer for {stream_key}: {e}")
 
