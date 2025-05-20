@@ -74,24 +74,6 @@ class User:
         return cls.from_store(store) if store else None
 
     @classmethod
-    async def get_by_username(cls, session: AsyncSession, username: str) -> Optional['User']:
-        """Get a user by username"""
-        store = await UserStore.get_by_username(session, username)
-        return cls.from_store(store) if store else None
-
-    @classmethod
-    async def get_by_email(cls, session: AsyncSession, email: str) -> Optional['User']:
-        """Get a user by email"""
-        store = await UserStore.get_by_email(session, email)
-        return cls.from_store(store) if store else None
-
-    @classmethod
-    async def get_all(cls, session: AsyncSession) -> List['User']:
-        """Get all users"""
-        stores = await UserStore.get_all(session)
-        return [cls.from_store(store) for store in stores]
-
-    @classmethod
     def from_store(cls, store: UserStore) -> 'User':
         """Create a User instance from a store"""
         return cls(

@@ -2,7 +2,7 @@ from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from uuid import UUID
 from datetime import datetime
 
-from sqlalchemy import Column, String, ForeignKey, Index, UUID as SQLUUID, select, update, delete
+from sqlalchemy import Column, String, ForeignKey, Index, UUID as SQLUUID, select, update, delete, ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,12 +29,14 @@ class PadStore(Base, BaseModel):
     )
     display_name = Column(String(100), nullable=False)
     data = Column(JSONB, nullable=False)
+    sharing_policy = Column(String(20), nullable=False, default="private")
+    whitelist = Column(ARRAY(SQLUUID(as_uuid=True)), nullable=True, default=[])
     
     # Relationships
     owner: Mapped["UserStore"] = relationship("UserStore", back_populates="pads")
 
     def __repr__(self) -> str:
-        return f"<PadStore(id='{self.id}', display_name='{self.display_name}')>"
+        return f"<PadStore(id='{self.id}', display_name='{self.display_name}', sharing_policy='{self.sharing_policy}')>"
 
     @classmethod
     async def create_pad(
@@ -42,10 +44,18 @@ class PadStore(Base, BaseModel):
         session: AsyncSession,
         owner_id: UUID,
         display_name: str,
-        data: Dict[str, Any]
+        data: Dict[str, Any],
+        sharing_policy: str = "private",
+        whitelist: List[UUID] = []
     ) -> 'PadStore':
         """Create a new pad"""
-        pad = cls(owner_id=owner_id, display_name=display_name, data=data)
+        pad = cls(
+            owner_id=owner_id,
+            display_name=display_name,
+            data=data,
+            sharing_policy=sharing_policy,
+            whitelist=whitelist
+        )
         session.add(pad)
         await session.commit()
         await session.refresh(pad)
@@ -67,6 +77,8 @@ class PadStore(Base, BaseModel):
                 owner_id=self.owner_id,
                 display_name=self.display_name,
                 data=self.data,
+                sharing_policy=self.sharing_policy,
+                whitelist=self.whitelist,
                 updated_at=self.updated_at
             )
             await session.execute(stmt)
@@ -79,6 +91,8 @@ class PadStore(Base, BaseModel):
                 self.owner_id = refreshed.owner_id
                 self.display_name = refreshed.display_name
                 self.data = refreshed.data
+                self.sharing_policy = refreshed.sharing_policy
+                self.whitelist = refreshed.whitelist
                 self.created_at = refreshed.created_at
                 self.updated_at = refreshed.updated_at
                 
@@ -101,6 +115,8 @@ class PadStore(Base, BaseModel):
             "owner_id": str(self.owner_id),
             "display_name": self.display_name,
             "data": self.data,
+            "sharing_policy": self.sharing_policy,
+            "whitelist": [str(uid) for uid in self.whitelist] if self.whitelist else [],
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
         }

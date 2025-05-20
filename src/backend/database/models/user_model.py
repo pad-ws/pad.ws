@@ -2,8 +2,8 @@ from typing import List, Optional, Dict, Any, TYPE_CHECKING
 from uuid import UUID
 from datetime import datetime
 
-from sqlalchemy import Column, Index, String, UUID as SQLUUID, Boolean, select, update, delete, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, Index, String, UUID as SQLUUID, Boolean, select, update, delete, func, ARRAY, and_, or_, text
+from sqlalchemy.dialects.postgresql import JSONB, array
 from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +32,7 @@ class UserStore(Base, BaseModel):
     given_name = Column(String(254), nullable=True)
     family_name = Column(String(254), nullable=True)
     roles = Column(JSONB, nullable=False, default=[])
+    open_pads = Column(ARRAY(SQLUUID(as_uuid=True)), nullable=False, default=[])
     
     # Relationships
     pads: Mapped[List["PadStore"]] = relationship(
@@ -55,7 +56,8 @@ class UserStore(Base, BaseModel):
         name: Optional[str] = None,
         given_name: Optional[str] = None,
         family_name: Optional[str] = None,
-        roles: List[str] = None
+        roles: List[str] = None,
+        open_pads: List[UUID] = None
     ) -> 'UserStore':
         """Create a new user"""
         user = cls(
@@ -66,7 +68,8 @@ class UserStore(Base, BaseModel):
             name=name,
             given_name=given_name,
             family_name=family_name,
-            roles=roles or []
+            roles=roles or [],
+            open_pads=open_pads or []
         )
         session.add(user)
         await session.commit()
@@ -103,15 +106,30 @@ class UserStore(Base, BaseModel):
 
     @classmethod
     async def get_open_pads(cls, session: AsyncSession, user_id: UUID) -> List[Dict[str, Any]]:
-        """Get just the metadata of pads owned by the user without loading full pad data"""
+        """Get all pad IDs that the user has access to (both open pads and owned pads)"""
         from .pad_model import PadStore  # Import here to avoid circular imports
+        
+        # Get the user to access their open_pads
+        user = await cls.get_by_id(session, user_id)
+        if not user:
+            return []
+            
+        # Get both open_pads and owned pad IDs
+        open_pad_ids = user.open_pads or []
+        owned_pad_ids = [pad.id for pad in user.pads]
+        
+        # Combine and deduplicate pad IDs
+        all_pad_ids = list(set(open_pad_ids + owned_pad_ids))
         
         stmt = select(
             PadStore.id,
             PadStore.display_name,
             PadStore.created_at,
-            PadStore.updated_at
-        ).where(PadStore.owner_id == user_id).order_by(PadStore.created_at)
+            PadStore.updated_at,
+            PadStore.sharing_policy
+        ).where(
+            PadStore.id.in_(all_pad_ids)
+        ).order_by(PadStore.created_at)
         
         result = await session.execute(stmt)
         pads = result.all()
@@ -120,7 +138,8 @@ class UserStore(Base, BaseModel):
             "id": str(pad.id),
             "display_name": pad.display_name,
             "created_at": pad.created_at.isoformat(),
-            "updated_at": pad.updated_at.isoformat()
+            "updated_at": pad.updated_at.isoformat(),
+            "sharing_policy": pad.sharing_policy
         } for pad in pads]
 
     async def save(self, session: AsyncSession) -> 'UserStore':
@@ -156,6 +175,7 @@ class UserStore(Base, BaseModel):
             "given_name": self.given_name,
             "family_name": self.family_name,
             "roles": self.roles,
+            "open_pads": [str(pid) for pid in self.open_pads] if self.open_pads else [],
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
         }
