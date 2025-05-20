@@ -2,6 +2,8 @@ import os
 import json
 from contextlib import asynccontextmanager
 from typing import Optional
+from uuid import UUID
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import posthog
 from fastapi import FastAPI, Request, Depends
@@ -21,6 +23,9 @@ from routers.workspace_router import workspace_router
 from routers.pad_router import pad_router
 from routers.app_router import app_router
 from routers.ws_router import ws_router
+from database.database import get_session
+from database.models.user_model import UserStore
+from domain.pad import Pad
 
 # Initialize PostHog if API key is available
 if POSTHOG_API_KEY:
@@ -60,6 +65,35 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 @app.get("/")
 async def read_root(request: Request, auth: Optional[UserSession] = Depends(optional_auth)):
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+@app.get("/pad/{pad_id}")
+async def read_pad(
+    pad_id: UUID,
+    request: Request,
+    user: Optional[UserSession] = Depends(optional_auth),
+    session: AsyncSession = Depends(get_session)
+):
+    if not user:
+        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+        
+    try:
+        pad = await Pad.get_by_id(session, pad_id)
+        if not pad:
+            return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+            
+        # Check access permissions
+        if not pad.can_access(user.id):
+            return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+            
+        # Add pad to user's open pads if not already there
+        user_store = await UserStore.get_by_id(session, user.id)
+        if user_store and pad_id not in user_store.open_pads:
+            user_store.open_pads = list(set(user_store.open_pads + [pad_id]))
+            await user_store.save(session)
+            
+        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+    except Exception:
+        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(users_router, prefix="/api/users")
