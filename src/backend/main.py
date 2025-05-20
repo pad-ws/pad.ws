@@ -43,6 +43,7 @@ async def lifespan(_: FastAPI):
     await redis.ping()
     print("Redis connection established successfully")
     
+    
     yield
     
     # Clean up connections when shutting down
@@ -62,9 +63,7 @@ app.add_middleware(
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-@app.get("/")
-async def read_root(request: Request, auth: Optional[UserSession] = Depends(optional_auth)):
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
 
 @app.get("/pad/{pad_id}")
 async def read_pad(
@@ -74,26 +73,43 @@ async def read_pad(
     session: AsyncSession = Depends(get_session)
 ):
     if not user:
+        print("No user found")
         return FileResponse(os.path.join(STATIC_DIR, "index.html"))
         
     try:
+
         pad = await Pad.get_by_id(session, pad_id)
         if not pad:
+            print("No pad found")
             return FileResponse(os.path.join(STATIC_DIR, "index.html"))
             
         # Check access permissions
         if not pad.can_access(user.id):
+            print("No access to pad")
             return FileResponse(os.path.join(STATIC_DIR, "index.html"))
             
         # Add pad to user's open pads if not already there
         user_store = await UserStore.get_by_id(session, user.id)
-        if user_store and pad_id not in user_store.open_pads:
-            user_store.open_pads = list(set(user_store.open_pads + [pad_id]))
-            await user_store.save(session)
-            
+        if user_store:
+            # Convert all UUIDs to strings for comparison
+            open_pads_str = [str(pid) for pid in user_store.open_pads]
+            if str(pad_id) not in open_pads_str:
+                # Convert back to UUIDs for storage
+                user_store.open_pads = [UUID(pid) for pid in open_pads_str] + [pad_id]
+                try:
+                    await user_store.save(session)
+                except Exception as e:
+                    print(f"Error updating user's open pads: {e}")
+                    # Continue even if update fails - don't block pad access
+        
         return FileResponse(os.path.join(STATIC_DIR, "index.html"))
-    except Exception:
+    except Exception as e:
+        print(f"Error in read_pad endpoint: {e}")
         return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+@app.get("/")
+async def read_root(request: Request, auth: Optional[UserSession] = Depends(optional_auth)):
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(users_router, prefix="/api/users")
