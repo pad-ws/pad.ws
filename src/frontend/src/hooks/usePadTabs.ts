@@ -105,7 +105,7 @@ export const usePadTabs = () => {
     // Effect to manage tab selection based on data changes and selectedTabId validity
     useEffect(() => {
         if (isLoading) {
-            return; 
+            return;
         }
 
         if (data?.tabs && data.tabs.length > 0) {
@@ -124,7 +124,7 @@ export const usePadTabs = () => {
         onMutate: async () => {
             await queryClient.cancelQueries({ queryKey: ['padTabs'] });
             const previousTabsResponse = queryClient.getQueryData<PadResponse>(['padTabs']);
-            
+
             const tempTabId = `temp-${Date.now()}`;
             const tempTab: Tab = {
                 id: tempTabId,
@@ -150,7 +150,7 @@ export const usePadTabs = () => {
             }
             // Revert selectedTabId if it was the temporary one
             if (selectedTabId === context?.tempTabId && context?.previousTabsResponse?.activeTabId) {
-                 setSelectedTabId(context.previousTabsResponse.activeTabId);
+                setSelectedTabId(context.previousTabsResponse.activeTabId);
             } else if (selectedTabId === context?.tempTabId && context?.previousTabsResponse?.tabs && context.previousTabsResponse.tabs.length > 0) {
                 setSelectedTabId(context.previousTabsResponse.tabs[0].id);
             } else if (selectedTabId === context?.tempTabId) {
@@ -161,7 +161,7 @@ export const usePadTabs = () => {
         onSuccess: (newlyCreatedTab, variables, context) => {
             queryClient.setQueryData<PadResponse>(['padTabs'], (old) => {
                 if (!old) return { tabs: [newlyCreatedTab], activeTabId: newlyCreatedTab.id };
-                const newTabs = old.tabs.map(tab => 
+                const newTabs = old.tabs.map(tab =>
                     tab.id === context?.tempTabId ? newlyCreatedTab : tab
                 );
                 // If the temp tab wasn't found (e.g., cache was cleared), add the new tab
@@ -247,12 +247,12 @@ export const usePadTabs = () => {
                 if (!old) return { tabs: [], activeTabId: '' };
                 deletedTab = old.tabs.find(tab => tab.id === padIdToDelete);
                 const newTabs = old.tabs.filter(tab => tab.id !== padIdToDelete);
-                
+
                 let newSelectedTabId = selectedTabId;
                 if (selectedTabId === padIdToDelete) {
                     if (newTabs.length > 0) {
                         const currentIndex = old.tabs.findIndex(tab => tab.id === padIdToDelete);
-                        newSelectedTabId = newTabs[Math.max(0, currentIndex -1)]?.id || newTabs[0]?.id;
+                        newSelectedTabId = newTabs[Math.max(0, currentIndex - 1)]?.id || newTabs[0]?.id;
                     } else {
                         newSelectedTabId = '';
                     }
@@ -280,6 +280,47 @@ export const usePadTabs = () => {
         },
     });
 
+    const updateSharingPolicyAPI = async ({ padId, policy }: { padId: string, policy: string }): Promise<void> => {
+        const response = await fetch(`/api/pad/${padId}/sharing`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ policy }),
+        });
+        if (!response.ok) {
+            throw new Error('Failed to update sharing policy');
+        }
+    };
+
+    const updateSharingPolicyMutation = useMutation<void, Error, { padId: string, policy: string }, { previousTabsResponse?: PadResponse }>({
+        mutationFn: updateSharingPolicyAPI,
+        onMutate: async ({ padId, policy }) => {
+            await queryClient.cancelQueries({ queryKey: ['padTabs'] });
+            const previousTabsResponse = queryClient.getQueryData<PadResponse>(['padTabs']);
+
+            queryClient.setQueryData<PadResponse>(['padTabs'], (old) => {
+                if (!old) return undefined;
+                const newTabs = old.tabs.map(tab => {
+                    if (tab.id === padId) {
+                        return { ...tab, updatedAt: new Date().toISOString() };
+                    }
+                    return tab;
+                });
+                return { ...old, tabs: newTabs };
+            });
+            return { previousTabsResponse };
+        },
+        onError: (err, variables, context) => {
+            if (context?.previousTabsResponse) {
+                queryClient.setQueryData<PadResponse>(['padTabs'], context.previousTabsResponse);
+            }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['padTabs'] });
+        },
+    });
+
     const selectTab = async (tabId: string) => {
         setSelectedTabId(tabId);
     };
@@ -297,6 +338,8 @@ export const usePadTabs = () => {
         isRenaming: renamePadMutation.isPending,
         deletePad: deletePadMutation.mutate,
         isDeleting: deletePadMutation.isPending,
+        updateSharingPolicy: updateSharingPolicyMutation.mutate,
+        isUpdatingSharingPolicy: updateSharingPolicyMutation.isPending,
         selectTab
     };
 };
