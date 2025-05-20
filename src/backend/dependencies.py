@@ -2,12 +2,16 @@ import jwt
 from typing import Optional, Dict, Any
 from uuid import UUID
 import os
+import asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import Request, HTTPException
 
 from cache import RedisClient
 from domain.session import Session
+from domain.user import User
 from coder import CoderAPI
+from database.database import async_session
 
 # oidc_config for session creation and user sessions
 oidc_config = {
@@ -44,6 +48,20 @@ class UserSession:
                 algorithms=["RS256"],
                 audience=oidc_config['client_id']
             )
+
+            # Ensure user exists in database
+            async def ensure_user():
+                async with async_session() as session:
+                    await User.ensure_exists(session, self.token_data)
+            
+            # Run the async function and wait for it to complete
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If we're in an async context, create a task
+                asyncio.create_task(ensure_user())
+            else:
+                # If we're in a sync context, run it directly
+                loop.run_until_complete(ensure_user())
 
         except jwt.InvalidTokenError as e:
             # Log the error and raise an appropriate exception

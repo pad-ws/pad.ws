@@ -155,3 +155,25 @@ class User:
     async def get_open_pads(cls, session: AsyncSession, user_id: UUID) -> List[Dict[str, Any]]:
         """Get just the metadata of pads owned by the user without loading full pad data"""
         return await UserStore.get_open_pads(session, user_id)
+
+    @classmethod
+    async def ensure_exists(cls, session: AsyncSession, user_info: dict) -> 'User':
+        """Ensure a user exists in the database, creating them if they don't"""
+        user_id = UUID(user_info['sub'])
+        user = await cls.get_by_id(session, user_id)
+        
+        if not user:
+            print(f"Creating user {user_id}, {user_info.get('preferred_username', '')}")
+            user = await cls.create(
+                session=session,
+                id=user_id,
+                username=user_info.get('preferred_username', ''),
+                email=user_info.get('email', ''),
+                email_verified=user_info.get('email_verified', False),
+                name=user_info.get('name'),
+                given_name=user_info.get('given_name'),
+                family_name=user_info.get('family_name'),
+                roles=user_info.get('realm_access', {}).get('roles', [])
+            )
+        
+        return user
