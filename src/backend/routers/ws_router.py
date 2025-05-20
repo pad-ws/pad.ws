@@ -8,9 +8,12 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from pydantic import BaseModel, Field, field_validator
 from redis import asyncio as aioredis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from dependencies import UserSession, get_session_domain
 from cache import RedisClient
+from domain.pad import Pad
+from database import get_session
 ws_router = APIRouter()
 
 STREAM_EXPIRY = 3600
@@ -189,6 +192,23 @@ async def websocket_endpoint(
         await websocket.close(code=4001, reason="Authentication required")
         return
         
+    # Get pad and check access
+    async for session in get_session():
+        try:
+            pad = await Pad.get_by_id(session, pad_id)
+            if not pad:
+                await websocket.close(code=4004, reason="Pad not found")
+                return
+                
+            if not pad.can_access(user.id):
+                await websocket.close(code=4003, reason="Access denied")
+                return
+            break
+        except Exception as e:
+            print(f"Error checking pad access: {e}")
+            await websocket.close(code=4000, reason="Internal server error")
+            return
+    
     await websocket.accept()
     redis_client = None
     connection_id = str(uuid.uuid4()) # Unique ID for this WebSocket connection
