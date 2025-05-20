@@ -171,9 +171,6 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
               key={idx}
               data-testid={actionName}
               onClick={() => {
-                // Log the click
-                console.debug('[pad.ws] Menu item clicked:', item.name);
-
                 // Store the callback to execute after closing
                 const callback = () => {
                   actionManager.executeAction(item, "contextMenu");
@@ -226,8 +223,6 @@ class TabActionManager implements ActionManager {
   }
 
   executeAction(action: Action, source: string) {
-    console.debug('[pad.ws] Executing action:', action.name, 'from source:', source);
-
     if (action.name === 'rename') {
       const newName = window.prompt('Rename pad', this.padName);
       if (newName && newName.trim() !== '') {
