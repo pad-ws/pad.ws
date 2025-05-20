@@ -238,6 +238,13 @@ class TabActionManager implements ActionManager {
       this.onUpdateSharingPolicy(this.padId, 'public');
     } else if (action.name === 'setPrivate') {
       this.onUpdateSharingPolicy(this.padId, 'private');
+    } else if (action.name === 'copyUrl') {
+      const url = `${window.location.origin}/pad/${this.padId}`;
+      navigator.clipboard.writeText(url).then(() => {
+        console.debug('[pad.ws] URL copied to clipboard:', url);
+      }).catch(err => {
+        console.error('[pad.ws] Failed to copy URL:', err);
+      });
     }
   }
 }
@@ -272,6 +279,11 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
     {
       name: 'setPrivate',
       label: 'Set Private',
+      predicate: () => true,
+    },
+    {
+      name: 'copyUrl',
+      label: 'Copy URL',
       predicate: () => true,
     },
     CONTEXT_MENU_SEPARATOR,
