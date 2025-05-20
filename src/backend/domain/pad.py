@@ -101,6 +101,11 @@ class Pad:
             created_at = datetime.fromisoformat(cached_data['created_at'])
             updated_at = datetime.fromisoformat(cached_data['updated_at'])
             
+            # Get sharing_policy and whitelist (or use defaults if not in cache)
+            sharing_policy = cached_data.get('sharing_policy', 'private')
+            whitelist_str = cached_data.get('whitelist', '[]')
+            whitelist = [UUID(uid) for uid in json.loads(whitelist_str)] if whitelist_str else []
+            
             # Create a minimal PadStore instance
             store = PadStore(
                 id=pad_id,
@@ -108,7 +113,9 @@ class Pad:
                 display_name=display_name,
                 data=data,
                 created_at=created_at,
-                updated_at=updated_at
+                updated_at=updated_at,
+                sharing_policy=sharing_policy,
+                whitelist=whitelist
             )
             
             return cls(
@@ -119,7 +126,9 @@ class Pad:
                 created_at=created_at,
                 updated_at=updated_at,
                 store=store,
-                redis=redis
+                redis=redis,
+                sharing_policy=sharing_policy,
+                whitelist=whitelist
             )
         except (json.JSONDecodeError, KeyError, ValueError, RedisError) as e:
             return None
@@ -211,7 +220,9 @@ class Pad:
             'display_name': self.display_name,
             'data': json.dumps(self.data),
             'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'updated_at': self.updated_at.isoformat(),
+            'sharing_policy': self.sharing_policy,
+            'whitelist': json.dumps([str(uid) for uid in self.whitelist]) if self.whitelist else '[]'
         }
         try:
             async with self._redis.pipeline() as pipe:
