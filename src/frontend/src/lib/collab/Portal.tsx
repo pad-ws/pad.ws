@@ -55,11 +55,21 @@ class Portal {
     this.isAuthenticated = isAuthenticated;
     this.isLoadingAuth = isLoadingAuth;
     if (onStatusChange) this.onStatusChange = onStatusChange;
-    if (onMessage) this.onMessage = onMessage;
+    if (onMessage) this.onMessage = onMessage;  }
+
+  public initiate(): void {
+    if (!this.onStatusChange && (this.roomId || this.currentConnectionStatus !== 'Uninstantiated')) {
+      console.warn("[Portal] initiate called before onStatusChange callback was set, or logic error.");
+    }
 
     if (this.roomId) {
       this.connect();
     } else {
+      // If Collab's initial state.connectionStatus is 'Uninstantiated'
+      // and Portal's this.currentConnectionStatus is also 'Uninstantiated' (its default),
+      // this call to _updateStatus will not trigger onStatusChange due to the
+      // "if (this.currentConnectionStatus !== status)" check within _updateStatus.
+      // This is safe and ensures status consistency if padId is null.
       this._updateStatus('Uninstantiated');
     }
   }
@@ -308,7 +318,7 @@ class Portal {
 
   public broadcastSceneUpdate = (
     updateType: 'SCENE_INIT' | 'SCENE_UPDATE',
-    elements: ReadonlyArray<OrderedExcalidrawElement /* Adjust if ExcalidrawElementType is more precise */>,
+    elements: ReadonlyArray<OrderedExcalidrawElement>,
     syncAll: boolean
   ) => {
     // Filtering logic based on broadcastedElementVersions would go here if not syncAll

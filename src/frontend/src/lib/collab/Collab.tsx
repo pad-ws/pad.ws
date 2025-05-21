@@ -60,6 +60,7 @@ interface CollabState {
 }
 
 const POINTER_MOVE_THROTTLE_MS = 20;
+const RELAY_VIEWPORT_BOUNDS_THROTTLE_MS = 50;
 
 class Collab extends PureComponent<CollabProps, CollabState> {
   [x: string]: any;
@@ -86,7 +87,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       collaborators: new Map(),
       lastProcessedSceneVersion: -1, // Version of the scene after applying remote changes
     };
-    // Instantiate Portal with new signature
+
     this.portal = new Portal(
       this,
       props.padId,
@@ -103,13 +104,16 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
     this.throttledRelayViewportBounds = throttle(() => {
       this.relayViewportBounds();
-    }, 50); // Throttle time 50ms, adjust as needed
+    }, RELAY_VIEWPORT_BOUNDS_THROTTLE_MS); // Throttle time 50ms, adjust as needed
   }
 
   /* Component Lifecycle */
 
   componentDidMount() {
-    // setMessageHandler is removed, Portal gets handler via constructor
+    if (this.portal) {
+        this.portal.initiate();
+    }
+
     if (this.props.user) {
       this.updateUsername(this.props.user);
     }
