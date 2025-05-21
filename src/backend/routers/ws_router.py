@@ -18,6 +18,7 @@ ws_router = APIRouter()
 
 STREAM_EXPIRY = 3600
 PAD_USERS_EXPIRY = 3600  # Expiry time for the pad users hash
+POINTER_CHANNEL_PREFIX = "pad:pointer:updates:"  # Prefix for pointer update pub/sub channels
 
 class WebSocketMessage(BaseModel):
     type: str
@@ -97,6 +98,20 @@ async def publish_event_to_redis(redis_client: aioredis.Redis, stream_key: str, 
     except Exception as e:
         print(f"Error publishing event to Redis stream {stream_key}: {str(e)}")
 
+async def publish_pointer_update(redis_client: aioredis.Redis, pad_id: UUID, message: WebSocketMessage):
+    """
+    Publish pointer updates through Redis pub/sub instead of streams.
+    Since we don't care about persistence or consuming history for pointer updates,
+    pub/sub is more efficient than streams for this high-frequency data.
+    """
+    try:
+        channel = f"{POINTER_CHANNEL_PREFIX}{pad_id}"
+        # Serialize the message and publish it
+        message_json = message.model_dump_json()
+        await redis_client.publish(channel, message_json)
+    except Exception as e:
+        print(f"Error publishing pointer update to Redis pub/sub {pad_id}: {str(e)}")
+
 
 async def _handle_received_data(raw_data: str, pad_id: UUID, user: UserSession, 
                                redis_client: aioredis.Redis, stream_key: str, connection_id: str):
@@ -144,6 +159,9 @@ async def _handle_received_data(raw_data: str, pad_id: UUID, user: UserSession,
                 )
                 await publish_event_to_redis(redis_client, stream_key, unfollow_event)
             # Do not publish the original 'user_unfollow_request' itself
+        elif processed_message.type == 'pointer_update':
+            # Use pub/sub for pointer updates instead of Redis streams
+            await publish_pointer_update(redis_client, pad_id, processed_message)
         else:
             # For all other message types, publish them as they are
             await publish_event_to_redis(redis_client, stream_key, processed_message)
@@ -203,6 +221,46 @@ async def consume_redis_stream(redis_client: aioredis.Redis, stream_key: str,
             if websocket.client_state.CONNECTED:
                 print(f"Error in Redis stream consumer for {stream_key}: {e}")
             return
+
+
+async def consume_pointer_updates(redis_client: aioredis.Redis, pad_id: UUID, 
+                                websocket: WebSocket, connection_id: str):
+    """Consumes pointer updates from Redis pub/sub channel and forwards them to the client."""
+    channel = f"{POINTER_CHANNEL_PREFIX}{pad_id}"
+    pubsub = redis_client.pubsub()
+    
+    try:
+        await pubsub.subscribe(channel)
+        
+        # Process messages as they arrive
+        while websocket.client_state.CONNECTED:
+            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+            
+            if message and message["type"] == "message":
+                try:
+                    # Parse the message data
+                    message_data = json.loads(message["data"])
+                    pointer_message = WebSocketMessage(**message_data)
+                    
+                    # Only forward messages from other connections
+                    if pointer_message.connection_id != connection_id and websocket.client_state.CONNECTED:
+                        await websocket.send_text(message["data"])
+                except Exception as e:
+                    print(f"Error processing pointer update: {e}")
+
+            # Prevent CPU hogging
+            await asyncio.sleep(0)
+    
+    except Exception as e:
+        if websocket.client_state.CONNECTED:
+            print(f"Error in pointer update consumer for {pad_id}: {e}")
+    finally:
+        # Clean up the subscription
+        try:
+            await pubsub.unsubscribe(channel)
+            await pubsub.close()
+        except Exception:
+            pass
 
 
 async def add_connection(redis_client: aioredis.Redis, pad_id: UUID, user_id: str, 
@@ -367,10 +425,13 @@ async def websocket_endpoint(websocket: WebSocket, pad_id: UUID,
         redis_task = asyncio.create_task(
             consume_redis_stream(redis_client, stream_key, websocket, connection_id, last_id='$')
         )
+        pointer_task = asyncio.create_task(
+            consume_pointer_updates(redis_client, pad_id, websocket, connection_id)
+        )
         
-        # Wait for either task to complete
+        # Wait for any task to complete
         done, pending = await asyncio.wait(
-            [ws_task, redis_task],
+            [ws_task, redis_task, pointer_task],
             return_when=asyncio.FIRST_COMPLETED
         )
         
