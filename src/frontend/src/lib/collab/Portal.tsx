@@ -184,9 +184,6 @@ class Portal {
 
     this.socket.onerror = (event: Event) => {
       console.error(`[pad.ws] WebSocket error for pad: ${this.roomId}:`, event);
-      // onerror will likely be followed by onclose, which handles reconnection.
-      // If not, we might need to trigger reconnection logic here too.
-      // For now, assuming onclose will handle it.
       this._updateStatus('Failed', 'WebSocket error');
     };
   }
@@ -278,7 +275,6 @@ class Portal {
   }
 
 
-  // --- Broadcast Methods (adapted from previous Portal) ---
   public broadcastMouseLocation = (
     pointerData: { x: number; y: number; tool: 'laser' | 'pointer' },
     button?: 'up' | 'down',

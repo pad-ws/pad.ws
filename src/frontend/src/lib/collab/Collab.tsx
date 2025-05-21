@@ -64,8 +64,6 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   private unsubExcalidrawPointerUp: (() => void) | null = null;
   private unsubExcalidrawSceneChange: (() => void) | null = null;
 
-  // To store previous elements for diffing
-  private previousElements: Map<string, Readonly<ExcalidrawElementType>> = new Map();
   // To track the scene version last broadcast by this client
   private lastBroadcastedSceneVersion: number = -1;
   props: any;
@@ -119,12 +117,10 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.addPointerEventListeners();
     this.addSceneChangeListeners();
 
-    // Initialize previousElements and lastBroadcastedSceneVersion
+    // Initialize lastBroadcastedSceneVersion
     if (this.props.excalidrawAPI) {
-      const initialElements = this.props.excalidrawAPI.getSceneElements();
-      initialElements.forEach(el => this.previousElements.set(el.id, el as Readonly<ExcalidrawElementType>));
-      // Set initial broadcast version. If we send initial scene, update this.
-      // For now, assume we don't send initial scene on mount unless triggered.
+      const initialElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
+      // Set initial broadcast version.
       this.lastBroadcastedSceneVersion = getSceneVersion(initialElements);
        // Also set the initial processed version from local state
       this.setState({lastProcessedSceneVersion: this.lastBroadcastedSceneVersion});
@@ -154,29 +150,16 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         username: this.props.user?.username || this.props.user?.id || '',
         // connectionStatus will be updated by portal's callbacks
       });
-      this.previousElements.clear();
       this.lastBroadcastedSceneVersion = -1;
 
       // Listeners might need to be re-evaluated if excalidrawAPI instance changes with padId
       // For now, assuming excalidrawAPI is stable or re-bound by parent
       if (this.props.excalidrawAPI) {
-        const initialElements = this.props.excalidrawAPI.getSceneElements();
-        initialElements.forEach(el => this.previousElements.set(el.id, el as Readonly<ExcalidrawElementType>));
+        const initialElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
         this.lastBroadcastedSceneVersion = getSceneVersion(initialElements);
         this.setState({ lastProcessedSceneVersion: this.lastBroadcastedSceneVersion });
       }
     }
-
-    // lastJsonMessage block is removed as Portal handles incoming messages internally
-
-    // Logic for isOnline change (now handled by portal.updateAuthInfo and status callbacks)
-    // if (this.props.isOnline !== prevProps.isOnline) {
-    //   if (!this.props.isOnline) { // Went offline
-    //     this.setState({ collaborators: new Map() }, () => {
-    //       if (this.updateExcalidrawCollaborators) this.updateExcalidrawCollaborators();
-    //     });
-    //   }
-    // }
     
     if (this.state.collaborators !== prevState.collaborators) {
       if (this.updateExcalidrawCollaborators) this.updateExcalidrawCollaborators();
@@ -213,9 +196,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   
   private addSceneChangeListeners = () => {
     if (!this.props.excalidrawAPI) return;
+    // The onChange callback from Excalidraw provides elements and appState,
+    // but we'll fetch the latest scene directly to ensure we have deleted elements for versioning.
     this.unsubExcalidrawSceneChange = this.props.excalidrawAPI.onChange(
-      (elements: readonly ExcalidrawElementType[], appState: AppState) => {
-        this.handleSceneChange(elements, appState);
+      () => {
+        this.handleSceneChange();
       }
     );
   };
@@ -227,62 +212,32 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     }
   };
 
-  private handleSceneChange = (
-    currentElementsFromOnChange: readonly ExcalidrawElementType[],
-    appState: AppState
-  ) => {
-    if (!this.props.excalidrawAPI || !this.portal.isOpen() || !this.props.isOnline) return;
+  private handleSceneChange = () => {
+    if (!this.props.excalidrawAPI || !this.portal.isOpen() || !this.props.isOnline) {
+      return;
+    }
 
-    // onChange provides non-deleted elements. For versioning and diffing,
-    // we often need all elements including deleted ones from the API.
     const allCurrentElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
     const currentSceneVersion = getSceneVersion(allCurrentElements);
 
-    // Avoid broadcasting if the scene version hasn't changed from this client's perspective,
-    // or if it's an echo of what we just received.
-    // The `lastProcessedSceneVersion` (from state) tracks the version after applying remote updates.
-    // The `lastBroadcastedSceneVersion` (class field) tracks what this client last sent.
-    if (currentSceneVersion <= this.lastBroadcastedSceneVersion && currentSceneVersion <= this.state.lastProcessedSceneVersion) {
-        // If it's also not newer than what we last processed, it might be an internal update
-        // not needing broadcast, or an echo.
-        // Update previousElements for next diff even if not broadcasting.
-        const newPreviousElements = new Map<string, Readonly<ExcalidrawElementType>>();
-        currentElementsFromOnChange.forEach(el => newPreviousElements.set(el.id, el as Readonly<ExcalidrawElementType>));
-        this.previousElements = newPreviousElements;
-        return;
+    // Avoid broadcasting if:
+    // 1. The scene version hasn't actually increased from what this client last broadcasted.
+    // 2. The scene version isn't newer than what this client last processed from a remote update (prevents echo).
+    if (currentSceneVersion > this.lastBroadcastedSceneVersion && currentSceneVersion > this.state.lastProcessedSceneVersion) {
+      // Send all elements (including deleted) as Excalidraw's reconcile function handles this.
+      // The `false` indicates it's not a full sync (SCENE_INIT), but a regular update.
+      this.portal.broadcastSceneUpdate('SCENE_UPDATE', allCurrentElements, false);
+      this.lastBroadcastedSceneVersion = currentSceneVersion;
+    } else if (currentSceneVersion <= this.lastBroadcastedSceneVersion && currentSceneVersion > this.state.lastProcessedSceneVersion) {
+      // This case can happen if an undo/redo operation results in a scene version that was previously broadcasted
+      // but is newer than the last processed remote scene. We should still broadcast.
+      // Or, if a remote update was processed, and then a local action (like selection) triggers onChange
+      // without changing element versions, but we want to ensure our state is robust.
+      // For simplicity now, we only broadcast if strictly newer than last broadcast.
+      // More nuanced logic could be added if specific scenarios require it.
+      // console.log("Scene version not strictly greater than last broadcasted, but greater than last processed. Potentially an echo or no new element changes to broadcast.");
     }
-    
-    const changedElements: ExcalidrawElementType[] = [];
-    const currentElementsMap = new Map<string, Readonly<ExcalidrawElementType>>();
-    currentElementsFromOnChange.forEach(el => currentElementsMap.set(el.id, el));
-
-    // Find added or edited elements
-    currentElementsFromOnChange.forEach(currentElement => {
-      const prevElement = this.previousElements.get(currentElement.id);
-      if (!prevElement || currentElement.version > prevElement.version) {
-        changedElements.push(currentElement);
-      }
-    });
-
-    // Find deleted elements
-    this.previousElements.forEach(prevElement => {
-      if (!currentElementsMap.has(prevElement.id)) {
-        // Element was deleted, send its last known state but marked as deleted
-        changedElements.push({ ...prevElement, isDeleted: true } as ExcalidrawElementType);
-      }
-    });
-
-    if (changedElements.length > 0) {
-      this.portal.broadcastSceneUpdate('SCENE_UPDATE', changedElements, false);
-      this.lastBroadcastedSceneVersion = currentSceneVersion; // Update after successful broadcast
-    }
-
-    // Update previousElements for the next diff
-    const newPreviousElements = new Map<string, Readonly<ExcalidrawElementType>>();
-    currentElementsFromOnChange.forEach(el => newPreviousElements.set(el.id, el as Readonly<ExcalidrawElementType>));
-    this.previousElements = newPreviousElements;
   };
-
 
   private handlePointerInteraction = (button: 'down' | 'up', event: MouseEvent | PointerEvent) => {
     if (!this.props.excalidrawAPI || !this.portal.isOpen() || !this.props.isOnline) return;
@@ -369,10 +324,10 @@ class Collab extends PureComponent<CollabProps, CollabState> {
           const newCollaborators = new Map(prevState.collaborators);
           const existing = newCollaborators.get(senderId);
           if (existing && typeof existing === 'object') { // Check if existing is an object before spreading
-            const updatedCollaborator: Collaborator = { 
+            const updatedCollaborator: Collaborator = {
               ...(existing as Collaborator), // Cast to Collaborator to assure TS it's an object
-              pointer: pointerDataIn, 
-              button: pointerDataIn.button 
+              pointer: pointerDataIn,
+              button: pointerDataIn.button
             };
             newCollaborators.set(senderId, updatedCollaborator);
           } else if (!existing) { // Only create new if it doesn't exist
@@ -385,22 +340,30 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         });
         break;
       }
-      case 'elements_added': 
-      case 'elements_edited':
-      case 'elements_deleted': {
+      case 'scene_update': {
         const remoteElements = messageData?.elements as ExcalidrawElementType[] | undefined;
-        if (remoteElements && remoteElements.length > 0 && this.props.excalidrawAPI) {
+        // const updateSubtype = messageData?.update_subtype; // Available if needed for SCENE_INIT vs SCENE_UPDATE logic
+
+        if (remoteElements !== undefined && this.props.excalidrawAPI) { // Check for undefined to allow empty array for scene clears
           const localElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
           const currentAppState = this.props.excalidrawAPI.getAppState();
+          
+          // Ensure elements are properly restored (e.g., if they are plain objects from JSON)
           const restoredRemoteElements = restoreElements(remoteElements, null);
-          const reconciled = reconcileElements(localElements, restoredRemoteElements as any[], currentAppState);
+          
+          const reconciled = reconcileElements(
+            localElements,
+            restoredRemoteElements as any[], // Cast as any if type conflicts, ensure it matches Excalidraw's expected RemoteExcalidrawElement[]
+            currentAppState
+          );
+          
           this.props.excalidrawAPI.updateScene({ elements: reconciled as ExcalidrawElementType[] });
           this.setState({ lastProcessedSceneVersion: getSceneVersion(reconciled) });
         }
         break;
       }
       default:
-        console.warn(`Unknown message type received: ${type}`);
+        console.warn(`Unknown message type received: ${type}`, messageData);
     }
   };
 
