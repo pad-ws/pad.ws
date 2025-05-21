@@ -13,7 +13,7 @@ import DiscordButton from './ui/DiscordButton';
 import { MainMenuConfig } from './ui/MainMenu';
 import AuthDialog from './ui/AuthDialog';
 import SettingsDialog from './ui/SettingsDialog';
-import Collab from './Collab';
+import Collab from './lib/collab/Collab'; // Updated import path
 
 // Utils
 // import { initializePostHog } from "./lib/posthog";
@@ -124,6 +124,7 @@ export default function App() {
             user={user}
             sendMessage={sendMessage}
             isOnline={connectionStatus === 'Open'}
+            padId={selectedTabId} // Pass selectedTabId as padId
           />
         )}
       </Excalidraw>
