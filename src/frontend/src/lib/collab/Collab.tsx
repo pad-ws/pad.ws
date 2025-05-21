@@ -3,12 +3,9 @@ import type { ExcalidrawImperativeAPI, AppState, SocketId, Collaborator as Excal
 import type { ExcalidrawElement as ExcalidrawElementType } from '@atyrode/excalidraw/element/types';
 import { viewportCoordsToSceneCoords, getSceneVersion, reconcileElements, restoreElements } from '@atyrode/excalidraw';
 import throttle from 'lodash.throttle'; 
-// Removed 'import type { DebouncedFunc } from 'lodash';'
-import isEqual from 'lodash.isequal'; // For deep comparison if needed
 
 import Portal from './Portal';
-import type { SendMessageFn } from './Portal';
-import type { WebSocketMessage } from '../../hooks/usePadWebSocket';
+import type { WebSocketMessage, ConnectionStatus } from './Portal';
 import type { UserInfo } from '../../hooks/useAuthStatus';
 
 interface PointerData {
@@ -41,15 +38,15 @@ const getRandomCollaboratorColor = () => {
 
 interface CollabProps {
   excalidrawAPI: ExcalidrawImperativeAPI | null;
-  lastJsonMessage: WebSocketMessage | null;
   user: UserInfo | null;
-  sendMessage: SendMessageFn;
   isOnline: boolean;
+  isLoadingAuth: boolean;
   padId: string | null;
 }
 
 interface CollabState {
   errorMessage: string | null;
+  connectionStatus: ConnectionStatus;
   username: string;
   collaborators: Map<SocketId, Collaborator>;
   lastProcessedSceneVersion: number;
@@ -58,6 +55,7 @@ interface CollabState {
 const POINTER_MOVE_THROTTLE_MS = 50;
 
 class Collab extends PureComponent<CollabProps, CollabState> {
+  [x: string]: any;
   readonly state: CollabState;
   private portal: Portal;
   
@@ -70,6 +68,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   private previousElements: Map<string, Readonly<ExcalidrawElementType>> = new Map();
   // To track the scene version last broadcast by this client
   private lastBroadcastedSceneVersion: number = -1;
+  props: any;
   // To track the scene version last received and processed from remote
   // This is already in state: lastProcessedSceneVersion
 
@@ -77,19 +76,42 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     super(props);
     this.state = {
       errorMessage: null,
+      connectionStatus: 'Uninstantiated',
       username: props.user?.username || props.user?.id || '',
       collaborators: new Map(),
       lastProcessedSceneVersion: -1, // Version of the scene after applying remote changes
     };
-    this.portal = new Portal(this, props.sendMessage, props.padId);
+    // Instantiate Portal with new signature
+    this.portal = new Portal(
+      this,
+      props.padId,
+      props.user,
+      props.isOnline, // Passing isOnline as isAuthenticated
+      props.isLoadingAuth,
+      this.handlePortalStatusChange,
+      this.handlePortalMessage
+    );
 
     this.throttledOnPointerMove = throttle((event: PointerEvent) => {
       this.handlePointerMove(event);
     }, POINTER_MOVE_THROTTLE_MS);
   }
 
+  // Method to handle status changes from Portal
+  handlePortalStatusChange = (status: ConnectionStatus, message?: string) => {
+    console.log(`[Collab] Portal status changed: ${status}`, message || '');
+    this.setState({ connectionStatus: status });
+    // Potentially update UI or take actions based on status
+    if (status === 'Failed' || (status === 'Closed' && !this.portal.isOpen())) {
+        // Clear collaborators if connection is definitively lost
+        this.setState({ collaborators: new Map() }, () => {
+            if (this.updateExcalidrawCollaborators) this.updateExcalidrawCollaborators();
+        });
+    }
+  };
+
   componentDidMount() {
-    this.portal.setMessageHandler(this.handlePortalMessage);
+    // setMessageHandler is removed, Portal gets handler via constructor
     if (this.props.user) {
       this.updateUsername(this.props.user);
     }
@@ -114,46 +136,47 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   }
 
   componentDidUpdate(prevProps: CollabProps, prevState: CollabState) {
-    if (this.props.user && this.props.user !== prevProps.user) {
-      this.updateUsername(this.props.user);
+    if (
+      this.props.user !== prevProps.user ||
+      this.props.isOnline !== prevProps.isOnline ||
+      this.props.isLoadingAuth !== prevProps.isLoadingAuth
+    ) {
+      this.updateUsername(this.props.user); // Update username if user object changed
+      this.portal.updateAuthInfo(this.props.user, this.props.isOnline, this.props.isLoadingAuth);
     }
 
-    if (this.props.padId !== prevProps.padId || this.props.sendMessage !== prevProps.sendMessage) {
-      this.portal.close();
-      this.removePointerEventListeners(); // Clean up old listeners
-      this.removeSceneChangeListeners();  // Clean up old listeners
-
-      this.portal = new Portal(this, this.props.sendMessage, this.props.padId);
-      this.portal.setMessageHandler(this.handlePortalMessage);
-      this.setState({ collaborators: new Map(), lastProcessedSceneVersion: -1, username: this.props.user?.username || this.props.user?.id || '' });
+    if (this.props.padId !== prevProps.padId) {
+      // Portal's updatePadId will handle disconnection from old and connection to new
+      this.portal.updatePadId(this.props.padId);
+      this.setState({
+        collaborators: new Map(),
+        lastProcessedSceneVersion: -1,
+        username: this.props.user?.username || this.props.user?.id || '',
+        // connectionStatus will be updated by portal's callbacks
+      });
       this.previousElements.clear();
       this.lastBroadcastedSceneVersion = -1;
 
-      this.addPointerEventListeners(); // Re-add listeners
-      this.addSceneChangeListeners();  // Re-add listeners
-       if (this.props.excalidrawAPI) { // Re-initialize previousElements for new pad
+      // Listeners might need to be re-evaluated if excalidrawAPI instance changes with padId
+      // For now, assuming excalidrawAPI is stable or re-bound by parent
+      if (this.props.excalidrawAPI) {
         const initialElements = this.props.excalidrawAPI.getSceneElements();
         initialElements.forEach(el => this.previousElements.set(el.id, el as Readonly<ExcalidrawElementType>));
         this.lastBroadcastedSceneVersion = getSceneVersion(initialElements);
-        this.setState({lastProcessedSceneVersion: this.lastBroadcastedSceneVersion});
+        this.setState({ lastProcessedSceneVersion: this.lastBroadcastedSceneVersion });
       }
     }
 
-    if (this.props.lastJsonMessage && this.props.lastJsonMessage !== prevProps.lastJsonMessage) {
-      if (this.props.isOnline) {
-        this.portal.handleIncomingMessage(this.props.lastJsonMessage);
-      }
-    }
+    // lastJsonMessage block is removed as Portal handles incoming messages internally
 
-    if (this.props.isOnline !== prevProps.isOnline) {
-      if (this.props.isOnline && this.props.padId) {
-        // Came online
-      } else if (!this.props.isOnline) {
-        this.setState({ collaborators: new Map() }, () => {
-          if (this.updateExcalidrawCollaborators) this.updateExcalidrawCollaborators();
-        });
-      }
-    }
+    // Logic for isOnline change (now handled by portal.updateAuthInfo and status callbacks)
+    // if (this.props.isOnline !== prevProps.isOnline) {
+    //   if (!this.props.isOnline) { // Went offline
+    //     this.setState({ collaborators: new Map() }, () => {
+    //       if (this.updateExcalidrawCollaborators) this.updateExcalidrawCollaborators();
+    //     });
+    //   }
+    // }
     
     if (this.state.collaborators !== prevState.collaborators) {
       if (this.updateExcalidrawCollaborators) this.updateExcalidrawCollaborators();
@@ -161,7 +184,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   }
 
   componentWillUnmount() {
-    this.portal.close();
+    this.portal.closePortal(); // Changed from close()
     this.removePointerEventListeners();
     if (this.throttledOnPointerMove && typeof this.throttledOnPointerMove.cancel === 'function') {
       this.throttledOnPointerMove.cancel();
@@ -304,7 +327,8 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.props.excalidrawAPI.updateScene({ collaborators: excalidrawCollaborators });
   };
 
-  private handlePortalMessage = (message: WebSocketMessage) => {
+  // Made public to be callable by Portal instance (passed in constructor)
+  public handlePortalMessage = (message: WebSocketMessage) => {
     const { type, connection_id, user_id, data: messageData } = message;
     const senderIdString = connection_id || user_id;
 

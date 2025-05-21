@@ -1,200 +1,312 @@
-import Collab from './Collab'; // Corrected import
-// import type { UserIdleState } from '@atyrode/excalidraw/common'; // If using Excalidraw types - REMOVED
+import { z } from 'zod';
+import type Collab from './Collab'; // Corrected import
 import type { OrderedExcalidrawElement } from '@atyrode/excalidraw/element/types';
-import type { OnUserFollowedPayload, SocketId } from '@atyrode/excalidraw/types';
-// Import WebSocketMessage type from usePadWebSocket, assuming it's accessible
-// If not, we might need to define a similar structure or pass it through props.
-// For now, let's assume a generic message structure for incoming messages.
-import type { WebSocketMessage } from '../../hooks/usePadWebSocket';
+// import type { OnUserFollowedPayload, SocketId } from '@atyrode/excalidraw/types'; // SocketId might be needed if Collab uses it
+import type { UserInfo } from '../../hooks/useAuthStatus'; // For user details
 
+// Schema and Type for WebSocket messages (from usePadWebSocket.ts)
+export const WebSocketMessageSchema = z.object({
+  type: z.string(),
+  pad_id: z.string().nullable(),
+  timestamp: z.string().datetime({ offset: true, message: "Invalid timestamp format" }),
+  user_id: z.string().optional(),
+  connection_id: z.string().optional(),
+  data: z.any().optional(),
+});
+export type WebSocketMessage = z.infer<typeof WebSocketMessageSchema>;
 
-// Define your WebSocket event subtypes if they differ from Excalidraw's
-// export const WS_SUBTYPES = { ... };
+// Connection Status (from usePadWebSocket.ts)
+export type ConnectionStatus = 'Uninstantiated' | 'Connecting' | 'Open' | 'Closing' | 'Closed' | 'Reconnecting' | 'Failed';
 
-// Define your own data structures for socket messages if they differ
-// export interface SocketUpdateDataSource { ... } // For structured data before sending
-// export interface SocketUpdateData { ... } // For the actual data sent over WS
-
-// Type for the sendMessage function passed from usePadWebSocket
-export type SendMessageFn = (type: string, data?: any) => void;
-
-// Type for the handler that Collab class will use to process messages from Portal
-export type MessageHandlerFn = (message: WebSocketMessage) => void;
+// Reconnection constants (from usePadWebSocket.ts)
+const MAX_RECONNECT_ATTEMPTS = 5;
+const INITIAL_RECONNECT_DELAY = 1000; // 1 second
 
 class Portal {
   private collab: Collab;
-  private sendMessageFn: SendMessageFn;
-  private messageHandler: MessageHandlerFn | null = null;
+  private socket: WebSocket | null = null;
+  private roomId: string | null = null; // This will be the padId
 
-  // We don't manage a raw socket object here anymore.
-  // Instead, we rely on the sendMessageFn and a mechanism to receive messages.
-  socketInitialized: boolean = false; // Represents if the portal is ready to send/receive
-  roomId: string | null = null; // This will be the padId
-  // roomKey: string | null = null; // For encryption, if you implement it - not used for now
+  // Auth and connection state
+  private user: UserInfo | null = null;
+  private isAuthenticated: boolean = false;
+  private isLoadingAuth: boolean = true; // Start with true until first auth update
+
+  private reconnectAttemptCount: number = 0;
+  private isPermanentlyDisconnected: boolean = false;
+  private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private currentConnectionStatus: ConnectionStatus = 'Uninstantiated';
+
+  // Callback for Collab to react to status changes
+  private onStatusChange: ((status: ConnectionStatus, message?: string) => void) | null = null;
+  private onMessage: ((message: WebSocketMessage) => void) | null = null;
+
 
   broadcastedElementVersions: Map<string, number> = new Map();
 
-  constructor(collab: Collab, sendMessageFn: SendMessageFn, padId: string | null) {
+  constructor(
+    collab: Collab,
+    padId: string | null,
+    user: UserInfo | null,
+    isAuthenticated: boolean,
+    isLoadingAuth: boolean,
+    onStatusChange?: (status: ConnectionStatus, message?: string) => void,
+    onMessage?: (message: WebSocketMessage) => void,
+  ) {
     this.collab = collab;
-    this.sendMessageFn = sendMessageFn;
     this.roomId = padId;
-    // this.roomKey = roomKey; // If we were to use encryption keys
-    this.socketInitialized = !!padId; // Consider it initialized if we have a padId
-  }
+    this.user = user;
+    this.isAuthenticated = isAuthenticated;
+    this.isLoadingAuth = isLoadingAuth;
+    if (onStatusChange) this.onStatusChange = onStatusChange;
+    if (onMessage) this.onMessage = onMessage;
 
-  // Method for Collab class to register its message handler
-  setMessageHandler(handler: MessageHandlerFn) {
-    this.messageHandler = handler;
-  }
-
-  // Method for Collab class to push incoming messages from props into the Portal
-  public handleIncomingMessage(message: WebSocketMessage) {
-    if (this.messageHandler) {
-      // Here, Portal might do some initial processing/filtering if needed,
-      // or directly pass it to the Collab's handler.
-      // For now, direct pass-through.
-      this.messageHandler(message);
+    if (this.roomId) {
+      this.connect();
+    } else {
+      this._updateStatus('Uninstantiated');
     }
   }
 
+  private _updateStatus(status: ConnectionStatus, message?: string) {
+    if (this.currentConnectionStatus !== status) {
+      this.currentConnectionStatus = status;
+      console.debug(`[pad.ws] Status changed to: ${status}${message ? ` (${message})` : ''}`);
+      if (this.onStatusChange) {
+        this.onStatusChange(status, message);
+      }
+    }
+  }
 
-  // open(socket: any, id: string, key: string) { // Replace 'any'
-  //   this.socket = socket;
-  //   this.roomId = id;
-  //   this.roomKey = key; // Store if using for encryption
-  //   // No direct socket event listeners here anymore.
-  //   // Message handling will be via handleIncomingMessage
-  //   this.socketInitialized = true;
-  //   return socket;
-  // }
+  public getStatus(): ConnectionStatus {
+    return this.currentConnectionStatus;
+  }
+
+  private getSocketUrl(): string | null {
+    if (!this.roomId || this.roomId.startsWith('temp-')) {
+      return null;
+    }
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}/ws/pad/${this.roomId}`;
+  }
+
+  private shouldBeConnected(): boolean {
+    return !!this.getSocketUrl() && this.isAuthenticated && !this.isLoadingAuth && !this.isPermanentlyDisconnected;
+  }
+
+  public connect(): void {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      console.debug('[pad.ws] Already connected.');
+      return;
+    }
+    if (this.socket && this.socket.readyState === WebSocket.CONNECTING) {
+      console.debug('[pad.ws] Already connecting.');
+      return;
+    }
+
+    if (this.reconnectTimeoutId) {
+      clearTimeout(this.reconnectTimeoutId);
+      this.reconnectTimeoutId = null;
+    }
+
+    if (!this.shouldBeConnected()) {
+      console.debug('[pad.ws] Conditions not met for connection.');
+      this._updateStatus(this.isPermanentlyDisconnected ? 'Failed' : 'Closed');
+      return;
+    }
+
+    const socketUrl = this.getSocketUrl();
+    if (!socketUrl) {
+      console.error('[pad.ws] Cannot connect: Socket URL is invalid.');
+      this._updateStatus('Failed', 'Invalid URL');
+      return;
+    }
+
+    this._updateStatus(this.reconnectAttemptCount > 0 ? 'Reconnecting' : 'Connecting');
+    console.debug(`[pad.ws] Attempting to connect to: ${socketUrl}`);
+    this.socket = new WebSocket(socketUrl);
+
+    this.socket.onopen = () => {
+      console.debug(`[pad.ws] Connection established for pad: ${this.roomId}`);
+      this.isPermanentlyDisconnected = false;
+      this.reconnectAttemptCount = 0;
+      if (this.reconnectTimeoutId) clearTimeout(this.reconnectTimeoutId);
+      this._updateStatus('Open');
+    };
+
+    this.socket.onmessage = (event: MessageEvent) => {
+      try {
+        const parsedData = JSON.parse(event.data as string);
+        const validationResult = WebSocketMessageSchema.safeParse(parsedData);
+        if (validationResult.success) {
+          if (this.onMessage) {
+            this.onMessage(validationResult.data);
+          } else {
+            // Fallback to direct call if onMessage prop not set by Collab
+            this.collab.handlePortalMessage(validationResult.data);
+          }
+        } else {
+          console.error(`[pad.ws] Incoming message validation failed for pad ${this.roomId}:`, validationResult.error.issues);
+          console.error(`[pad.ws] Raw message: ${event.data}`);
+        }
+      } catch (error) {
+        console.error(`[pad.ws] Error parsing incoming JSON message for pad ${this.roomId}:`, error);
+      }
+    };
+
+    this.socket.onclose = (event: CloseEvent) => {
+      console.debug(`[pad.ws] Connection closed for pad: ${this.roomId}. Code: ${event.code}, Reason: '${event.reason}'`);
+      this.socket = null; // Clear the socket instance
+
+      const isAbnormalClosure = event.code !== 1000 && event.code !== 1001; // 1000 = Normal, 1001 = Going Away
+
+      if (this.isPermanentlyDisconnected) {
+         this._updateStatus('Failed', `Permanently disconnected. Code: ${event.code}`);
+         return;
+      }
+
+      if (isAbnormalClosure && this.shouldBeConnected()) {
+        this.reconnectAttemptCount++;
+        if (this.reconnectAttemptCount > MAX_RECONNECT_ATTEMPTS) {
+          console.warn(`[pad.ws] Failed to reconnect to pad ${this.roomId} after ${this.reconnectAttemptCount -1} attempts. Stopping.`);
+          this.isPermanentlyDisconnected = true;
+          this._updateStatus('Failed', `Max reconnect attempts reached.`);
+        } else {
+          const delay = INITIAL_RECONNECT_DELAY * Math.pow(2, this.reconnectAttemptCount -1);
+          console.debug(`[pad.ws] Reconnecting attempt ${this.reconnectAttemptCount}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms for pad: ${this.roomId}`);
+          this._updateStatus('Reconnecting', `Attempt ${this.reconnectAttemptCount}`);
+          this.reconnectTimeoutId = setTimeout(() => this.connect(), delay);
+        }
+      } else {
+        this._updateStatus('Closed', `Code: ${event.code}`);
+      }
+    };
+
+    this.socket.onerror = (event: Event) => {
+      console.error(`[pad.ws] WebSocket error for pad: ${this.roomId}:`, event);
+      // onerror will likely be followed by onclose, which handles reconnection.
+      // If not, we might need to trigger reconnection logic here too.
+      // For now, assuming onclose will handle it.
+      this._updateStatus('Failed', 'WebSocket error');
+    };
+  }
+
+  public disconnect(): void {
+    console.debug(`[pad.ws] Disconnecting from pad: ${this.roomId}`);
+    this.isPermanentlyDisconnected = true; // User-initiated disconnect should be permanent unless connect is called again
+    if (this.reconnectTimeoutId) {
+      clearTimeout(this.reconnectTimeoutId);
+      this.reconnectTimeoutId = null;
+    }
+    if (this.socket) {
+      this.socket.close(1000, 'Client initiated disconnect'); // 1000 for normal closure
+      this.socket = null;
+    }
+    this._updateStatus('Closed', 'Client initiated disconnect');
+  }
   
-  // The concept of "opening" and "closing" the portal is now tied to
-  // whether it's been provided with a sendMessage function and a padId.
-  // And when the Collab component unmounts or padId changes.
-
-  // Call this when the collaboration stops or padId becomes null
-  public close() {
-    // this.queueFileUpload.flush(); // If you implement a similar queue
+  public closePortal(): void { // Renamed from 'close' to avoid conflict with WebSocket.close
+    this.disconnect(); // For now, closing the portal means disconnecting.
     this.roomId = null;
-    // this.roomKey = null;
-    this.socketInitialized = false;
-    this.broadcastedElementVersions = new Map();
-    this.messageHandler = null; // Clear handler
-    // No actual socket.close() as we don't own the socket.
-    // The usePadWebSocket hook handles the actual socket lifecycle.
+    this.broadcastedElementVersions.clear();
+    this.onStatusChange = null;
+    this.onMessage = null;
   }
 
-  public updatePadId(padId: string | null) {
+  public updatePadId(padId: string | null): void {
+    if (this.roomId === padId) return;
+
+    this.disconnect(); // Disconnect from the old pad
     this.roomId = padId;
-    this.socketInitialized = !!padId;
-    if (!padId) {
-        this.broadcastedElementVersions.clear();
+    this.isPermanentlyDisconnected = false; // Reset for new pad
+    this.reconnectAttemptCount = 0;
+    
+    if (this.roomId) {
+      this.connect();
+    } else {
+      this._updateStatus('Uninstantiated');
+    }
+  }
+  
+  public updateAuthInfo(user: UserInfo | null, isAuthenticated: boolean, isLoadingAuth: boolean): void {
+    const oldShouldBeConnected = this.shouldBeConnected();
+    this.user = user;
+    this.isAuthenticated = isAuthenticated;
+    this.isLoadingAuth = isLoadingAuth;
+    const newShouldBeConnected = this.shouldBeConnected();
+
+    if (oldShouldBeConnected !== newShouldBeConnected) {
+      if (newShouldBeConnected) {
+        console.debug('[pad.ws] Auth state changed, attempting to connect/reconnect.');
+        this.isPermanentlyDisconnected = false; // Allow reconnection attempts if auth is now valid
+        this.reconnectAttemptCount = 0; // Reset attempts
+        this.connect();
+      } else {
+        console.debug('[pad.ws] Auth state changed, disconnecting.');
+        this.disconnect(); // Disconnect if auth conditions no longer met
+      }
     }
   }
 
-
-  isOpen() {
-    return !!(
-      this.socketInitialized &&
-      this.sendMessageFn && // We need a way to send messages
-      this.roomId
-    );
+  public isOpen(): boolean {
+    return this.socket !== null && this.socket.readyState === WebSocket.OPEN;
   }
 
-  // async _broadcastSocketData(
-  //   data: SocketUpdateData, // Your defined type
-  //   volatile: boolean = false,
-  //   roomId?: string,
-  // ) {
-  //   if (this.isOpen()) {
-  //     // Encryption logic here if used (like Excalidraw's encryptData)
-  //     const jsonData = JSON.stringify(data);
-  //     // this.socket?.emit( eventName, roomId ?? this.roomId, encryptedData, iv);
-  //     this.socket?.emit('server-message', roomId ?? this.roomId, jsonData); // Example
-  //   }
-  // }
+  private sendJsonMessage(payload: WebSocketMessage): void {
+    if (!this.isOpen()) {
+      console.warn('[pad.ws] Cannot send message: WebSocket is not open.', payload.type);
+      return;
+    }
+    const validationResult = WebSocketMessageSchema.safeParse(payload);
+    if (!validationResult.success) {
+      console.error(`[pad.ws] Outgoing message validation failed for pad ${this.roomId}:`, validationResult.error.issues);
+      return;
+    }
+    this.socket?.send(JSON.stringify(payload));
+  }
 
-  // broadcastScene = async (
-  //   updateType: string, // e.g., 'INIT' or 'UPDATE'
-  //   elements: readonly OrderedExcalidrawElement[],
-  //   syncAll: boolean,
-  // ) => {
-  //   // Logic to filter syncableElements based on version and syncAll
-  //   // Construct payload
-  //   // await this._broadcastSocketData(data);
-  // };
+  public sendMessage(type: string, data?: any): void {
+    const messagePayload: WebSocketMessage = {
+      type,
+      pad_id: this.roomId,
+      timestamp: new Date().toISOString(),
+      user_id: this.user?.id,
+      data: data,
+    };
+    console.debug(`[pad.ws] Sending message of type: ${messagePayload.type} for pad ${this.roomId}`);
+    this.sendJsonMessage(messagePayload);
+  }
 
-  // broadcastIdleChange = (userState: UserIdleState) => {
-  //   // Construct payload
-  //   // return this._broadcastSocketData(data, true); // true for volatile
-  // };
 
-  // broadcastMouseLocation = (payload: { /* ... */ }) => {
-  //   // Construct payload
-  //   // return this._broadcastSocketData(data, true);
-  // };
-
-  // broadcastUserFollowed = (payload: OnUserFollowedPayload) => {
-  //   // this.socket?.emit('user_follow_change', payload);
-  // };
-
-  // --- Broadcast Methods ---
-  // Import PointerData from Collab.tsx or define it here if it's to be kept separate.
-  // For now, assuming Collab.tsx will export it or we define it locally if preferred.
-  // Let's assume Collab.tsx exports it for this example.
-  // We'll need to adjust Collab.tsx to export PointerData if it doesn't already.
-  // For now, to avoid circular dependency issues if Collab imports Portal,
-  // let's duplicate a simplified PointerData here or use 'any' and refine.
-  // To keep it simple for now, I'll use 'any' and we can pass the structured object from Collab.
+  // --- Broadcast Methods (adapted from previous Portal) ---
   public broadcastMouseLocation = (
-    pointerData: { x: number; y: number; tool: 'laser' | 'pointer' }, // More specific than 'any'
-    button?: 'up' | 'down', 
-    // selectedElementIds?: Record<string, boolean> // Add if needed
-    // username?: string // Add if needed
+    pointerData: { x: number; y: number; tool: 'laser' | 'pointer' },
+    button?: 'up' | 'down',
   ) => {
-    if (!this.isOpen()) return;
-
-    // Construct the payload similar to Excalidraw or useCollabManager
-    // The actual message 'type' (e.g., 'pointer_update', 'MOUSE_LOCATION')
-    // and payload structure will depend on your WebSocket backend.
-    // For now, let's assume a 'pointer_update' type.
     const payload = {
       pointer: pointerData,
-      button: button || 'up', // Default to 'up' if not provided
-      // selectedElementIds: selectedElementIds, // If you send this
-      // username: this.collab.state.username, // Collab instance would need to expose username or pass it
+      button: button || 'up',
     };
-    // The 'collab' instance is available via this.collab
-    // We might need to pass the username from Collab state or props
-    // For now, sending a simplified payload.
-    this.sendMessageFn('pointer_update', payload);
+    this.sendMessage('pointer_update', payload);
   };
 
-  // Add other broadcast methods here:
   public broadcastSceneUpdate = (
-    updateType: 'SCENE_INIT' | 'SCENE_UPDATE', // Similar to Excalidraw's WS_SUBTYPES
-    elements: ReadonlyArray<any /*ExcalidrawElementType*/>, // Using any for now
-    syncAll: boolean // To indicate if all elements are being sent (for INIT or full sync)
+    updateType: 'SCENE_INIT' | 'SCENE_UPDATE',
+    elements: ReadonlyArray<OrderedExcalidrawElement /* Adjust if ExcalidrawElementType is more precise */>,
+    syncAll: boolean
   ) => {
-    if (!this.isOpen()) return;
-
-    // In a real scenario, you'd filter elements if not syncAll,
-    // based on version against this.broadcastedElementVersions.
-    // For now, we'll send all elements passed.
-    // Excalidraw's Portal has more sophisticated logic here.
-
+    // Filtering logic based on broadcastedElementVersions would go here if not syncAll
+    // For now, simplified:
     const payload = {
-      type: updateType, // This is an Excalidraw-specific subtype, our backend might expect a different top-level 'type'
+      // type: updateType, // This was an Excalidraw subtype. Our backend expects a top-level type.
+      // The 'type' in sendMessage will be 'scene_update'. The payload contains details.
+      update_subtype: updateType, // To distinguish between INIT and UPDATE within the 'scene_update' message
       elements: elements,
       // appState: if sending app state changes
     };
 
-    // The actual message 'type' sent to backend (e.g., 'scene_changed', 'elements_update')
-    // will depend on your WebSocket backend's expected message structure.
-    // Let's assume a generic 'scene_update' that carries the payload.
-    this.sendMessageFn('scene_update', payload);
+    this.sendMessage('scene_update', payload);
 
-    // Update broadcasted versions if needed (more complex logic for partial updates)
     if (syncAll) {
       this.broadcastedElementVersions.clear();
     }
@@ -204,10 +316,6 @@ class Portal {
       }
     });
   };
-
-  // broadcastIdleChange(userState: UserIdleState) { ... }
-  // broadcastUserFollowed(payload: OnUserFollowedPayload) { ... }
-
 }
 
 export default Portal;

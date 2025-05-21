@@ -6,7 +6,6 @@ import type { ExcalidrawEmbeddableElement, NonDeleted, NonDeletedExcalidrawEleme
 // Hooks
 import { useAuthStatus } from "./hooks/useAuthStatus";
 import { usePadTabs } from "./hooks/usePadTabs";
-import { usePadWebSocket } from "./hooks/usePadWebSocket";
 
 // Components
 import DiscordButton from './ui/DiscordButton';
@@ -47,8 +46,6 @@ export default function App() {
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
-
-  const { sendMessage, lastJsonMessage, connectionStatus } = usePadWebSocket(selectedTabId);
 
   const handleCloseSettingsModal = () => {
     setShowSettingsModal(false);
@@ -119,14 +116,14 @@ export default function App() {
             />
           </Footer>
         )}
-        {excalidrawAPI && user && (
+        {excalidrawAPI && user && ( // user check ensures we only render Collab when user info is available
           <Collab
             excalidrawAPI={excalidrawAPI}
-            lastJsonMessage={lastJsonMessage}
             user={user}
-            sendMessage={sendMessage}
-            isOnline={connectionStatus === 'Open'}
-            padId={selectedTabId} // Pass selectedTabId as padId
+            // lastJsonMessage and sendMessage are removed
+            isOnline={!!isAuthenticated} // Use isAuthenticated from useAuthStatus
+            isLoadingAuth={isLoadingAuth} // Pass isLoadingAuth
+            padId={selectedTabId}
           />
         )}
       </Excalidraw>
