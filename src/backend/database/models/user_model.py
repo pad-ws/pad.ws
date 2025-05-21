@@ -123,6 +123,7 @@ class UserStore(Base, BaseModel):
         
         stmt = select(
             PadStore.id,
+            PadStore.owner_id,
             PadStore.display_name,
             PadStore.created_at,
             PadStore.updated_at,
@@ -136,6 +137,7 @@ class UserStore(Base, BaseModel):
         
         return [{
             "id": str(pad.id),
+            "owner_id": str(pad.owner_id),
             "display_name": pad.display_name,
             "created_at": pad.created_at.isoformat(),
             "updated_at": pad.updated_at.isoformat(),
