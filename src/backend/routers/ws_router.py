@@ -220,7 +220,7 @@ async def websocket_endpoint(websocket: WebSocket, pad_id: UUID,
         await websocket.send_text(connected_msg.model_dump_json())
         
         # Broadcast user joined message
-        join_event_data = {"displayName": getattr(user, 'displayName', str(user.id))}
+        join_event_data = {"displayName": user.username}
         join_message = WebSocketMessage(
             type="user_joined",
             pad_id=str(pad_id),

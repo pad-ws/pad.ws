@@ -52,7 +52,7 @@ interface CollabState {
   lastProcessedSceneVersion: number;
 }
 
-const POINTER_MOVE_THROTTLE_MS = 50;
+const POINTER_MOVE_THROTTLE_MS = 20;
 
 class Collab extends PureComponent<CollabProps, CollabState> {
   [x: string]: any;
@@ -97,7 +97,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
   // Method to handle status changes from Portal
   handlePortalStatusChange = (status: ConnectionStatus, message?: string) => {
-    console.log(`[Collab] Portal status changed: ${status}`, message || '');
+    console.debug(`[pad.ws] Portal status changed: ${status}`, message || '');
     this.setState({ connectionStatus: status });
     // Potentially update UI or take actions based on status
     if (status === 'Failed' || (status === 'Closed' && !this.portal.isOpen())) {
@@ -272,10 +272,16 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     if (this.props.isOnline) {
       this.state.collaborators.forEach((collab, id) => {
         if (this.props.user && this.props.user.id === collab.id) return;
+
         excalidrawCollaborators.set(id, {
-          id: collab.id, pointer: collab.pointer, username: collab.username,
-          button: collab.button, selectedElementIds: collab.selectedElementIds,
-          color: collab.color, avatarUrl: collab.avatarUrl,
+          id: collab.id, 
+          pointer: collab.pointer, 
+          username: collab.username,
+          button: collab.button, 
+          selectedElementIds: 
+          collab.selectedElementIds,
+          color: collab.color, 
+          avatarUrl: collab.avatarUrl,
         });
       });
     }
@@ -294,6 +300,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     switch (type) {
       case 'user_joined': {
         const displayName = messageData?.displayName || senderIdString;
+        console.log(`[pad.ws] User joined: ${displayName}`);
         this.setState(prevState => {
           if (prevState.collaborators.has(senderId) || (this.props.user?.id && senderIdString === this.props.user.id)) return null;
           const newCollaborator: Collaborator = {
@@ -307,6 +314,8 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         break;
       }
       case 'user_left': {
+        const displayName = messageData?.displayName || senderIdString;
+        console.log(`[pad.ws] User left: ${displayName}`);
         this.setState(prevState => {
           if (!prevState.collaborators.has(senderId) || (this.props.user?.id && senderIdString === this.props.user.id)) return null;
           const newCollaborators = new Map(prevState.collaborators);
@@ -342,9 +351,8 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       }
       case 'scene_update': {
         const remoteElements = messageData?.elements as ExcalidrawElementType[] | undefined;
-        // const updateSubtype = messageData?.update_subtype; // Available if needed for SCENE_INIT vs SCENE_UPDATE logic
 
-        if (remoteElements !== undefined && this.props.excalidrawAPI) { // Check for undefined to allow empty array for scene clears
+        if (remoteElements !== undefined && this.props.excalidrawAPI) {
           const localElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
           const currentAppState = this.props.excalidrawAPI.getAppState();
           
