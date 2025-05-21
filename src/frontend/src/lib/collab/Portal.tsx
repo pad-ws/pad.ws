@@ -1,10 +1,8 @@
 import { z } from 'zod';
-import type Collab from './Collab'; // Corrected import
+import type Collab from './Collab';
 import type { OrderedExcalidrawElement } from '@atyrode/excalidraw/element/types';
-// import type { OnUserFollowedPayload, SocketId } from '@atyrode/excalidraw/types'; // SocketId might be needed if Collab uses it
 import type { UserInfo } from '../../hooks/useAuthStatus'; // For user details
 
-// Schema and Type for WebSocket messages (from usePadWebSocket.ts)
 export const WebSocketMessageSchema = z.object({
   type: z.string(),
   pad_id: z.string().nullable(),
@@ -15,10 +13,8 @@ export const WebSocketMessageSchema = z.object({
 });
 export type WebSocketMessage = z.infer<typeof WebSocketMessageSchema>;
 
-// Connection Status (from usePadWebSocket.ts)
 export type ConnectionStatus = 'Uninstantiated' | 'Connecting' | 'Open' | 'Closing' | 'Closed' | 'Reconnecting' | 'Failed';
 
-// Reconnection constants (from usePadWebSocket.ts)
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY = 1000; // 1 second
 
@@ -190,15 +186,40 @@ class Portal {
 
   public disconnect(): void {
     console.debug(`[pad.ws] Disconnecting from pad: ${this.roomId}`);
-    this.isPermanentlyDisconnected = true; // User-initiated disconnect should be permanent unless connect is called again
+    this.isPermanentlyDisconnected = true; // Mark intent to disconnect this session
+
     if (this.reconnectTimeoutId) {
       clearTimeout(this.reconnectTimeoutId);
       this.reconnectTimeoutId = null;
     }
-    if (this.socket) {
-      this.socket.close(1000, 'Client initiated disconnect'); // 1000 for normal closure
-      this.socket = null;
+
+    const socketToClose = this.socket; // Capture the current socket reference
+    this.socket = null; // Nullify the instance's main socket reference immediately
+
+    if (socketToClose) {
+      // Detach all handlers from the old socket.
+      // This is crucial to prevent its onclose (and other) handlers from
+      // executing and potentially interfering with the state of the Portal instance,
+      // which is now focused on a new connection or a definitive closed state.
+      socketToClose.onopen = null;
+      socketToClose.onmessage = null;
+      socketToClose.onclose = null; // <--- Key change: prevent our generic onclose
+      socketToClose.onerror = null;
+
+      // Only attempt to close if it's in a state that can be closed.
+      if (socketToClose.readyState === WebSocket.OPEN || socketToClose.readyState === WebSocket.CONNECTING) {
+        try {
+          socketToClose.close(1000, 'Client initiated disconnect');
+        } catch (e) {
+          console.warn(`[pad.ws] Error while closing socket for pad ${this.roomId}:`, e);
+        }
+      } else {
+        console.debug(`[pad.ws] Socket for pad ${this.roomId} was not OPEN or CONNECTING. Current state: ${socketToClose.readyState}. No explicit close call needed.`);
+      }
     }
+
+    // This status update reflects the client's *action* to disconnect.
+    // The actual closure of the socket on the wire is handled by socketToClose.close().
     this._updateStatus('Closed', 'Client initiated disconnect');
   }
   
@@ -313,7 +334,7 @@ class Portal {
     });
   };
 
-  public broadcastUserViewportUpdate = (bounds: any /* Define your bounds type */): void => {
+  public broadcastUserViewportUpdate = (bounds: any): void => {
     const payload = {
       bounds: bounds,
     };
