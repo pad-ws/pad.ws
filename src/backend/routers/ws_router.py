@@ -8,11 +8,15 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from pydantic import BaseModel, Field, field_validator
 from redis import asyncio as aioredis
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import get_redis_client
 from dependencies import UserSession, get_session_domain
-
+from cache import RedisClient
+from domain.pad import Pad
+from database import get_session
 ws_router = APIRouter()
+
+STREAM_EXPIRY = 3600
 
 class WebSocketMessage(BaseModel):
     type: str
@@ -82,206 +86,212 @@ async def publish_event_to_redis(redis_client: aioredis.Redis, stream_key: str, 
         else:
             field_value_dict[k] = str(v)
             
-    await redis_client.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
+    try:
+        async with redis_client.pipeline() as pipe:
+            # Add message to stream
+            await pipe.xadd(stream_key, field_value_dict, maxlen=100, approximate=True)
+            # Set expiration on the stream key
+            await pipe.expire(stream_key, STREAM_EXPIRY)
+            await pipe.execute()
+    except Exception as e:
+        print(f"Error publishing event to Redis stream {stream_key}: {str(e)}")
 
 
-async def _handle_received_data(
-    raw_data: str,
-    pad_id: UUID,
-    user: UserSession, # Authenticated user session
-    redis_client: aioredis.Redis,
-    stream_key: str,
-    current_connection_id: str # This specific connection's ID
-):
+async def _handle_received_data(raw_data: str, pad_id: UUID, user: UserSession, 
+                               redis_client: aioredis.Redis, stream_key: str, connection_id: str):
     """Processes decoded message data, wraps it in WebSocketMessage, and publishes to Redis."""
     try:
         client_message_dict = json.loads(raw_data)
         
-        # Create a WebSocketMessage instance from the client's data.
-        # The client might not send user_id or connection_id, or we might want to override them.
+        # Create a WebSocketMessage instance from the client's data
         processed_message = WebSocketMessage(
-            type=client_message_dict.get("type", "unknown_client_message"), # Get type from client
-            pad_id=str(pad_id), # Server sets/overrides pad_id
-            user_id=str(user.id), # Server sets/overrides user_id from authenticated session
-            connection_id=current_connection_id, # Server sets/overrides connection_id
-            timestamp=datetime.now(timezone.utc), # Server sets timestamp
-            data=client_message_dict.get("data") # Pass through client's data payload
+            type=client_message_dict.get("type", "unknown_client_message"),
+            pad_id=str(pad_id),
+            user_id=str(user.id),
+            connection_id=connection_id,
+            timestamp=datetime.now(timezone.utc),
+            data=client_message_dict.get("data")
         )
 
         print(f"[WS] {processed_message.timestamp.strftime('%H:%M:%S')} - Type: {processed_message.type} from User: {processed_message.user_id[:5]} Conn: [{processed_message.connection_id[:5]}] on Pad: ({processed_message.pad_id[:5]})")
 
         await publish_event_to_redis(redis_client, stream_key, processed_message)
-
     except json.JSONDecodeError:
-        print(f"Invalid JSON received from {current_connection_id[:5]}")
-        # Optionally send an error message back to this client
-        error_msg = WebSocketMessage(
-            type="error",
-            pad_id=str(pad_id),
-            data={"message": "Invalid JSON format received."}
-        )
-        # This send is tricky as _handle_received_data doesn't have websocket object.
-        # Error handling might need to be closer to websocket.receive_text()
+        print(f"Invalid JSON received from {connection_id[:5]}")
     except Exception as e:
-        print(f"Error processing message from {current_connection_id[:5]}: {e}")
+        print(f"Error processing message from {connection_id[:5]}: {e}")
 
 
-async def consume_redis_stream(
-    redis_client: aioredis.Redis,
-    stream_key: str,
-    websocket: WebSocket,
-    current_connection_id: str,
-    last_id: str = '$'
-):
+async def consume_redis_stream(redis_client: aioredis.Redis, stream_key: str, 
+                              websocket: WebSocket, connection_id: str, last_id: str = '$'):
     """Consumes messages from Redis stream, parses to WebSocketMessage, and forwards them."""
-    try:
-        while websocket.client_state.CONNECTED:
+    while websocket.client_state.CONNECTED:
+        try:
+            # Read from Redis stream
             streams = await redis_client.xread({stream_key: last_id}, count=5, block=1000)
             
-            if streams:
-                stream_name, stream_messages = streams[0]
-                for message_id, message_data_raw_redis in stream_messages:
-                    # Convert raw Redis data to a standard dict, handling bytes or str
-                    redis_dict = {}
-                    for k, v in message_data_raw_redis.items():
-                        key = k.decode() if isinstance(k, bytes) else k
-                        value_str = v.decode() if isinstance(v, bytes) else v
-                        
-                        # Attempt to parse 'data' field if it was stored as JSON string
-                        if key == 'data':
-                            try:
-                                redis_dict[key] = json.loads(value_str)
-                            except json.JSONDecodeError:
-                                redis_dict[key] = value_str # Keep as string if not valid JSON
-                        elif key == 'pad_id' and value_str == 'None': # Handle 'None' string for nullable fields
-                             redis_dict[key] = None
-                        else:
-                            redis_dict[key] = value_str
+            if not streams:
+                await asyncio.sleep(0)
+                continue
+                
+            stream_name, stream_messages = streams[0]
+            for message_id, message_data_raw_redis in stream_messages:
+                if not websocket.client_state.CONNECTED:
+                    return
                     
-                    try:
-                        # Parse the dictionary from Redis into our Pydantic model
-                        message_to_send = WebSocketMessage(**redis_dict)
-                        
-                        # Avoid echoing messages to the sender
-                        if message_to_send.connection_id != current_connection_id:
-                            await websocket.send_text(message_to_send.model_dump_json())
-                        else:
-                            pass # Message originated from this connection, don't echo
-                            
-                    except Exception as pydantic_error:
-                        print(f"Error parsing message from Redis stream {stream_key} (ID: {message_id}): {pydantic_error}. Data: {redis_dict}")
-
-                    last_id = message_id
-            
-            await asyncio.sleep(0.01) # Small sleep to yield control
-    except Exception as e:
-        print(f"Error in Redis stream consumer for {stream_key}: {e}")
+                # Convert raw Redis data to a standard dict
+                redis_dict = {}
+                for k, v in message_data_raw_redis.items():
+                    key = k.decode() if isinstance(k, bytes) else k
+                    value_str = v.decode() if isinstance(v, bytes) else v
+                    
+                    # Parse 'data' field if it's JSON
+                    if key == 'data':
+                        try:
+                            redis_dict[key] = json.loads(value_str)
+                        except json.JSONDecodeError:
+                            redis_dict[key] = value_str
+                    elif key == 'pad_id' and value_str == 'None':
+                         redis_dict[key] = None
+                    else:
+                        redis_dict[key] = value_str
+                
+                try:
+                    # Create WebSocketMessage and send to client (if not from this connection)
+                    message_to_send = WebSocketMessage(**redis_dict)
+                    
+                    if message_to_send.connection_id != connection_id and websocket.client_state.CONNECTED:
+                        await websocket.send_text(message_to_send.model_dump_json())
+                except Exception as e:
+                    print(f"Error sending message from Redis: {e}")
+                
+                last_id = message_id
+                
+        except Exception as e:
+            if websocket.client_state.CONNECTED:
+                print(f"Error in Redis stream consumer for {stream_key}: {e}")
+            return
 
 
 @ws_router.websocket("/ws/pad/{pad_id}")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    pad_id: UUID,
-    user: Optional[UserSession] = Depends(get_ws_user)
-):
+async def websocket_endpoint(websocket: WebSocket, pad_id: UUID, 
+                            user: Optional[UserSession] = Depends(get_ws_user)):
+    """WebSocket endpoint for pad collaboration."""
     if not user:
         await websocket.close(code=4001, reason="Authentication required")
         return
         
+    # Get pad and check access
+    async for session in get_session():
+        try:
+            pad = await Pad.get_by_id(session, pad_id)
+            if not pad:
+                await websocket.close(code=4004, reason="Pad not found")
+                return
+                
+            if not pad.can_access(user.id):
+                await websocket.close(code=4003, reason="Access denied")
+                return
+            break
+        except Exception as e:
+            print(f"Error checking pad access: {e}")
+            await websocket.close(code=4000, reason="Internal server error")
+            return
+    
+    # Accept the connection and set up
     await websocket.accept()
-    redis_client = None
-    connection_id = str(uuid.uuid4()) # Unique ID for this WebSocket connection
+    connection_id = str(uuid.uuid4())
     stream_key = f"pad:stream:{pad_id}"
+    redis_client = None
     
     try:
-        redis_client = await get_redis_client()
+        # Get Redis client and send initial messages
+        redis_client = await RedisClient.get_instance()
         
-        # Send initial connection success message
-        if websocket.client_state.CONNECTED:
-            connected_msg = WebSocketMessage(
-                type="connected",
-                pad_id=str(pad_id),
-                user_id=str(user.id),
-                connection_id=connection_id,
-                data={"message": f"Successfully connected to pad {str(pad_id)}."}
-            )
-
-            await websocket.send_text(connected_msg.model_dump_json())
-            
-            # Publish user joined message to Redis
-            join_event_data = {"displayName": getattr(user, 'displayName', str(user.id))} # Adapt if user model has display name
-            join_message = WebSocketMessage(
-                type="user_joined",
-                pad_id=str(pad_id),
-                user_id=str(user.id),
-                connection_id=connection_id,
-                data=join_event_data
-            )
-            await publish_event_to_redis(redis_client, stream_key, join_message)
+        # Send connected message to client
+        connected_msg = WebSocketMessage(
+            type="connected",
+            pad_id=str(pad_id),
+            user_id=str(user.id),
+            connection_id=connection_id,
+            data={"message": f"Successfully connected to pad {str(pad_id)}."}
+        )
+        await websocket.send_text(connected_msg.model_dump_json())
         
+        # Broadcast user joined message
+        join_event_data = {"displayName": getattr(user, 'displayName', str(user.id))}
+        join_message = WebSocketMessage(
+            type="user_joined",
+            pad_id=str(pad_id),
+            user_id=str(user.id),
+            connection_id=connection_id,
+            data=join_event_data
+        )
+        await publish_event_to_redis(redis_client, stream_key, join_message)
+        
+        # Handle incoming messages from client
         async def handle_websocket_messages():
             while websocket.client_state.CONNECTED:
                 try:
                     data = await websocket.receive_text()
                     await _handle_received_data(data, pad_id, user, redis_client, stream_key, connection_id)
                 except WebSocketDisconnect:
-                    print(f"WebSocket disconnected for user {str(user.id)[:5]} conn {connection_id[:5]} from pad {str(pad_id)[:5]}")
+                    print(f"WebSocket disconnected for user {str(user.id)[:5]} conn {connection_id[:5]}")
                     break
                 except json.JSONDecodeError as e:
                     print(f"Invalid JSON received from {connection_id[:5]}: {e}")
-                    if websocket.client_state.CONNECTED:
-                        error_msg = WebSocketMessage(
-                            type="error",
-                            pad_id=str(pad_id),
-                            data={"message": "Invalid message format. Please send valid JSON."}
-                        )
-                        await websocket.send_text(error_msg.model_dump_json())
+                    await websocket.send_text(WebSocketMessage(
+                        type="error",
+                        pad_id=str(pad_id),
+                        data={"message": "Invalid message format. Please send valid JSON."}
+                    ).model_dump_json())
                 except Exception as e:
                     print(f"Error in WebSocket connection for {connection_id[:5]}: {e}")
                     break
         
+        # Set up tasks for message handling
         ws_task = asyncio.create_task(handle_websocket_messages())
         redis_task = asyncio.create_task(
             consume_redis_stream(redis_client, stream_key, websocket, connection_id, last_id='$')
         )
         
+        # Wait for either task to complete
         done, pending = await asyncio.wait(
             [ws_task, redis_task],
             return_when=asyncio.FIRST_COMPLETED
         )
         
+        # Cancel pending tasks
         for task in pending:
             task.cancel()
             try:
-                await task # Await cancellation
-            except asyncio.CancelledError:
+                await task
+            except (asyncio.CancelledError, Exception):
                 pass
                 
     except Exception as e:
-        print(f"Error in WebSocket endpoint for pad {str(pad_id)}: {e}")
+        print(f"Error in WebSocket connection: {e}")
+        
     finally:
         print(f"Cleaning up connection for user {str(user.id)[:5]} conn {connection_id[:5]} from pad {str(pad_id)[:5]}")
-        try:
-            if redis_client and user: # Ensure user is not None
-                leave_event_data = {} # No specific data needed for leave, user_id is top-level
+        
+        # Send user left message
+        if redis_client:
+            try:
                 leave_message = WebSocketMessage(
                     type="user_left",
                     pad_id=str(pad_id),
                     user_id=str(user.id),
                     connection_id=connection_id,
-                    data=leave_event_data
+                    data={}
                 )
                 await publish_event_to_redis(redis_client, stream_key, leave_message)
-        except Exception as e:
-            print(f"Error publishing leave message for {connection_id[:5]}: {e}")
-            
-        try:
-            if websocket.client_state.CONNECTED:
-                await websocket.close()
-        except Exception as e:
-            # Suppress common errors on close if already handled or connection is gone
-            if "already completed" not in str(e) and "close message has been sent" not in str(e) and "no connection" not in str(e).lower():
-                print(f"Error closing WebSocket connection for {connection_id[:5]}: {e}")
+            except Exception as e:
+                print(f"Error publishing leave message: {e}")
         
-        if redis_client:
-            await redis_client.close() # Ensure Redis client is closed if it was opened
+        # Close the WebSocket if still connected
+        if websocket.client_state.CONNECTED:
+            try:
+                await websocket.close()
+            except Exception:
+                pass

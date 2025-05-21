@@ -38,6 +38,7 @@ interface TabContextMenuProps {
   padName: string;
   onRename: (padId: string, newName: string) => void;
   onDelete: (padId: string) => void;
+  onUpdateSharingPolicy: (padId: string, policy: string) => void;
   onClose: () => void;
 }
 
@@ -52,69 +53,69 @@ const Popover: React.FC<{
   viewportWidth?: number;
   viewportHeight?: number;
   children: React.ReactNode;
-}> = ({ 
-  onCloseRequest, 
-  top, 
-  left, 
-  children, 
+}> = ({
+  onCloseRequest,
+  top,
+  left,
+  children,
   fitInViewport = false,
   offsetLeft = 0,
   offsetTop = 0,
   viewportWidth = window.innerWidth,
   viewportHeight = window.innerHeight
 }) => {
-  const popoverRef = useRef<HTMLDivElement>(null);
-  
-  // Handle clicks outside the popover to close it
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-        onCloseRequest();
+    const popoverRef = useRef<HTMLDivElement>(null);
+
+    // Handle clicks outside the popover to close it
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+          onCloseRequest();
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }, [onCloseRequest]);
+
+    // Adjust position if needed to fit in viewport
+    useEffect(() => {
+      if (fitInViewport && popoverRef.current) {
+        const rect = popoverRef.current.getBoundingClientRect();
+        const adjustedLeft = Math.min(left, viewportWidth - rect.width);
+        const adjustedTop = Math.min(top, viewportHeight - rect.height);
+
+        if (popoverRef.current) {
+          popoverRef.current.style.left = `${adjustedLeft}px`;
+          popoverRef.current.style.top = `${adjustedTop}px`;
+        }
       }
-    };
+    }, [fitInViewport, left, top, viewportWidth, viewportHeight]);
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [onCloseRequest]);
-
-  // Adjust position if needed to fit in viewport
-  useEffect(() => {
-    if (fitInViewport && popoverRef.current) {
-      const rect = popoverRef.current.getBoundingClientRect();
-      const adjustedLeft = Math.min(left, viewportWidth - rect.width);
-      const adjustedTop = Math.min(top, viewportHeight - rect.height);
-      
-      if (popoverRef.current) {
-        popoverRef.current.style.left = `${adjustedLeft}px`;
-        popoverRef.current.style.top = `${adjustedTop}px`;
-      }
-    }
-  }, [fitInViewport, left, top, viewportWidth, viewportHeight]);
-
-  return (
-    <div 
-      ref={popoverRef}
-      style={{
-        position: 'fixed',
-        top: `${top}px`,
-        left: `${left}px`,
-        zIndex: 1000,
-      }}
-    >
-      {children}
-    </div>
-  );
-};
+    return (
+      <div
+        ref={popoverRef}
+        style={{
+          position: 'fixed',
+          top: `${top}px`,
+          left: `${left}px`,
+          zIndex: 1000,
+        }}
+      >
+        {children}
+      </div>
+    );
+  };
 
 // ContextMenu component
-const ContextMenu: React.FC<ContextMenuProps> = ({ 
-  actionManager, 
-  items, 
-  top, 
-  left, 
-  onClose 
+const ContextMenu: React.FC<ContextMenuProps> = ({
+  actionManager,
+  items,
+  top,
+  left,
+  onClose
 }) => {
   // Filter items based on predicate
   const filteredItems = items.reduce((acc: ContextMenuItem[], item) => {
@@ -170,14 +171,11 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
               key={idx}
               data-testid={actionName}
               onClick={() => {
-                // Log the click
-                console.debug('[pad.ws] Menu item clicked:', item.name);
-                
                 // Store the callback to execute after closing
                 const callback = () => {
                   actionManager.executeAction(item, "contextMenu");
                 };
-                
+
                 // Close the menu and execute the callback
                 onClose(callback);
               }}
@@ -206,24 +204,25 @@ class TabActionManager implements ActionManager {
   padName: string;
   onRename: (padId: string, newName: string) => void;
   onDelete: (padId: string) => void;
+  onUpdateSharingPolicy: (padId: string, policy: string) => void;
   app: any;
 
   constructor(
     padId: string,
     padName: string,
     onRename: (padId: string, newName: string) => void,
-    onDelete: (padId: string) => void
+    onDelete: (padId: string) => void,
+    onUpdateSharingPolicy: (padId: string, policy: string) => void
   ) {
     this.padId = padId;
     this.padName = padName;
     this.onRename = onRename;
     this.onDelete = onDelete;
+    this.onUpdateSharingPolicy = onUpdateSharingPolicy;
     this.app = { props: {} };
   }
 
   executeAction(action: Action, source: string) {
-    console.debug('[pad.ws] Executing action:', action.name, 'from source:', source);
-    
     if (action.name === 'rename') {
       const newName = window.prompt('Rename pad', this.padName);
       if (newName && newName.trim() !== '') {
@@ -235,6 +234,17 @@ class TabActionManager implements ActionManager {
         console.debug('[pad.ws] User confirmed delete, calling onDelete');
         this.onDelete(this.padId);
       }
+    } else if (action.name === 'setPublic') {
+      this.onUpdateSharingPolicy(this.padId, 'public');
+    } else if (action.name === 'setPrivate') {
+      this.onUpdateSharingPolicy(this.padId, 'private');
+    } else if (action.name === 'copyUrl') {
+      const url = `${window.location.origin}/pad/${this.padId}`;
+      navigator.clipboard.writeText(url).then(() => {
+        console.debug('[pad.ws] URL copied to clipboard:', url);
+      }).catch(err => {
+        console.error('[pad.ws] Failed to copy URL:', err);
+      });
     }
   }
 }
@@ -247,10 +257,11 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
   padName,
   onRename,
   onDelete,
+  onUpdateSharingPolicy,
   onClose
 }) => {
   // Create an action manager instance
-  const actionManager = new TabActionManager(padId, padName, onRename, onDelete);
+  const actionManager = new TabActionManager(padId, padName, onRename, onDelete, onUpdateSharingPolicy);
 
   // Define menu items
   const menuItems = [
@@ -259,7 +270,23 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
       label: 'Rename',
       predicate: () => true,
     },
-    CONTEXT_MENU_SEPARATOR, // Add separator between rename and delete
+    CONTEXT_MENU_SEPARATOR,
+    {
+      name: 'setPublic',
+      label: 'Set Public',
+      predicate: () => true,
+    },
+    {
+      name: 'setPrivate',
+      label: 'Set Private',
+      predicate: () => true,
+    },
+    {
+      name: 'copyUrl',
+      label: 'Copy URL',
+      predicate: () => true,
+    },
+    CONTEXT_MENU_SEPARATOR,
     {
       name: 'delete',
       label: 'Delete',

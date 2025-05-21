@@ -1,13 +1,14 @@
 from uuid import UUID
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
+from redis import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
-from config import default_pad, get_redis_client
+from config import default_pad
 import json
 
+from cache import RedisClient
 from database.models.pad_model import PadStore
 from redis.asyncio import Redis as AsyncRedis
-
 
 class Pad:
     """
@@ -26,18 +27,24 @@ class Pad:
         id: UUID, 
         owner_id: UUID, 
         display_name: str, 
-        data: Dict[str, Any] = None, 
-        created_at: datetime = None,
-        updated_at: datetime = None,
-        store: PadStore = None
+        created_at: datetime,
+        updated_at: datetime,
+        store: PadStore,
+        redis: AsyncRedis,
+        data: Dict[str, Any] = None,
+        sharing_policy: str = "private",
+        whitelist: List[UUID] = None,
     ):
         self.id = id
         self.owner_id = owner_id
         self.display_name = display_name
-        self.data = data or {}
         self.created_at = created_at or datetime.now()
         self.updated_at = updated_at or datetime.now()
         self._store = store
+        self._redis = redis
+        self.data = data or {}
+        self.sharing_policy = sharing_policy or "private"
+        self.whitelist = whitelist or []
 
     @classmethod
     async def create(
@@ -45,7 +52,9 @@ class Pad:
         session: AsyncSession,
         owner_id: UUID,
         display_name: str,
-        data: Dict[str, Any] = default_pad
+        data: Dict[str, Any] = default_pad,
+        sharing_policy: str = "private",
+        whitelist: List[UUID] = None,
     ) -> 'Pad':
         """Create a new pad with multi-user app state support"""
         # Create a deep copy of the default template
@@ -61,87 +70,92 @@ class Pad:
             session=session,
             owner_id=owner_id,
             display_name=display_name,
-            data=pad_data
+            data=pad_data,
+            sharing_policy=sharing_policy or "private",
+            whitelist=whitelist or []
         )
-        pad = cls.from_store(store)
+        redis = await RedisClient.get_instance()
+        pad = cls.from_store(store, redis)
         
-        try:
-            await pad.cache()
-        except Exception as e:
-            print(f"Warning: Failed to cache pad {pad.id}: {str(e)}")
+        await pad.cache()
             
         return pad
 
     @classmethod
-    async def get_by_id(cls, session: AsyncSession, pad_id: UUID) -> Optional['Pad']:
-        """Get a pad by ID, first trying Redis cache then falling back to database"""
-        redis = await get_redis_client()
+    async def from_redis(cls, redis: AsyncRedis, pad_id: UUID) -> Optional['Pad']:
+        """Create a Pad instance from Redis cache data"""
         cache_key = f"pad:{pad_id}"
         
         try:
-            if await redis.exists(cache_key):
-                cached_data = await redis.hgetall(cache_key)
-                if cached_data:
-                    pad_id = UUID(cached_data['id'])
-                    owner_id = UUID(cached_data['owner_id'])
-                    display_name = cached_data['display_name']
-                    data = json.loads(cached_data['data'])
-                    created_at = datetime.fromisoformat(cached_data['created_at'])
-                    updated_at = datetime.fromisoformat(cached_data['updated_at'])
-                    
-                    # Create a minimal PadStore instance
-                    store = PadStore(
-                        id=pad_id,
-                        owner_id=owner_id,
-                        display_name=display_name,
-                        data=data,
-                        created_at=created_at,
-                        updated_at=updated_at
-                    )
-                    
-                    pad_instance = cls(
-                        id=pad_id,
-                        owner_id=owner_id,
-                        display_name=display_name,
-                        data=data,
-                        created_at=created_at,
-                        updated_at=updated_at,
-                        store=store
-                    )
-                    return pad_instance
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
-            print(f"Error parsing cached pad data for id {pad_id}: {str(e)}")
+            if not await redis.exists(cache_key):
+                return None
+                
+            cached_data = await redis.hgetall(cache_key)
+            if not cached_data:
+                return None
+                
+            pad_id = UUID(cached_data['id'])
+            owner_id = UUID(cached_data['owner_id'])
+            display_name = cached_data['display_name']
+            data = json.loads(cached_data['data'])
+            created_at = datetime.fromisoformat(cached_data['created_at'])
+            updated_at = datetime.fromisoformat(cached_data['updated_at'])
+            
+            # Get sharing_policy and whitelist (or use defaults if not in cache)
+            sharing_policy = cached_data.get('sharing_policy', 'private')
+            whitelist_str = cached_data.get('whitelist', '[]')
+            whitelist = [UUID(uid) for uid in json.loads(whitelist_str)] if whitelist_str else []
+            
+            # Create a minimal PadStore instance
+            store = PadStore(
+                id=pad_id,
+                owner_id=owner_id,
+                display_name=display_name,
+                data=data,
+                created_at=created_at,
+                updated_at=updated_at,
+                sharing_policy=sharing_policy,
+                whitelist=whitelist
+            )
+            
+            return cls(
+                id=pad_id,
+                owner_id=owner_id,
+                display_name=display_name,
+                data=data,
+                created_at=created_at,
+                updated_at=updated_at,
+                store=store,
+                redis=redis,
+                sharing_policy=sharing_policy,
+                whitelist=whitelist
+            )
+        except (json.JSONDecodeError, KeyError, ValueError, RedisError) as e:
+            return None
         except Exception as e:
             print(f"Unexpected error retrieving pad from cache: {str(e)}")
+            return None
+
+    @classmethod
+    async def get_by_id(cls, session: AsyncSession, pad_id: UUID) -> Optional['Pad']:
+        """Get a pad by ID, first trying Redis cache then falling back to database"""
+        redis = await RedisClient.get_instance()
         
+        # Try to get from cache first
+        pad = await cls.from_redis(redis, pad_id)
+        if pad:
+            return pad
+            
         # Fall back to database
         store = await PadStore.get_by_id(session, pad_id)
         if store:
-            pad = cls.from_store(store)
-            try:
-                await pad.cache()
-            except Exception as e:
-                print(f"Warning: Failed to cache pad {pad.id}: {str(e)}")
+            pad = cls.from_store(store, redis)
+            await pad.cache()
             return pad
         return None
 
     @classmethod
-    async def get_by_owner(cls, session: AsyncSession, owner_id: UUID) -> list['Pad']:
-        """Get all pads for a specific owner"""
-        stores = await PadStore.get_by_owner(session, owner_id)
-        pads = [cls.from_store(store) for store in stores]
-        
-        # Cache all pads, handling errors for each individually
-        for pad in pads:
-            try:
-                await pad.cache()
-            except Exception as e:
-                print(f"Warning: Failed to cache pad {pad.id}: {str(e)}")
-                
-        return pads
-
-    @classmethod
-    def from_store(cls, store: PadStore) -> 'Pad':
+    def from_store(cls, store: PadStore, redis: AsyncRedis) -> 'Pad':
         """Create a Pad instance from a store"""
         return cls(
             id=store.id,
@@ -150,124 +164,23 @@ class Pad:
             data=store.data,
             created_at=store.created_at,
             updated_at=store.updated_at,
-            store=store
+            store=store,
+            redis=redis,
+            sharing_policy=store.sharing_policy or "private",
+            whitelist=store.whitelist or []
         )
 
     async def save(self, session: AsyncSession) -> 'Pad':
         """Save the pad to the database and update cache"""
-        if not self._store:
-            self._store = PadStore(
-                id=self.id,
-                owner_id=self.owner_id,
-                display_name=self.display_name,
-                data=self.data,
-                created_at=self.created_at,
-                updated_at=self.updated_at
-            )
-        else:
-            self._store.display_name = self.display_name
-            self._store.data = self.data
-            self._store.updated_at = datetime.now()
-
+        self._store.display_name = self.display_name
+        self._store.data = self.data
+        self._store.sharing_policy = self.sharing_policy
+        self._store.whitelist = self.whitelist
+        self._store.updated_at = datetime.now()
         self._store = await self._store.save(session)
-        self.id = self._store.id
-        self.created_at = self._store.created_at
-        self.updated_at = self._store.updated_at
-        
-        try:
-            await self.cache()
-        except Exception as e:
-            print(f"Warning: Failed to cache pad {self.id} after save: {str(e)}")
-            
+
+        await self.cache()
         return self
-
-    async def broadcast_event(self, event_type: str, event_data: Dict[str, Any]) -> None:
-        """Broadcast an event to all connected clients"""
-        redis = await get_redis_client()
-        stream_key = f"pad:stream:{self.id}"
-        message = {
-            "type": event_type,
-            "pad_id": str(self.id),
-            "data": event_data,
-            "timestamp": datetime.now().isoformat()
-        }
-        try:
-            await redis.xadd(stream_key, message)
-        except Exception as e:
-            print(f"Error broadcasting event to pad {self.id}: {str(e)}")
-
-    async def get_stream_position(self) -> str:
-        """Get the current position in the pad's stream"""
-        redis = await get_redis_client()
-        stream_key = f"pad:stream:{self.id}"
-        try:
-            info = await redis.xinfo_stream(stream_key)
-            return info.get("last-generated-id", "0-0")
-        except Exception as e:
-            print(f"Error getting stream position for pad {self.id}: {str(e)}")
-            return "0-0"
-
-    async def get_recent_events(self, count: int = 100) -> list[Dict[str, Any]]:
-        """Get recent events from the pad's stream"""
-        redis = await get_redis_client()
-        stream_key = f"pad:stream:{self.id}"
-        try:
-            messages = await redis.xrevrange(stream_key, count=count)
-            return [msg[1] for msg in messages]
-        except Exception as e:
-            print(f"Error getting recent events for pad {self.id}: {str(e)}")
-            return []
-
-    async def delete(self, session: AsyncSession) -> bool:
-        """Delete the pad from both database and cache"""
-        print(f"Deleting pad {self.id}", flush=True)
-        print(f"self._store: {self._store}", flush=True)
-        if self._store:
-            success = await self._store.delete(session)
-            
-            if success:
-                try:
-                    await self.invalidate_cache()
-                except Exception as e:
-                    print(f"Warning: Failed to invalidate cache for pad {self.id}: {str(e)}")
-            return success
-        return False
-
-    async def cache(self) -> None:
-        """Cache the pad data in Redis using hash structure"""
-        redis = await get_redis_client()
-        cache_key = f"pad:{self.id}"
-        
-        cache_data = {
-            'id': str(self.id),
-            'owner_id': str(self.owner_id),
-            'display_name': self.display_name,
-            'data': json.dumps(self.data),
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
-        }
-        
-        async with redis.pipeline() as pipe:
-            await pipe.hset(cache_key, mapping=cache_data)
-            await pipe.expire(cache_key, self.CACHE_EXPIRY)
-            await pipe.execute()
-
-    async def invalidate_cache(self) -> None:
-        """Remove the pad from Redis cache"""
-        redis = await get_redis_client()
-        cache_key = f"pad:{self.id}"
-        await redis.delete(cache_key)
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation"""
-        return {
-            "id": str(self.id),
-            "owner_id": str(self.owner_id),
-            "display_name": self.display_name,
-            "data": self.data,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
-        }
 
     async def rename(self, session: AsyncSession, new_display_name: str) -> 'Pad':
         """Rename the pad by updating its display name"""
@@ -276,14 +189,120 @@ class Pad:
         if self._store:
             self._store.display_name = new_display_name
             self._store.updated_at = self.updated_at
+            self._store.sharing_policy = self.sharing_policy
+            self._store.whitelist = self.whitelist
             self._store = await self._store.save(session)
             
-        try:
-            await self.cache()
-        except Exception as e:
-            print(f"Warning: Failed to cache pad {self.id} after rename: {str(e)}")
+        await self.cache()
             
         return self
+
+    async def delete(self, session: AsyncSession) -> bool:
+        """Delete the pad from both database and cache"""
+        success = await self._store.delete(session)
+        if success:
+            await self.invalidate_cache()
+        else:
+            print(f"Failed to delete pad {self.id} from database")
+            return False
+
+        print(f"Deleted pad {self.id} from database and cache")
+        return success
+
+    async def cache(self) -> None:
+        """Cache the pad data in Redis using hash structure"""
+            
+        cache_key = f"pad:{self.id}"
+        
+        cache_data = {
+            'id': str(self.id),
+            'owner_id': str(self.owner_id),
+            'display_name': self.display_name,
+            'data': json.dumps(self.data),
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'sharing_policy': self.sharing_policy,
+            'whitelist': json.dumps([str(uid) for uid in self.whitelist]) if self.whitelist else '[]'
+        }
+        try:
+            async with self._redis.pipeline() as pipe:
+                await pipe.hset(cache_key, mapping=cache_data)
+                await pipe.expire(cache_key, self.CACHE_EXPIRY)
+                await pipe.execute()
+        except Exception as e:
+            print(f"Error caching pad {self.id}: {str(e)}")
+
+    async def invalidate_cache(self) -> None:
+        """Remove the pad from Redis cache"""
+        cache_key = f"pad:{self.id}"
+        await self._redis.delete(cache_key)
+
+    async def set_sharing_policy(self, session: AsyncSession, policy: str) -> 'Pad':
+        """Update the sharing policy of the pad"""
+        if policy not in ["private", "whitelist", "public"]:
+            raise ValueError("Invalid sharing policy")
+            
+        print(f"Changing sharing policy for pad {self.id} from {self.sharing_policy} to {policy}")
+        self.sharing_policy = policy
+        self._store.sharing_policy = policy
+        self.updated_at = datetime.now()
+        self._store.updated_at = self.updated_at
+        
+        await self._store.save(session)
+        await self.cache()
+        
+        return self
+
+    async def add_to_whitelist(self, session: AsyncSession, user_id: UUID) -> 'Pad':
+        """Add a user to the pad's whitelist"""
+        if user_id not in self.whitelist:
+            self.whitelist.append(user_id)
+            self._store.whitelist = self.whitelist
+            self.updated_at = datetime.now()
+            self._store.updated_at = self.updated_at
+            
+            await self._store.save(session)
+            await self.cache()
+            
+        return self
+
+    async def remove_from_whitelist(self, session: AsyncSession, user_id: UUID) -> 'Pad':
+        """Remove a user from the pad's whitelist"""
+        if user_id in self.whitelist:
+            self.whitelist.remove(user_id)
+            self._store.whitelist = self.whitelist
+            self.updated_at = datetime.now()
+            self._store.updated_at = self.updated_at
+            
+            await self._store.save(session)
+            await self.cache()
+            
+        return self
+
+    def can_access(self, user_id: UUID) -> bool:
+        """Check if a user can access the pad"""
+        if self.owner_id == user_id:
+            return True
+        if self.sharing_policy == "public":
+            return True
+        if self.sharing_policy == "whitelist":
+            return user_id in self.whitelist
+        return False
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation"""
+        return {
+            "id": str(self.id),
+            "owner_id": str(self.owner_id),
+            "display_name": self.display_name,
+            "data": self.data,
+            "sharing_policy": self.sharing_policy,
+            "whitelist": [str(uid) for uid in self.whitelist],
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat()
+        }
+
+
 
 
     

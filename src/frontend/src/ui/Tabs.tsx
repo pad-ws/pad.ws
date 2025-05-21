@@ -11,27 +11,29 @@ import TabContextMenu from "./TabContextMenu";
 import "./Tabs.scss";
 
 interface TabsProps {
-  excalidrawAPI: ExcalidrawImperativeAPI;
-  tabs: Tab[];
-  selectedTabId: string | null;
-  isLoading: boolean;
-  isCreatingPad: boolean;
-  createNewPadAsync: () => Promise<Tab | null | undefined>;
-  renamePad: (args: { padId: string; newName: string }) => void;
-  deletePad: (padId: string) => void;
-  selectTab: (tabId: string) => void;
+    excalidrawAPI: ExcalidrawImperativeAPI;
+    tabs: Tab[];
+    selectedTabId: string | null;
+    isLoading: boolean;
+    isCreatingPad: boolean;
+    createNewPadAsync: () => Promise<Tab | null | undefined>;
+    renamePad: (args: { padId: string; newName: string }) => void;
+    deletePad: (padId: string) => void;
+    updateSharingPolicy: (args: { padId: string; policy: string }) => void;
+    selectTab: (tabId: string) => void;
 }
 
 const Tabs: React.FC<TabsProps> = ({
-  excalidrawAPI,
-  tabs,
-  selectedTabId,
-  isLoading,
-  isCreatingPad,
-  createNewPadAsync,
-  renamePad,
-  deletePad,
-  selectTab,
+    excalidrawAPI,
+    tabs,
+    selectedTabId,
+    isLoading,
+    isCreatingPad,
+    createNewPadAsync,
+    renamePad,
+    deletePad,
+    updateSharingPolicy,
+    selectTab,
 }) => {
     const { isLoading: isPadLoading, error: padError } = usePad(selectedTabId, excalidrawAPI);
     const [displayPadLoadingIndicator, setDisplayPadLoadingIndicator] = useState(false);
@@ -60,23 +62,23 @@ const Tabs: React.FC<TabsProps> = ({
 
     const handleCreateNewPad = async () => {
         if (isCreatingPad) return;
-        
+
         try {
             const newPad = await createNewPadAsync();
-            
+
             if (newPad) {
                 capture("pad_created", {
                     padId: newPad.id,
                     padName: newPad.title
                 });
-                
+
                 const newPadIndex = tabs.findIndex((tab: { id: any; }) => tab.id === newPad.id);
                 if (newPadIndex !== -1) {
                     const newStartIndex = Math.max(0, Math.min(newPadIndex - PADS_PER_PAGE + 1, tabs.length - PADS_PER_PAGE));
                     setStartPadIndex(newStartIndex);
                 } else {
                     if (tabs.length >= PADS_PER_PAGE) {
-                         setStartPadIndex(Math.max(0, tabs.length + 1 - PADS_PER_PAGE));
+                        setStartPadIndex(Math.max(0, tabs.length + 1 - PADS_PER_PAGE));
                     }
                 }
             }
@@ -127,18 +129,18 @@ const Tabs: React.FC<TabsProps> = ({
     const tabsWrapperRef = useRef<HTMLDivElement>(null);
     const lastWheelTimeRef = useRef<number>(0);
     const wheelThrottleMs = 70;
-    
+
     useLayoutEffect(() => {
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault();
             e.stopPropagation();
-            
+
             const now = Date.now();
             if (now - lastWheelTimeRef.current < wheelThrottleMs) {
                 return;
             }
             lastWheelTimeRef.current = now;
-            
+
             if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
                 if (e.deltaX > 0 && tabs && startPadIndex < tabs.length - PADS_PER_PAGE) {
                     showNextPads();
@@ -153,7 +155,7 @@ const Tabs: React.FC<TabsProps> = ({
                 }
             }
         };
-        
+
         const localTabsWrapperRef = tabsWrapperRef.current;
         if (localTabsWrapperRef) {
             localTabsWrapperRef.addEventListener('wheel', handleWheel, { passive: false });
@@ -170,14 +172,14 @@ const Tabs: React.FC<TabsProps> = ({
                     <Section heading="canvasActions">
                         {!appState.viewModeEnabled && (
                             <>
-                                <div 
+                                <div
                                     className="tabs-wrapper"
                                     ref={tabsWrapperRef}
                                 >
                                     <div className="new-tab-button-container">
                                         <Tooltip label={isCreatingPad ? "Creating new pad..." : "New pad"} children={
                                             <Button
-                                                onSelect={isCreatingPad ? () => {} : handleCreateNewPad}
+                                                onSelect={isCreatingPad ? () => { } : handleCreateNewPad}
                                                 className={isCreatingPad ? "creating-pad" : ""}
                                                 children={
                                                     <div className="ToolIcon__icon">
@@ -187,74 +189,74 @@ const Tabs: React.FC<TabsProps> = ({
                                             />
                                         } />
                                     </div>
-                                    
+
                                     <div className="tabs-container">
-                                    {isLoading && !isPadLoading && (
-                                        <div className="loading-indicator">
-                                            Loading pads...
-                                        </div>
-                                    )}
-                                
-                                    {!isLoading && tabs && tabs.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).map((tab: Tab, index: any) => (
-                                    <div 
-                                        key={tab.id}
-                                        onContextMenu={(e: { preventDefault: () => void; clientX: any; clientY: any; }) => {
-                                            e.preventDefault();
-                                            setContextMenu({
-                                                visible: true,
-                                                x: e.clientX,
-                                                y: e.clientY,
-                                                padId: tab.id,
-                                                padName: tab.title
-                                            });
-                                        }}
-                                    >
-                                        {(selectedTabId === tab.id || tab.title.length > 11) ? (
-                                            <Tooltip 
-                                                label={
-                                                    selectedTabId === tab.id 
-                                                        ? (tab.title.length > 11 
-                                                            ? `${tab.title} (current pad)` 
-                                                            : "Current pad")
-                                                        : tab.title
-                                                } 
-                                                children={
+                                        {isLoading && !isPadLoading && (
+                                            <div className="loading-indicator">
+                                                Loading pads...
+                                            </div>
+                                        )}
+
+                                        {!isLoading && tabs && tabs.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).map((tab: Tab, index: any) => (
+                                            <div
+                                                key={tab.id}
+                                                onContextMenu={(e: { preventDefault: () => void; clientX: any; clientY: any; }) => {
+                                                    e.preventDefault();
+                                                    setContextMenu({
+                                                        visible: true,
+                                                        x: e.clientX,
+                                                        y: e.clientY,
+                                                        padId: tab.id,
+                                                        padName: tab.title
+                                                    });
+                                                }}
+                                            >
+                                                {(selectedTabId === tab.id || tab.title.length > 11) ? (
+                                                    <Tooltip
+                                                        label={
+                                                            selectedTabId === tab.id
+                                                                ? (tab.title.length > 11
+                                                                    ? `${tab.title} (current pad)`
+                                                                    : "Current pad")
+                                                                : tab.title
+                                                        }
+                                                        children={
+                                                            <Button
+                                                                onSelect={() => handlePadSelect(tab)}
+                                                                className={selectedTabId === tab.id ? "active-pad" : ""}
+                                                                children={
+                                                                    <div className="tab-content">
+                                                                        {selectedTabId === tab.id && displayPadLoadingIndicator ? "..." : (tab.title.length > 8 ? `${tab.title.substring(0, 11)}...` : tab.title)}
+                                                                        {/* Calculate position based on overall index in `tabs` if needed, or `startPadIndex + index + 1` */}
+                                                                        <span className="tab-position">{tabs.findIndex((t: { id: any; }) => t.id === tab.id) + 1}</span>
+                                                                    </div>
+                                                                }
+                                                            />
+                                                        }
+                                                    />
+                                                ) : (
                                                     <Button
                                                         onSelect={() => handlePadSelect(tab)}
                                                         className={selectedTabId === tab.id ? "active-pad" : ""}
                                                         children={
                                                             <div className="tab-content">
-                                                                {selectedTabId === tab.id && displayPadLoadingIndicator ? "..." : (tab.title.length > 8 ? `${tab.title.substring(0, 11)}...` : tab.title)}
-                                                                {/* Calculate position based on overall index in `tabs` if needed, or `startPadIndex + index + 1` */}
+                                                                {tab.title}
                                                                 <span className="tab-position">{tabs.findIndex((t: { id: any; }) => t.id === tab.id) + 1}</span>
                                                             </div>
                                                         }
                                                     />
-                                                } 
-                                            />
-                                        ) : (
-                                            <Button
-                                                onSelect={() => handlePadSelect(tab)}
-                                                className={selectedTabId === tab.id ? "active-pad" : ""}
-                                                children={
-                                                    <div className="tab-content">
-                                                        {tab.title}
-                                                        <span className="tab-position">{tabs.findIndex((t: { id: any; }) => t.id === tab.id) + 1}</span>
-                                                    </div>
-                                                }
-                                            />
-                                        )}
+                                                )}
+                                            </div>
+                                        ))}
+
                                     </div>
-                                    ))}
-                                    
-                                    </div>
-                                                                        
+
                                     {tabs && tabs.length > PADS_PER_PAGE && (
                                         <React.Fragment key={`left-tooltip-${startPadIndex}`}>
-                                            <Tooltip 
-                                                label={`Scroll to the left${startPadIndex > 0 ? `\n(${startPadIndex} more)` : ''}`} 
+                                            <Tooltip
+                                                label={`Scroll to the left${startPadIndex > 0 ? `\n(${startPadIndex} more)` : ''}`}
                                                 children={
-                                                    <button 
+                                                    <button
                                                         className={`scroll-button left ${startPadIndex > 0 ? '' : 'disabled'}`}
                                                         onClick={showPreviousPads}
                                                         aria-label="Show previous pads"
@@ -262,17 +264,17 @@ const Tabs: React.FC<TabsProps> = ({
                                                     >
                                                         <ChevronLeft size={20} />
                                                     </button>
-                                                } 
+                                                }
                                             />
                                         </React.Fragment>
                                     )}
-                                    
+
                                     {tabs && tabs.length > PADS_PER_PAGE && (
                                         <React.Fragment key={`right-tooltip-${startPadIndex}`}>
-                                            <Tooltip 
-                                                label={`Scroll to the right${tabs && tabs.length - (startPadIndex + PADS_PER_PAGE) > 0 ? `\n(${Math.max(0, tabs.length - (startPadIndex + PADS_PER_PAGE))} more)` : ''}`} 
+                                            <Tooltip
+                                                label={`Scroll to the right${tabs && tabs.length - (startPadIndex + PADS_PER_PAGE) > 0 ? `\n(${Math.max(0, tabs.length - (startPadIndex + PADS_PER_PAGE))} more)` : ''}`}
                                                 children={
-                                                    <button 
+                                                    <button
                                                         className={`scroll-button right ${tabs && startPadIndex < tabs.length - PADS_PER_PAGE ? '' : 'disabled'}`}
                                                         onClick={showNextPads}
                                                         aria-label="Show next pads"
@@ -280,7 +282,7 @@ const Tabs: React.FC<TabsProps> = ({
                                                     >
                                                         <ChevronRight size={20} />
                                                     </button>
-                                                } 
+                                                }
                                             />
                                         </React.Fragment>
                                     )}
@@ -290,7 +292,7 @@ const Tabs: React.FC<TabsProps> = ({
                     </Section>
                 </Stack.Col>
             </div>
-            
+
             {contextMenu.visible && (
                 <TabContextMenu
                     x={contextMenu.x}
@@ -306,22 +308,22 @@ const Tabs: React.FC<TabsProps> = ({
                             alert("Cannot delete the last pad");
                             return;
                         }
-                        
+
                         const tabToDelete = tabs?.find((t: { id: any; }) => t.id === padId);
                         const padName = tabToDelete?.title || "";
                         capture("pad_deleted", { padId, padName });
-                        
+
                         if (padId === selectedTabId && tabs) {
                             const otherTab = tabs.find((t: { id: any; }) => t.id !== padId);
                             if (otherTab) {
-                                // Before deleting, select another tab.
-                                // The actual deletion will trigger a list update and selection adjustment in usePadTabs.
-                                selectTab(otherTab.id); 
-                                // It might be better to let usePadTabs handle selection after delete.
-                                // For now, explicitly select, then delete.
+                                selectTab(otherTab.id);
                             }
                         }
                         deletePad(padId);
+                    }}
+                    onUpdateSharingPolicy={(padId: string, policy: string) => {
+                        capture("pad_sharing_policy_updated", { padId, policy });
+                        updateSharingPolicy({ padId, policy });
                     }}
                     onClose={() => {
                         setContextMenu((prev: any) => ({ ...prev, visible: false }));

@@ -41,7 +41,8 @@ export default function App() {
     isCreating: isCreatingPad,
     renamePad,
     deletePad,
-    selectTab
+    selectTab,
+    updateSharingPolicy
   } = usePadTabs();
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -113,6 +114,7 @@ export default function App() {
               createNewPadAsync={createNewPadAsync}
               renamePad={renamePad}
               deletePad={deletePad}
+              updateSharingPolicy={updateSharingPolicy}
               selectTab={selectTab}
             />
           </Footer>
