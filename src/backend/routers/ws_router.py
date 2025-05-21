@@ -113,7 +113,8 @@ async def _handle_received_data(raw_data: str, pad_id: UUID, user: UserSession,
             data=client_message_dict.get("data")
         )
 
-        print(f"[WS] {processed_message.timestamp.strftime('%H:%M:%S')} - Type: {processed_message.type} from User: {processed_message.user_id[:5]} Conn: [{processed_message.connection_id[:5]}] on Pad: ({processed_message.pad_id[:5]})")
+        if processed_message.type != "pointer_update":
+            print(f"[WS] {processed_message.timestamp.strftime('%H:%M:%S')} - Type: {processed_message.type} from User: {processed_message.user_id[:5]} Conn: [{processed_message.connection_id[:5]}] on Pad: ({processed_message.pad_id[:5]})")
 
         await publish_event_to_redis(redis_client, stream_key, processed_message)
     except json.JSONDecodeError:

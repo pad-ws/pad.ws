@@ -305,7 +305,6 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   };
 
   private handlePortalMessage = (message: WebSocketMessage) => {
-    console.log('Collab received message from Portal:', message);
     const { type, connection_id, user_id, data: messageData } = message;
     const senderIdString = connection_id || user_id;
 

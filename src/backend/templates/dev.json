@@ -17,8 +17,8 @@
         "width": 1920,
         "height": 957,
         "penMode": false,
-        "scrollX": 777.3333740234375,
-        "scrollY": 326.3333740234375,
+        "scrollX": 220,
+        "scrollY": 220,
         "gridSize": 20,
         "gridStep": 5,
         "openMenu": null,
@@ -119,8 +119,8 @@
     },
     "elements": [
         {
-            "x": -160,
-            "y": -200,
+            "x": 0,
+            "y": 0,
             "id": "1igpgsvrsh3",
             "link": "!dev",
             "seed": 76441,
@@ -128,12 +128,12 @@
             "angle": 0,
             "index": "b0q",
             "width": 700,
-            "height": 800,
+            "height": 420,
             "locked": false,
             "frameId": null,
             "opacity": 100,
-            "updated": 1747500403348,
-            "version": 2104,
+            "updated": 1747831905652,
+            "version": 2127,
             "groupIds": [],
             "fillStyle": "solid",
             "isDeleted": false,
@@ -155,10 +155,9 @@
             "strokeColor": "#ced4da",
             "strokeStyle": "solid",
             "strokeWidth": 2,
-            "versionNonce": 1736659225,
+            "versionNonce": 253042044,
             "boundElements": [],
             "backgroundColor": "#e9ecef"
         }
     ]
 }
-
