@@ -2,7 +2,7 @@ import json
 import asyncio
 import uuid
 from uuid import UUID
-from typing import Optional, Any
+from typing import Optional, Any, Dict, List
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
@@ -17,6 +17,7 @@ from database import get_session
 ws_router = APIRouter()
 
 STREAM_EXPIRY = 3600
+PAD_USERS_EXPIRY = 3600  # Expiry time for the pad users hash
 
 class WebSocketMessage(BaseModel):
     type: str
@@ -204,6 +205,83 @@ async def consume_redis_stream(redis_client: aioredis.Redis, stream_key: str,
             return
 
 
+async def add_connection(redis_client: aioredis.Redis, pad_id: UUID, user_id: str, 
+                         username: str, connection_id: str) -> None:
+    """Add a user connection to the pad users hash in Redis."""
+    key = f"pad:users:{pad_id}"
+    try:
+        # Get existing user data if any
+        user_data_str = await redis_client.hget(key, user_id)
+        
+        if user_data_str:
+            user_data = json.loads(user_data_str)
+            # Add the connection ID if it doesn't exist
+            if connection_id not in user_data["connections"]:
+                user_data["connections"].append(connection_id)
+        else:
+            # Create new user data
+            user_data = {
+                "username": username,
+                "connections": [connection_id]
+            }
+        
+        # Update the hash in Redis
+        await redis_client.hset(key, user_id, json.dumps(user_data))
+        # Set expiry on the hash
+        await redis_client.expire(key, PAD_USERS_EXPIRY)
+    except Exception as e:
+        print(f"Error adding connection to Redis: {e}")
+
+async def remove_connection(redis_client: aioredis.Redis, pad_id: UUID, user_id: str, 
+                           connection_id: str) -> None:
+    """Remove a user connection from the pad users hash in Redis."""
+    key = f"pad:users:{pad_id}"
+    try:
+        # Get existing user data
+        user_data_str = await redis_client.hget(key, user_id)
+        
+        if user_data_str:
+            user_data = json.loads(user_data_str)
+            
+            # Remove the connection
+            if connection_id in user_data["connections"]:
+                user_data["connections"].remove(connection_id)
+            
+            # If there are still connections, update the user data
+            if user_data["connections"]:
+                await redis_client.hset(key, user_id, json.dumps(user_data))
+            else:
+                # If no connections left, remove the user from the hash
+                await redis_client.hdel(key, user_id)
+            
+            # Refresh expiry on the hash if it still exists
+            if await redis_client.exists(key):
+                await redis_client.expire(key, PAD_USERS_EXPIRY)
+    except Exception as e:
+        print(f"Error removing connection from Redis: {e}")
+
+async def get_connected_users(redis_client: aioredis.Redis, pad_id: UUID) -> List[Dict[str, str]]:
+    """Get all connected users from the pad users hash as a list of dicts with user_id and username."""
+    key = f"pad:users:{pad_id}"
+    try:
+        # Get all users from the hash
+        all_users = await redis_client.hgetall(key)
+        
+        # Convert to list of dicts with user_id and username
+        connected_users = []
+        for user_id, user_data_str in all_users.items():
+            user_id_str = user_id.decode() if isinstance(user_id, bytes) else user_id
+            user_data = json.loads(user_data_str.decode() if isinstance(user_data_str, bytes) else user_data_str)
+            connected_users.append({
+                "user_id": user_id_str,
+                "username": user_data["username"]
+            })
+        
+        return connected_users
+    except Exception as e:
+        print(f"Error getting connected users from Redis: {e}")
+        return []
+
 @ws_router.websocket("/ws/pad/{pad_id}")
 async def websocket_endpoint(websocket: WebSocket, pad_id: UUID, 
                             user: Optional[UserSession] = Depends(get_ws_user)):
@@ -236,21 +314,25 @@ async def websocket_endpoint(websocket: WebSocket, pad_id: UUID,
     redis_client = None
     
     try:
-        # Get Redis client and send initial messages
         redis_client = await RedisClient.get_instance()
-        
-        # Send connected message to client
+
+        await add_connection(redis_client, pad_id, str(user.id), user.username, connection_id)
+        connected_users = await get_connected_users(redis_client, pad_id)
+
+        # Send connected message to client with connected users info
         connected_msg = WebSocketMessage(
             type="connected",
             pad_id=str(pad_id),
             user_id=str(user.id),
             connection_id=connection_id,
-            data={"message": f"Successfully connected to pad {str(pad_id)}."}
+            data={
+                "collaboratorsList": connected_users
+            }
         )
         await websocket.send_text(connected_msg.model_dump_json())
         
         # Broadcast user joined message
-        join_event_data = {"displayName": user.username}
+        join_event_data = {"username": user.username}
         join_message = WebSocketMessage(
             type="user_joined",
             pad_id=str(pad_id),
@@ -306,8 +388,14 @@ async def websocket_endpoint(websocket: WebSocket, pad_id: UUID,
     finally:
         print(f"Cleaning up connection for user {str(user.id)[:5]} conn {connection_id[:5]} from pad {str(pad_id)[:5]}")
         
-        # Send user left message
+        # Remove the connection from Redis
         if redis_client:
+            try:
+                await remove_connection(redis_client, pad_id, str(user.id), connection_id)
+            except Exception as e:
+                print(f"Error removing connection from Redis: {e}")
+            
+            # Send user left message
             try:
                 leave_message = WebSocketMessage(
                     type="user_left",
