@@ -304,8 +304,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         this.setState(prevState => {
           if (prevState.collaborators.has(senderId) || (this.props.user?.id && senderIdString === this.props.user.id)) return null;
           const newCollaborator: Collaborator = {
-            id: senderId, username: displayName, pointer: { x: 0, y: 0, tool: 'pointer' },
-            color: getRandomCollaboratorColor(), userState: 'active',
+            id: senderId, 
+            username: displayName, 
+            pointer: { x: 0, y: 0, tool: 'pointer' },
+            color: getRandomCollaboratorColor(), 
+            userState: 'active',
           };
           const newCollaborators = new Map(prevState.collaborators);
           newCollaborators.set(senderId, newCollaborator);
@@ -341,8 +344,12 @@ class Collab extends PureComponent<CollabProps, CollabState> {
             newCollaborators.set(senderId, updatedCollaborator);
           } else if (!existing) { // Only create new if it doesn't exist
             newCollaborators.set(senderId, {
-              id: senderId, username: senderIdString, pointer: pointerDataIn, button: pointerDataIn.button,
-              color: getRandomCollaboratorColor(), userState: 'active',
+              id: senderId,
+              username: senderIdString,
+              pointer: pointerDataIn,
+              button: pointerDataIn.button,
+              color: getRandomCollaboratorColor(),
+              userState: 'active',
             });
           }
           return { collaborators: newCollaborators };
