@@ -312,6 +312,21 @@ class Portal {
       }
     });
   };
+
+  public broadcastUserViewportUpdate = (bounds: any /* Define your bounds type */): void => {
+    const payload = {
+      bounds: bounds,
+    };
+    this.sendMessage('viewport_update', payload);
+  };
+
+  public requestFollowUser = (userToFollowId: string): void => {
+    this.sendMessage('user_follow_request', { userToFollowId });
+  };
+
+  public requestUnfollowUser = (userToUnfollowId: string): void => {
+    this.sendMessage('user_unfollow_request', { userToUnfollowId });
+  };
 }
 
 export default Portal;
