@@ -5,6 +5,7 @@ import { Stack, Button, Section, Tooltip } from "@atyrode/excalidraw";
 import { FilePlus2, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { usePad } from "../hooks/usePadData";
+import { useAuthStatus } from "../hooks/useAuthStatus";
 import type { Tab } from "../hooks/usePadTabs";
 import { capture } from "../lib/posthog";
 import TabContextMenu from "./TabContextMenu";
@@ -35,6 +36,7 @@ const Tabs: React.FC<TabsProps> = ({
     updateSharingPolicy,
     selectTab,
 }) => {
+    const { user: currentUser } = useAuthStatus();
     const { isLoading: isPadLoading, error: padError } = usePad(selectedTabId, excalidrawAPI);
     const [displayPadLoadingIndicator, setDisplayPadLoadingIndicator] = useState(false);
 
@@ -299,6 +301,8 @@ const Tabs: React.FC<TabsProps> = ({
                     y={contextMenu.y}
                     padId={contextMenu.padId}
                     padName={contextMenu.padName}
+                    currentUserId={currentUser?.id}
+                    tabOwnerId={tabs.find(tab => tab.id === contextMenu.padId)?.ownerId}
                     onRename={(padId: any, newName: any) => {
                         capture("pad_renamed", { padId, newName });
                         renamePad({ padId, newName });

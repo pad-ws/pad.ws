@@ -387,27 +387,28 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     switch (type) {
       case 'user_joined': {
         const username = messageData?.username || senderIdString;
-        console.log(`[pad.ws] User joined: ${username}`);
+        console.debug(`[pad.ws] User joined: ${username}`);
         this.setState(prevState => {
           if (prevState.collaborators.has(senderId) || (this.props.user?.id && senderIdString === this.props.user.id)) return null;
           const newCollaborator: Collaborator = {
-            id: senderId, 
+            id: user_id as SocketId, 
             username: username, 
             pointer: { x: 0, y: 0, tool: 'pointer' },
             color: getRandomCollaboratorColor(), 
             userState: 'active',
           };
           const newCollaborators = new Map(prevState.collaborators);
-          newCollaborators.set(senderId, newCollaborator);
+          newCollaborators.set(user_id as SocketId, newCollaborator);
           return { collaborators: newCollaborators };
         });
         break;
       }
       case 'user_left': {
+        console.debug(`[pad.ws] User left: ${user_id}`);
         this.setState(prevState => {
-          if (!prevState.collaborators.has(senderId) || (this.props.user?.id && senderIdString === this.props.user.id)) return null;
+          if (!prevState.collaborators.has(user_id as SocketId) || (this.props.user?.id && user_id === this.props.user.id)) return null;
           const newCollaborators = new Map(prevState.collaborators);
-          newCollaborators.delete(senderId);
+          newCollaborators.delete(user_id as SocketId);
           return { collaborators: newCollaborators };
         });
         break;
@@ -418,24 +419,13 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         if (messageData.button) pointerDataIn.button = messageData.button;
         this.setState(prevState => {
           const newCollaborators = new Map(prevState.collaborators);
-          const existing = newCollaborators.get(senderId);
-          if (existing && typeof existing === 'object') { // Check if existing is an object before spreading
-            const updatedCollaborator: Collaborator = {
-              ...(existing as Collaborator), // Cast to Collaborator to assure TS it's an object
-              pointer: pointerDataIn,
-              button: pointerDataIn.button
-            };
-            newCollaborators.set(senderId, updatedCollaborator);
-          } else if (!existing) { // Only create new if it doesn't exist
-            newCollaborators.set(senderId, {
-              id: senderId,
-              username: senderIdString,
-              pointer: pointerDataIn,
-              button: pointerDataIn.button,
-              color: getRandomCollaboratorColor(),
-              userState: 'active',
-            });
-          }
+          const existing = newCollaborators.get(user_id);
+          const updatedCollaborator: Collaborator = {
+            ...(existing as Collaborator),
+            pointer: pointerDataIn,
+            button: pointerDataIn.button
+          };
+          newCollaborators.set(user_id, updatedCollaborator);
           return { collaborators: newCollaborators };
         });
         break;
@@ -522,19 +512,20 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         break;
       }
       case 'connected': {
-        const collaboratorsList = messageData?.collaboratorsList as Collaborator[] | undefined;
+        const collaboratorsList = messageData?.collaboratorsList as any | undefined;
 
         if (collaboratorsList && Array.isArray(collaboratorsList)) {
-          console.log(`[pad.ws] Received 'connected' message with ${collaboratorsList.length} collaborators.`);
+          console.debug(`[pad.ws] Received 'connected' message with ${collaboratorsList.length} collaborators.`);
           this.setState(prevState => {
             const newCollaborators = new Map<SocketId, Collaborator>();
             collaboratorsList.forEach(collabData => {
-
-              if (collabData.id && collabData.id !== this.props.user?.id) {
+              
+              console.debug(`[pad.ws] Collaborator data: ${JSON.stringify(collabData)}`);
+              if (collabData.user_id && collabData.user_id !== this.props.user?.id) {
 
                 const newCollaborator: Collaborator = {
-                  id: collabData.id as SocketId,
-                  username: collabData.username || `User-${String(collabData.id).substring(0, 6)}`,
+                  id: collabData.user_id as SocketId,
+                  username: collabData.username,
                   pointer: collabData.pointer || { x: 0, y: 0, tool: 'pointer' },
                   button: collabData.button || 'up',
                   selectedElementIds: collabData.selectedElementIds || {},
@@ -542,7 +533,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
                   color: collabData.color || getRandomCollaboratorColor(),
                   avatarUrl: collabData.avatarUrl || '',
                 };
-                newCollaborators.set(collabData.id as SocketId, newCollaborator);
+                newCollaborators.set(collabData.user_id as SocketId, newCollaborator);
               }
             });
 

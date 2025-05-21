@@ -40,6 +40,8 @@ interface TabContextMenuProps {
   onDelete: (padId: string) => void;
   onUpdateSharingPolicy: (padId: string, policy: string) => void;
   onClose: () => void;
+  currentUserId?: string;
+  tabOwnerId?: string;
 }
 
 // Popover component
@@ -258,7 +260,9 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
   onRename,
   onDelete,
   onUpdateSharingPolicy,
-  onClose
+  onClose,
+  currentUserId,
+  tabOwnerId
 }) => {
   // Create an action manager instance
   const actionManager = new TabActionManager(padId, padName, onRename, onDelete, onUpdateSharingPolicy);
@@ -289,7 +293,12 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
     CONTEXT_MENU_SEPARATOR,
     {
       name: 'delete',
-      label: 'Delete',
+      label: () => {
+        if (currentUserId && tabOwnerId && currentUserId !== tabOwnerId) {
+          return 'Leave shared pad';
+        }
+        return 'Delete';
+      },
       predicate: () => true,
       dangerous: true,
     }

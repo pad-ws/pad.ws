@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 export interface Tab {
     id: string;
     title: string;
+    ownerId: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -24,6 +25,7 @@ interface UserResponse {
     pads: {
         id: string;
         display_name: string;
+        owner_id: string;
         created_at: string;
         updated_at: string;
     }[];
@@ -49,6 +51,7 @@ const fetchUserPads = async (): Promise<PadResponse> => {
     const tabs = userData.pads.map(pad => ({
         id: pad.id,
         title: pad.display_name,
+        ownerId: pad.owner_id,
         createdAt: pad.created_at,
         updatedAt: pad.updated_at
     }));
@@ -62,6 +65,7 @@ const fetchUserPads = async (): Promise<PadResponse> => {
 interface NewPadApiResponse {
     id: string;
     display_name: string;
+    owner_id: string;
     created_at: string;
     updated_at: string;
 }
@@ -88,6 +92,7 @@ const createNewPad = async (): Promise<Tab> => {
     return {
         id: newPadResponse.id,
         title: newPadResponse.display_name,
+        ownerId: newPadResponse.owner_id,
         createdAt: newPadResponse.created_at,
         updatedAt: newPadResponse.updated_at,
     };
@@ -129,6 +134,7 @@ export const usePadTabs = () => {
             const tempTab: Tab = {
                 id: tempTabId,
                 title: 'New pad',
+                ownerId: '',
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
