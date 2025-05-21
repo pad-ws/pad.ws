@@ -295,7 +295,6 @@ class Portal {
     this.sendJsonMessage(messagePayload);
   }
 
-
   public broadcastMouseLocation = (
     pointerData: { x: number; y: number; tool: 'laser' | 'pointer' },
     button?: 'up' | 'down',

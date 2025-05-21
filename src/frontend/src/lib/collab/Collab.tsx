@@ -73,12 +73,9 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   private unsubExcalidrawScrollChange: (() => void) | null = null;
   private unsubExcalidrawUserFollow: (() => void) | null = null;
   private throttledRelayViewportBounds: any;
-
-  // To track the scene version last broadcast by this client
   private lastBroadcastedSceneVersion: number = -1;
+
   props: any;
-  // To track the scene version last received and processed from remote
-  // This is already in state: lastProcessedSceneVersion
 
   constructor(props: CollabProps) {
     super(props);
@@ -109,18 +106,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     }, 50); // Throttle time 50ms, adjust as needed
   }
 
-  // Method to handle status changes from Portal
-  handlePortalStatusChange = (status: ConnectionStatus, message?: string) => {
-    console.debug(`[pad.ws] Portal status changed: ${status}`, message || '');
-    this.setState({ connectionStatus: status });
-    // Potentially update UI or take actions based on status
-    if (status === 'Failed' || (status === 'Closed' && !this.portal.isOpen())) {
-        // Clear collaborators if connection is definitively lost
-        this.setState({ collaborators: new Map() }, () => {
-            if (this.updateExcalidrawCollaborators) this.updateExcalidrawCollaborators();
-        });
-    }
-  };
+  /* Component Lifecycle */
 
   componentDidMount() {
     // setMessageHandler is removed, Portal gets handler via constructor
@@ -196,6 +182,8 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.removeFollowListener();
   }
 
+  /* Pointer */
+
   private addPointerEventListeners = () => {
     if (!this.props.excalidrawAPI) return;
     document.addEventListener('pointermove', this.throttledOnPointerMove);
@@ -214,39 +202,29 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.unsubExcalidrawPointerDown = null;
     this.unsubExcalidrawPointerUp = null;
   };
+
+  private handlePointerInteraction = (button: 'down' | 'up', event: MouseEvent | PointerEvent) => {
+    if (!this.props.excalidrawAPI || !this.portal.isOpen() || !this.props.isOnline) return;
+    const appState = this.props.excalidrawAPI.getAppState();
+    const sceneCoords = viewportCoordsToSceneCoords({ clientX: event.clientX, clientY: event.clientY }, appState);
+    const currentTool = appState.activeTool.type;
+    const displayTool: 'laser' | 'pointer' = currentTool === 'laser' ? 'laser' : 'pointer';
+    const pointerData: PointerData = { x: sceneCoords.x, y: sceneCoords.y, tool: displayTool, button: button };
+    this.portal.broadcastMouseLocation(pointerData, button);
+  };
   
-  private addSceneChangeListeners = () => {
-    if (!this.props.excalidrawAPI) return;
-    // The onChange callback from Excalidraw provides elements and appState,
-    // but we'll fetch the latest scene directly to ensure we have deleted elements for versioning.
-    this.unsubExcalidrawSceneChange = this.props.excalidrawAPI.onChange(
-      () => {
-        this.handleSceneChange();
-      }
-    );
+  private handlePointerMove = (event: PointerEvent) => {
+    if (!this.props.excalidrawAPI || !this.portal.isOpen() || !this.props.isOnline) return;
+    const appState = this.props.excalidrawAPI.getAppState();
+    const sceneCoords = viewportCoordsToSceneCoords({ clientX: event.clientX, clientY: event.clientY }, appState);
+    const currentTool = appState.activeTool.type;
+    const displayTool: 'laser' | 'pointer' = currentTool === 'laser' ? 'laser' : 'pointer';
+    const pointerData: PointerData = { x: sceneCoords.x, y: sceneCoords.y, tool: displayTool };
+    this.portal.broadcastMouseLocation(pointerData, appState.cursorButton || 'up');
   };
 
-  private removeSceneChangeListeners = () => {
-    if (this.unsubExcalidrawSceneChange) {
-      this.unsubExcalidrawSceneChange();
-      this.unsubExcalidrawSceneChange = null;
-    }
-  };
-
-  private addScrollChangeListener = () => {
-    if (!this.props.excalidrawAPI) return;
-    this.unsubExcalidrawScrollChange = this.props.excalidrawAPI.onScrollChange(
-      this.throttledRelayViewportBounds
-    );
-  };
-
-  private removeScrollChangeListener = () => {
-    if (this.unsubExcalidrawScrollChange) {
-      this.unsubExcalidrawScrollChange();
-      this.unsubExcalidrawScrollChange = null;
-    }
-  };
-
+  /* Followers */
+  
   private addFollowListener = () => {
     if (!this.props.excalidrawAPI) return;
     this.unsubExcalidrawUserFollow = this.props.excalidrawAPI.onUserFollow(
@@ -271,6 +249,20 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     }
   };
 
+  private addScrollChangeListener = () => {
+    if (!this.props.excalidrawAPI) return;
+    this.unsubExcalidrawScrollChange = this.props.excalidrawAPI.onScrollChange(
+      this.throttledRelayViewportBounds
+    );
+  };
+
+  private removeScrollChangeListener = () => {
+    if (this.unsubExcalidrawScrollChange) {
+      this.unsubExcalidrawScrollChange();
+      this.unsubExcalidrawScrollChange = null;
+    }
+  };
+
   private isBeingFollowed = (): boolean => {
     // This is a placeholder. Actual implementation depends on how `followedBy` is managed.
     // For Excalidraw, it's often `this.props.excalidrawAPI?.getAppState().followedBy.size > 0`
@@ -280,7 +272,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     const appState = this.props.excalidrawAPI?.getAppState();
     return !!(appState && appState.followedBy && appState.followedBy.size > 0);
   };
-  
+
   private relayViewportBounds = () => {
     if (!this.props.excalidrawAPI || !this.portal.isOpen() || !this.props.isOnline) {
       return;
@@ -290,6 +282,26 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     if (this.isBeingFollowed()) {
       const bounds = getVisibleSceneBounds(appState);
       this.portal.broadcastUserViewportUpdate(bounds);
+    }
+  };
+
+  /* Scene */
+
+  private addSceneChangeListeners = () => {
+    if (!this.props.excalidrawAPI) return;
+    // The onChange callback from Excalidraw provides elements and appState,
+    // but we'll fetch the latest scene directly to ensure we have deleted elements for versioning.
+    this.unsubExcalidrawSceneChange = this.props.excalidrawAPI.onChange(
+      () => {
+        this.handleSceneChange();
+      }
+    );
+  };
+
+  private removeSceneChangeListeners = () => {
+    if (this.unsubExcalidrawSceneChange) {
+      this.unsubExcalidrawSceneChange();
+      this.unsubExcalidrawSceneChange = null;
     }
   };
 
@@ -320,25 +332,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     }
   };
 
-  private handlePointerInteraction = (button: 'down' | 'up', event: MouseEvent | PointerEvent) => {
-    if (!this.props.excalidrawAPI || !this.portal.isOpen() || !this.props.isOnline) return;
-    const appState = this.props.excalidrawAPI.getAppState();
-    const sceneCoords = viewportCoordsToSceneCoords({ clientX: event.clientX, clientY: event.clientY }, appState);
-    const currentTool = appState.activeTool.type;
-    const displayTool: 'laser' | 'pointer' = currentTool === 'laser' ? 'laser' : 'pointer';
-    const pointerData: PointerData = { x: sceneCoords.x, y: sceneCoords.y, tool: displayTool, button: button };
-    this.portal.broadcastMouseLocation(pointerData, button);
-  };
-  
-  private handlePointerMove = (event: PointerEvent) => {
-    if (!this.props.excalidrawAPI || !this.portal.isOpen() || !this.props.isOnline) return;
-    const appState = this.props.excalidrawAPI.getAppState();
-    const sceneCoords = viewportCoordsToSceneCoords({ clientX: event.clientX, clientY: event.clientY }, appState);
-    const currentTool = appState.activeTool.type;
-    const displayTool: 'laser' | 'pointer' = currentTool === 'laser' ? 'laser' : 'pointer';
-    const pointerData: PointerData = { x: sceneCoords.x, y: sceneCoords.y, tool: displayTool };
-    this.portal.broadcastMouseLocation(pointerData, appState.cursorButton || 'up');
-  };
+  /* Collaborators */
 
   private updateUsername = (user: UserInfo | null) => {
     const newUsername = user?.username || user?.id || "";
@@ -369,7 +363,19 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.props.excalidrawAPI.updateScene({ collaborators: excalidrawCollaborators });
   };
 
-  // Made public to be callable by Portal instance (passed in constructor)
+  /* Portal & Core logic */
+
+  handlePortalStatusChange = (status: ConnectionStatus, message?: string) => {
+    this.setState({ connectionStatus: status });
+    // Potentially update UI or take actions based on status
+    if (status === 'Failed' || (status === 'Closed' && !this.portal.isOpen())) {
+        // Clear collaborators if connection is definitively lost
+        this.setState({ collaborators: new Map() }, () => {
+            if (this.updateExcalidrawCollaborators) this.updateExcalidrawCollaborators();
+        });
+    }
+  };
+
   public handlePortalMessage = (message: WebSocketMessage) => {
     const { type, connection_id, user_id, data: messageData } = message;
     const senderIdString = connection_id || user_id;
@@ -380,13 +386,13 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
     switch (type) {
       case 'user_joined': {
-        const displayName = messageData?.displayName || senderIdString;
-        console.log(`[pad.ws] User joined: ${displayName}`);
+        const username = messageData?.username || senderIdString;
+        console.log(`[pad.ws] User joined: ${username}`);
         this.setState(prevState => {
           if (prevState.collaborators.has(senderId) || (this.props.user?.id && senderIdString === this.props.user.id)) return null;
           const newCollaborator: Collaborator = {
             id: senderId, 
-            username: displayName, 
+            username: username, 
             pointer: { x: 0, y: 0, tool: 'pointer' },
             color: getRandomCollaboratorColor(), 
             userState: 'active',
@@ -398,8 +404,6 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         break;
       }
       case 'user_left': {
-        const displayName = messageData?.displayName || senderIdString;
-        console.log(`[pad.ws] User left: ${displayName}`);
         this.setState(prevState => {
           if (!prevState.collaborators.has(senderId) || (this.props.user?.id && senderIdString === this.props.user.id)) return null;
           const newCollaborators = new Map(prevState.collaborators);
@@ -408,8 +412,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         });
         break;
       }
-      case 'pointer_update':
-      case 'pointer_event': {
+      case 'pointer_update': {
         if (!messageData?.pointer) return;
         const pointerDataIn = messageData.pointer as PointerData;
         if (messageData.button) pointerDataIn.button = messageData.button;
@@ -515,6 +518,38 @@ class Collab extends PureComponent<CollabProps, CollabState> {
             appState: { ...currentAppState, followedBy: newFollowedBy },
             commitToHistory: false 
           });
+        }
+        break;
+      }
+      case 'connected': {
+        const collaboratorsList = messageData?.collaboratorsList as Collaborator[] | undefined;
+
+        if (collaboratorsList && Array.isArray(collaboratorsList)) {
+          console.log(`[pad.ws] Received 'connected' message with ${collaboratorsList.length} collaborators.`);
+          this.setState(prevState => {
+            const newCollaborators = new Map<SocketId, Collaborator>();
+            collaboratorsList.forEach(collabData => {
+
+              if (collabData.id && collabData.id !== this.props.user?.id) {
+
+                const newCollaborator: Collaborator = {
+                  id: collabData.id as SocketId,
+                  username: collabData.username || `User-${String(collabData.id).substring(0, 6)}`,
+                  pointer: collabData.pointer || { x: 0, y: 0, tool: 'pointer' },
+                  button: collabData.button || 'up',
+                  selectedElementIds: collabData.selectedElementIds || {},
+                  userState: collabData.userState || 'active',
+                  color: collabData.color || getRandomCollaboratorColor(),
+                  avatarUrl: collabData.avatarUrl || '',
+                };
+                newCollaborators.set(collabData.id as SocketId, newCollaborator);
+              }
+            });
+
+            return { collaborators: newCollaborators };
+          });
+        } else {
+          console.warn("[pad.ws] 'connected' message received without valid collaboratorsList.", messageData);
         }
         break;
       }
