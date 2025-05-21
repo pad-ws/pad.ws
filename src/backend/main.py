@@ -6,7 +6,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import posthog
-from fastapi import FastAPI, Request, Depends
+import httpx
+from fastapi import FastAPI, Request, Depends, Response
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from database import init_db, engine
 from config import (
     STATIC_DIR, ASSETS_DIR, POSTHOG_API_KEY, POSTHOG_HOST, 
+    PAD_DEV_MODE, DEV_FRONTEND_URL
 )
 from cache import RedisClient
 from dependencies import UserSession, optional_auth
@@ -34,6 +36,10 @@ if POSTHOG_API_KEY:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+
+    if PAD_DEV_MODE:
+        print("Starting in dev mode")
+
     # Initialize database
     await init_db()
     print("Database connection established successfully")
@@ -63,7 +69,34 @@ app.add_middleware(
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-
+async def serve_index_html(request: Request = None):
+    """
+    Helper function to serve the index.html file or proxy to dev server based on PAD_DEV_MODE.
+    """
+    if PAD_DEV_MODE:
+        try:
+            # Proxy the request to the development server's root URL
+            url = f"{DEV_FRONTEND_URL}/"
+            # If request path is available, use it for proxying
+            if request and str(request.url).replace(str(request.base_url), ""):
+                url = f"{DEV_FRONTEND_URL}{request.url.path}"
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url)
+                return Response(
+                    content=response.content, 
+                    status_code=response.status_code,
+                    media_type=response.headers.get("content-type")
+                )
+        except Exception as e:
+            error_message = f"Error proxying to dev server: {e}"
+            print(error_message)
+            return Response(
+                status_code=500,
+            )
+    else:
+        # Serve the static build
+        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 @app.get("/pad/{pad_id}")
 async def read_pad(
@@ -74,19 +107,18 @@ async def read_pad(
 ):
     if not user:
         print("No user found")
-        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+        return await serve_index_html(request)
         
     try:
-
         pad = await Pad.get_by_id(session, pad_id)
         if not pad:
             print("No pad found")
-            return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+            return await serve_index_html(request)
             
         # Check access permissions
         if not pad.can_access(user.id):
             print("No access to pad")
-            return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+            return await serve_index_html(request)
             
         # Add pad to user's open pads if not already there
         user_store = await UserStore.get_by_id(session, user.id)
@@ -102,14 +134,16 @@ async def read_pad(
                     print(f"Error updating user's open pads: {e}")
                     # Continue even if update fails - don't block pad access
         
-        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+        return await serve_index_html(request)
     except Exception as e:
         print(f"Error in read_pad endpoint: {e}")
-        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+        return await serve_index_html(request)
 
 @app.get("/")
 async def read_root(request: Request, auth: Optional[UserSession] = Depends(optional_auth)):
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+    return await serve_index_html(request)
+
+
 
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(users_router, prefix="/api/users")

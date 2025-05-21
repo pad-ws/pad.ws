@@ -15,6 +15,8 @@ load_dotenv()
 STATIC_DIR = os.getenv("STATIC_DIR")
 ASSETS_DIR = os.getenv("ASSETS_DIR")
 FRONTEND_URL = os.getenv('FRONTEND_URL')
+PAD_DEV_MODE = os.getenv('PAD_DEV_MODE', 'false').lower() == 'true'
+DEV_FRONTEND_URL = os.getenv('DEV_FRONTEND_URL', 'http://localhost:3003')
 
 MAX_BACKUPS_PER_USER = 10  # Maximum number of backups to keep per user
 MIN_INTERVAL_MINUTES = 5  # Minimum interval in minutes between backups
