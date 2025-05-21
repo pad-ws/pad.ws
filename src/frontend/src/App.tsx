@@ -116,13 +116,12 @@ export default function App() {
             />
           </Footer>
         )}
-        {excalidrawAPI && user && ( // user check ensures we only render Collab when user info is available
+        {excalidrawAPI && user && (
           <Collab
             excalidrawAPI={excalidrawAPI}
             user={user}
-            // lastJsonMessage and sendMessage are removed
-            isOnline={!!isAuthenticated} // Use isAuthenticated from useAuthStatus
-            isLoadingAuth={isLoadingAuth} // Pass isLoadingAuth
+            isOnline={!!isAuthenticated}
+            isLoadingAuth={isLoadingAuth}
             padId={selectedTabId}
           />
         )}
