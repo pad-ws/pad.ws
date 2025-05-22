@@ -37,12 +37,13 @@ interface TabContextMenuProps {
   padId: string;
   padName: string;
   onRename: (padId: string, newName: string) => void;
-  onDelete: (padId: string) => void;
+  onDelete: (padId: string) => void; // For deleting owned pads
   onUpdateSharingPolicy: (padId: string, policy: string) => void;
   onClose: () => void;
   currentUserId?: string;
   tabOwnerId?: string;
   sharingPolicy?: string;
+  onLeaveSharedPad: (padId: string) => void; // For leaving shared pads
 }
 
 // Popover component
@@ -206,25 +207,28 @@ class TabActionManager implements ActionManager {
   padId: string;
   padName: string;
   onRename: (padId: string, newName: string) => void;
-  onDelete: (padId: string) => void;
+  onDelete: (padId: string) => void; // For deleteOwnedPad
   onUpdateSharingPolicy: (padId: string, policy: string) => void;
   app: any;
   sharingPolicy?: string;
+  onLeaveSharedPad: (padId: string) => void; // For leaveSharedPad
 
   constructor(
     padId: string,
     padName: string,
     onRename: (padId: string, newName: string) => void,
-    onDelete: (padId: string) => void,
+    onDelete: (padId: string) => void, // This is for deleteOwnedPad
     onUpdateSharingPolicy: (padId: string, policy: string) => void,
+    onLeaveSharedPad: (padId: string) => void, // Moved before optional param
     sharingPolicy?: string
   ) {
     this.padId = padId;
     this.padName = padName;
-    this.sharingPolicy = sharingPolicy;
     this.onRename = onRename;
-    this.onDelete = onDelete;
+    this.onDelete = onDelete; // Will be called by 'deleteOwnedPad'
     this.onUpdateSharingPolicy = onUpdateSharingPolicy;
+    this.onLeaveSharedPad = onLeaveSharedPad; // Will be called by 'leaveSharedPad'
+    this.sharingPolicy = sharingPolicy;
     this.app = { props: {} };
   }
 
@@ -234,11 +238,16 @@ class TabActionManager implements ActionManager {
       if (newName && newName.trim() !== '') {
         this.onRename(this.padId, newName);
       }
-    } else if (action.name === 'delete') {
-      console.debug('[pad.ws] Attempting to delete pad:', this.padId, this.padName);
+    } else if (action.name === 'deleteOwnedPad') { // Renamed from 'delete'
+      console.debug('[pad.ws] Attempting to delete owned pad:', this.padId, this.padName);
       if (window.confirm(`Are you sure you want to delete "${this.padName}"?`)) {
         console.debug('[pad.ws] User confirmed delete, calling onDelete');
-        this.onDelete(this.padId);
+        this.onDelete(this.padId); // Calls original onDelete for owned pads
+      }
+    } else if (action.name === 'leaveSharedPad') { // New action for leaving
+      console.debug('[pad.ws] Attempting to leave shared pad:', this.padId, this.padName);
+      if (window.confirm(`Are you sure you want to leave "${this.padName}"? This will remove it from your list of open pads.`)) {
+        this.onLeaveSharedPad(this.padId); // Calls the new handler
       }
     } else if (action.name === 'toggleSharingPolicy') {
       const newPolicy = this.sharingPolicy === 'public' ? 'private' : 'public';
@@ -266,13 +275,14 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
   onClose,
   currentUserId,
   tabOwnerId,
-  sharingPolicy
+  sharingPolicy,
+  onLeaveSharedPad // Destructure new prop
 }) => {
   const isOwner = currentUserId && tabOwnerId && currentUserId === tabOwnerId;
   const isPadPublic = sharingPolicy === 'public';
 
   // Create an action manager instance
-  const actionManager = new TabActionManager(padId, padName, onRename, onDelete, onUpdateSharingPolicy, sharingPolicy);
+  const actionManager = new TabActionManager(padId, padName, onRename, onDelete, onUpdateSharingPolicy, onLeaveSharedPad, sharingPolicy);
 
   // Define menu items
   const menuItemsResult: ContextMenuItems = [];
@@ -315,7 +325,7 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
   }
 
   menuItemsResult.push({
-    name: 'delete',
+    name: !isOwner ? 'leaveSharedPad' : 'deleteOwnedPad', // Dynamically set action name
     label: () => (!isOwner ? 'Leave shared pad' : 'Delete'),
     dangerous: true,
   });

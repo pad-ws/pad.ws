@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
+import { capture } from "../lib/posthog";
 
 export enum SharingPolicy {
     PRIVATE = 'private',
@@ -339,6 +340,73 @@ export const usePadTabs = () => {
         },
     });
 
+    const leaveSharedPadAPI = async (padId: string): Promise<void> => {
+        const response = await fetch(`/api/users/close/${padId}`, {
+            method: 'DELETE',
+            // Add headers if necessary, e.g., Authorization
+        });
+        if (!response.ok) {
+            let errorMessage = 'Failed to leave shared pad.';
+            try {
+                const errorData = await response.json();
+                if (errorData && (errorData.detail || errorData.message)) {
+                    errorMessage = errorData.detail || errorData.message;
+                }
+            } catch (e) { /* Ignore if response is not JSON */ }
+            throw new Error(errorMessage);
+        }
+    };
+
+    const leaveSharedPadMutation = useMutation<void, Error, string, { previousTabsResponse?: PadResponse, previousSelectedTabId?: string, leftPadId?: string }>({
+        mutationFn: leaveSharedPadAPI,
+        onMutate: async (padIdToLeave) => {
+            await queryClient.cancelQueries({ queryKey: ['padTabs'] });
+            const previousTabsResponse = queryClient.getQueryData<PadResponse>(['padTabs']);
+            const previousSelectedTabId = selectedTabId;
+
+            queryClient.setQueryData<PadResponse>(['padTabs'], (old) => {
+                if (!old) return { tabs: [], activeTabId: '' };
+                const newTabs = old.tabs.filter(tab => tab.id !== padIdToLeave);
+
+                let newSelectedTabId = selectedTabId;
+                if (selectedTabId === padIdToLeave) {
+                    if (newTabs.length > 0) {
+                        const currentIndex = old.tabs.findIndex(tab => tab.id === padIdToLeave);
+                        newSelectedTabId = newTabs[Math.max(0, currentIndex - 1)]?.id || newTabs[0]?.id;
+                    } else {
+                        newSelectedTabId = '';
+                    }
+                    setSelectedTabId(newSelectedTabId);
+                }
+
+                return {
+                    tabs: newTabs,
+                    activeTabId: newSelectedTabId,
+                };
+            });
+            return { previousTabsResponse, previousSelectedTabId, leftPadId: padIdToLeave };
+        },
+        onSuccess: (data, padId, context) => {
+            const tabLeft = context?.previousTabsResponse?.tabs.find(t => t.id === context.leftPadId);
+            if (typeof capture !== 'undefined') {
+                 capture("pad_left", { padId: context.leftPadId, padName: tabLeft?.title || "" });
+            }
+            console.log(`Pad ${context.leftPadId} left successfully.`);
+        },
+        onError: (err, padId, context) => {
+            if (context?.previousTabsResponse) {
+                queryClient.setQueryData<PadResponse>(['padTabs'], context.previousTabsResponse);
+            }
+            if (context?.previousSelectedTabId) {
+                setSelectedTabId(context.previousSelectedTabId);
+            }
+            alert(`Error leaving pad: ${err.message}`);
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['padTabs'] });
+        },
+    });
+
     const selectTab = async (tabId: string) => {
         setSelectedTabId(tabId);
     };
@@ -356,6 +424,8 @@ export const usePadTabs = () => {
         isRenaming: renamePadMutation.isPending,
         deletePad: deletePadMutation.mutate,
         isDeleting: deletePadMutation.isPending,
+        leaveSharedPad: leaveSharedPadMutation.mutate, 
+        isLeavingSharedPad: leaveSharedPadMutation.isPending, 
         updateSharingPolicy: updateSharingPolicyMutation.mutate,
         isUpdatingSharingPolicy: updateSharingPolicyMutation.isPending,
         selectTab
