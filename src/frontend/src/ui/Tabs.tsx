@@ -5,6 +5,7 @@ import { Stack, Button, Section, Tooltip } from "@atyrode/excalidraw";
 import { FilePlus2, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { usePad } from "../hooks/usePadData";
+import { useAuthStatus } from "../hooks/useAuthStatus";
 import type { Tab } from "../hooks/usePadTabs";
 import { capture } from "../lib/posthog";
 import TabContextMenu from "./TabContextMenu";
@@ -19,6 +20,7 @@ interface TabsProps {
     createNewPadAsync: () => Promise<Tab | null | undefined>;
     renamePad: (args: { padId: string; newName: string }) => void;
     deletePad: (padId: string) => void;
+    leaveSharedPad: (padId: string) => void; // Added prop
     updateSharingPolicy: (args: { padId: string; policy: string }) => void;
     selectTab: (tabId: string) => void;
 }
@@ -32,9 +34,11 @@ const Tabs: React.FC<TabsProps> = ({
     createNewPadAsync,
     renamePad,
     deletePad,
+    leaveSharedPad, // Destructure new prop
     updateSharingPolicy,
     selectTab,
 }) => {
+    const { user: currentUser } = useAuthStatus();
     const { isLoading: isPadLoading, error: padError } = usePad(selectedTabId, excalidrawAPI);
     const [displayPadLoadingIndicator, setDisplayPadLoadingIndicator] = useState(false);
 
@@ -223,7 +227,7 @@ const Tabs: React.FC<TabsProps> = ({
                                                         children={
                                                             <Button
                                                                 onSelect={() => handlePadSelect(tab)}
-                                                                className={selectedTabId === tab.id ? "active-pad" : ""}
+                                                                className={`${selectedTabId === tab.id ? "active-pad" : ""} tab-sharing-${tab.sharingPolicy}`}
                                                                 children={
                                                                     <div className="tab-content">
                                                                         {selectedTabId === tab.id && displayPadLoadingIndicator ? "..." : (tab.title.length > 8 ? `${tab.title.substring(0, 11)}...` : tab.title)}
@@ -237,7 +241,7 @@ const Tabs: React.FC<TabsProps> = ({
                                                 ) : (
                                                     <Button
                                                         onSelect={() => handlePadSelect(tab)}
-                                                        className={selectedTabId === tab.id ? "active-pad" : ""}
+                                                        className={`${selectedTabId === tab.id ? "active-pad" : ""} tab-sharing-${tab.sharingPolicy}`}
                                                         children={
                                                             <div className="tab-content">
                                                                 {tab.title}
@@ -299,11 +303,14 @@ const Tabs: React.FC<TabsProps> = ({
                     y={contextMenu.y}
                     padId={contextMenu.padId}
                     padName={contextMenu.padName}
+                    sharingPolicy={tabs.find(tab => tab.id === contextMenu.padId)?.sharingPolicy}
+                    currentUserId={currentUser?.id}
+                    tabOwnerId={tabs.find(tab => tab.id === contextMenu.padId)?.ownerId}
                     onRename={(padId: any, newName: any) => {
                         capture("pad_renamed", { padId, newName });
                         renamePad({ padId, newName });
                     }}
-                    onDelete={(padId: any) => {
+                    onDelete={(padId: any) => { // This is for 'deleteOwnedPad'
                         if (tabs && tabs.length <= 1) {
                             alert("Cannot delete the last pad");
                             return;
@@ -319,7 +326,10 @@ const Tabs: React.FC<TabsProps> = ({
                                 selectTab(otherTab.id);
                             }
                         }
-                        deletePad(padId);
+                        deletePad(padId); // Calls the prop for deleting owned pad
+                    }}
+                    onLeaveSharedPad={(padId: string) => { // New prop for 'leaveSharedPad'
+                        leaveSharedPad(padId); // Calls the prop for leaving shared pad
                     }}
                     onUpdateSharingPolicy={(padId: string, policy: string) => {
                         capture("pad_sharing_policy_updated", { padId, policy });

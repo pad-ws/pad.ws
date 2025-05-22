@@ -2,7 +2,7 @@ import json
 import asyncio
 import uuid
 from uuid import UUID
-from typing import Optional, Any
+from typing import Optional, Any, Dict, List
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
@@ -17,6 +17,8 @@ from database import get_session
 ws_router = APIRouter()
 
 STREAM_EXPIRY = 3600
+PAD_USERS_EXPIRY = 3600  # Expiry time for the pad users hash
+POINTER_CHANNEL_PREFIX = "pad:pointer:updates:"  # Prefix for pointer update pub/sub channels
 
 class WebSocketMessage(BaseModel):
     type: str
@@ -96,6 +98,20 @@ async def publish_event_to_redis(redis_client: aioredis.Redis, stream_key: str, 
     except Exception as e:
         print(f"Error publishing event to Redis stream {stream_key}: {str(e)}")
 
+async def publish_pointer_update(redis_client: aioredis.Redis, pad_id: UUID, message: WebSocketMessage):
+    """
+    Publish pointer updates through Redis pub/sub instead of streams.
+    Since we don't care about persistence or consuming history for pointer updates,
+    pub/sub is more efficient than streams for this high-frequency data.
+    """
+    try:
+        channel = f"{POINTER_CHANNEL_PREFIX}{pad_id}"
+        # Serialize the message and publish it
+        message_json = message.model_dump_json()
+        await redis_client.publish(channel, message_json)
+    except Exception as e:
+        print(f"Error publishing pointer update to Redis pub/sub {pad_id}: {str(e)}")
+
 
 async def _handle_received_data(raw_data: str, pad_id: UUID, user: UserSession, 
                                redis_client: aioredis.Redis, stream_key: str, connection_id: str):
@@ -113,9 +129,43 @@ async def _handle_received_data(raw_data: str, pad_id: UUID, user: UserSession,
             data=client_message_dict.get("data")
         )
 
-        print(f"[WS] {processed_message.timestamp.strftime('%H:%M:%S')} - Type: {processed_message.type} from User: {processed_message.user_id[:5]} Conn: [{processed_message.connection_id[:5]}] on Pad: ({processed_message.pad_id[:5]})")
+        if processed_message.type != "pointer_update":
+            print(f"[WS] {processed_message.timestamp.strftime('%H:%M:%S')} - Type: {processed_message.type} from User: {processed_message.user_id[:5]} Conn: [{processed_message.connection_id[:5]}] on Pad: ({processed_message.pad_id[:5]})")
 
-        await publish_event_to_redis(redis_client, stream_key, processed_message)
+        # Handle specific follow/unfollow requests by transforming them into broadcastable events
+        if processed_message.type == 'user_follow_request':
+            user_to_follow_id = processed_message.data.get('userToFollowId') if isinstance(processed_message.data, dict) else None
+            if user_to_follow_id:
+                follow_event = WebSocketMessage(
+                    type='user_started_following',
+                    pad_id=str(pad_id),
+                    user_id=str(user.id),  # The user who initiated the follow (the follower)
+                    connection_id=connection_id,
+                    timestamp=datetime.now(timezone.utc),
+                    data={'followerId': str(user.id), 'followedUserId': user_to_follow_id}
+                )
+                await publish_event_to_redis(redis_client, stream_key, follow_event)
+            # Do not publish the original 'user_follow_request' itself
+        elif processed_message.type == 'user_unfollow_request':
+            user_to_unfollow_id = processed_message.data.get('userToUnfollowId') if isinstance(processed_message.data, dict) else None
+            if user_to_unfollow_id:
+                unfollow_event = WebSocketMessage(
+                    type='user_stopped_following',
+                    pad_id=str(pad_id),
+                    user_id=str(user.id),  # The user who initiated the unfollow
+                    connection_id=connection_id,
+                    timestamp=datetime.now(timezone.utc),
+                    data={'unfollowerId': str(user.id), 'unfollowedUserId': user_to_unfollow_id}
+                )
+                await publish_event_to_redis(redis_client, stream_key, unfollow_event)
+            # Do not publish the original 'user_unfollow_request' itself
+        elif processed_message.type == 'pointer_update':
+            # Use pub/sub for pointer updates instead of Redis streams
+            await publish_pointer_update(redis_client, pad_id, processed_message)
+        else:
+            # For all other message types, publish them as they are
+            await publish_event_to_redis(redis_client, stream_key, processed_message)
+            
     except json.JSONDecodeError:
         print(f"Invalid JSON received from {connection_id[:5]}")
     except Exception as e:
@@ -173,6 +223,123 @@ async def consume_redis_stream(redis_client: aioredis.Redis, stream_key: str,
             return
 
 
+async def consume_pointer_updates(redis_client: aioredis.Redis, pad_id: UUID, 
+                                websocket: WebSocket, connection_id: str):
+    """Consumes pointer updates from Redis pub/sub channel and forwards them to the client."""
+    channel = f"{POINTER_CHANNEL_PREFIX}{pad_id}"
+    pubsub = redis_client.pubsub()
+    
+    try:
+        await pubsub.subscribe(channel)
+        
+        # Process messages as they arrive
+        while websocket.client_state.CONNECTED:
+            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+            
+            if message and message["type"] == "message":
+                try:
+                    # Parse the message data
+                    message_data = json.loads(message["data"])
+                    pointer_message = WebSocketMessage(**message_data)
+                    
+                    # Only forward messages from other connections
+                    if pointer_message.connection_id != connection_id and websocket.client_state.CONNECTED:
+                        await websocket.send_text(message["data"])
+                except Exception as e:
+                    print(f"Error processing pointer update: {e}")
+
+            # Prevent CPU hogging
+            await asyncio.sleep(0)
+    
+    except Exception as e:
+        if websocket.client_state.CONNECTED:
+            print(f"Error in pointer update consumer for {pad_id}: {e}")
+    finally:
+        # Clean up the subscription
+        try:
+            await pubsub.unsubscribe(channel)
+            await pubsub.close()
+        except Exception:
+            pass
+
+
+async def add_connection(redis_client: aioredis.Redis, pad_id: UUID, user_id: str, 
+                         username: str, connection_id: str) -> None:
+    """Add a user connection to the pad users hash in Redis."""
+    key = f"pad:users:{pad_id}"
+    try:
+        # Get existing user data if any
+        user_data_str = await redis_client.hget(key, user_id)
+        
+        if user_data_str:
+            user_data = json.loads(user_data_str)
+            # Add the connection ID if it doesn't exist
+            if connection_id not in user_data["connections"]:
+                user_data["connections"].append(connection_id)
+        else:
+            # Create new user data
+            user_data = {
+                "username": username,
+                "connections": [connection_id]
+            }
+        
+        # Update the hash in Redis
+        await redis_client.hset(key, user_id, json.dumps(user_data))
+        # Set expiry on the hash
+        await redis_client.expire(key, PAD_USERS_EXPIRY)
+    except Exception as e:
+        print(f"Error adding connection to Redis: {e}")
+
+async def remove_connection(redis_client: aioredis.Redis, pad_id: UUID, user_id: str, 
+                           connection_id: str) -> None:
+    """Remove a user connection from the pad users hash in Redis."""
+    key = f"pad:users:{pad_id}"
+    try:
+        # Get existing user data
+        user_data_str = await redis_client.hget(key, user_id)
+        
+        if user_data_str:
+            user_data = json.loads(user_data_str)
+            
+            # Remove the connection
+            if connection_id in user_data["connections"]:
+                user_data["connections"].remove(connection_id)
+            
+            # If there are still connections, update the user data
+            if user_data["connections"]:
+                await redis_client.hset(key, user_id, json.dumps(user_data))
+            else:
+                # If no connections left, remove the user from the hash
+                await redis_client.hdel(key, user_id)
+            
+            # Refresh expiry on the hash if it still exists
+            if await redis_client.exists(key):
+                await redis_client.expire(key, PAD_USERS_EXPIRY)
+    except Exception as e:
+        print(f"Error removing connection from Redis: {e}")
+
+async def get_connected_users(redis_client: aioredis.Redis, pad_id: UUID) -> List[Dict[str, str]]:
+    """Get all connected users from the pad users hash as a list of dicts with user_id and username."""
+    key = f"pad:users:{pad_id}"
+    try:
+        # Get all users from the hash
+        all_users = await redis_client.hgetall(key)
+        
+        # Convert to list of dicts with user_id and username
+        connected_users = []
+        for user_id, user_data_str in all_users.items():
+            user_id_str = user_id.decode() if isinstance(user_id, bytes) else user_id
+            user_data = json.loads(user_data_str.decode() if isinstance(user_data_str, bytes) else user_data_str)
+            connected_users.append({
+                "user_id": user_id_str,
+                "username": user_data["username"]
+            })
+        
+        return connected_users
+    except Exception as e:
+        print(f"Error getting connected users from Redis: {e}")
+        return []
+
 @ws_router.websocket("/ws/pad/{pad_id}")
 async def websocket_endpoint(websocket: WebSocket, pad_id: UUID, 
                             user: Optional[UserSession] = Depends(get_ws_user)):
@@ -205,21 +372,25 @@ async def websocket_endpoint(websocket: WebSocket, pad_id: UUID,
     redis_client = None
     
     try:
-        # Get Redis client and send initial messages
         redis_client = await RedisClient.get_instance()
-        
-        # Send connected message to client
+
+        await add_connection(redis_client, pad_id, str(user.id), user.username, connection_id)
+        connected_users = await get_connected_users(redis_client, pad_id)
+
+        # Send connected message to client with connected users info
         connected_msg = WebSocketMessage(
             type="connected",
             pad_id=str(pad_id),
             user_id=str(user.id),
             connection_id=connection_id,
-            data={"message": f"Successfully connected to pad {str(pad_id)}."}
+            data={
+                "collaboratorsList": connected_users
+            }
         )
         await websocket.send_text(connected_msg.model_dump_json())
         
         # Broadcast user joined message
-        join_event_data = {"displayName": getattr(user, 'displayName', str(user.id))}
+        join_event_data = {"username": user.username}
         join_message = WebSocketMessage(
             type="user_joined",
             pad_id=str(pad_id),
@@ -254,10 +425,13 @@ async def websocket_endpoint(websocket: WebSocket, pad_id: UUID,
         redis_task = asyncio.create_task(
             consume_redis_stream(redis_client, stream_key, websocket, connection_id, last_id='$')
         )
+        pointer_task = asyncio.create_task(
+            consume_pointer_updates(redis_client, pad_id, websocket, connection_id)
+        )
         
-        # Wait for either task to complete
+        # Wait for any task to complete
         done, pending = await asyncio.wait(
-            [ws_task, redis_task],
+            [ws_task, redis_task, pointer_task],
             return_when=asyncio.FIRST_COMPLETED
         )
         
@@ -275,8 +449,14 @@ async def websocket_endpoint(websocket: WebSocket, pad_id: UUID,
     finally:
         print(f"Cleaning up connection for user {str(user.id)[:5]} conn {connection_id[:5]} from pad {str(pad_id)[:5]}")
         
-        # Send user left message
+        # Remove the connection from Redis
         if redis_client:
+            try:
+                await remove_connection(redis_client, pad_id, str(user.id), connection_id)
+            except Exception as e:
+                print(f"Error removing connection from Redis: {e}")
+            
+            # Send user left message
             try:
                 leave_message = WebSocketMessage(
                     type="user_left",

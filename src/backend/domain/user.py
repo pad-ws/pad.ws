@@ -177,3 +177,9 @@ class User:
             )
         
         return user
+
+    async def remove_open_pad(self, session: AsyncSession, pad_id: UUID) -> 'User':
+        """Remove a pad from the user's open_pads list"""
+        if self._store and pad_id in self._store.open_pads:
+            self._store = await self._store.remove_open_pad(session, pad_id)
+        return self

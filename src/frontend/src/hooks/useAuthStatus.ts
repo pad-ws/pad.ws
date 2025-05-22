@@ -49,7 +49,17 @@ export const useAuthStatus = () => {
       data.expires_in,
       // Success callback
       (refreshedData) => {
-        queryClient.setQueryData([AUTH_STATUS_KEY], refreshedData);
+        queryClient.setQueryData([AUTH_STATUS_KEY], (initialData: AuthStatusResponse | undefined) => {
+          if (refreshedData.authenticated) {
+            return {
+              ...initialData,
+              authenticated: refreshedData.authenticated,
+              expires_in: refreshedData.expires_in,
+            };
+          }
+          // If refresh resulted in not authenticated, return the new (unauthenticated) data.
+          return refreshedData;
+        });
       },
       // Error callback
       () => {

@@ -6,19 +6,17 @@ import type { ExcalidrawEmbeddableElement, NonDeleted, NonDeletedExcalidrawEleme
 // Hooks
 import { useAuthStatus } from "./hooks/useAuthStatus";
 import { usePadTabs } from "./hooks/usePadTabs";
-import { usePadWebSocket } from "./hooks/usePadWebSocket";
 
 // Components
 import DiscordButton from './ui/DiscordButton';
 import { MainMenuConfig } from './ui/MainMenu';
 import AuthDialog from './ui/AuthDialog';
 import SettingsDialog from './ui/SettingsDialog';
-import Collab from './Collab';
+import Collab from './lib/collab/Collab'; // Updated import path
 
 // Utils
 // import { initializePostHog } from "./lib/posthog";
 import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRenderer';
-import { debounce } from './lib/debounce';
 import Tabs from "./ui/Tabs";
 
 export const defaultInitialData = {
@@ -43,39 +41,12 @@ export default function App() {
     renamePad,
     deletePad,
     selectTab,
-    updateSharingPolicy
+    updateSharingPolicy,
+    leaveSharedPad
   } = usePadTabs();
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
-
-  const { sendMessage, lastJsonMessage } = usePadWebSocket(selectedTabId); // Added lastJsonMessage
-
-  const lastSentCanvasDataRef = useRef<string>("");
-
-  const debouncedLogChange = useCallback(
-    debounce(
-      (elements: NonDeletedExcalidrawElement[], state: AppState, files: any) => {
-        if (!isAuthenticated || !selectedTabId) return;
-
-        const canvasData = {
-          elements,
-          appState: state,
-          files
-        };
-
-        const serialized = JSON.stringify(canvasData);
-
-        if (serialized !== lastSentCanvasDataRef.current) {
-          lastSentCanvasDataRef.current = serialized;
-
-          sendMessage("pad_update", canvasData);
-        }
-      },
-      200
-    ),
-    [sendMessage, isAuthenticated]
-  );
 
   const handleCloseSettingsModal = () => {
     setShowSettingsModal(false);
@@ -102,7 +73,6 @@ export default function App() {
         excalidrawAPI={(api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api)}
         theme="dark"
         initialData={defaultInitialData}
-        onChange={debouncedLogChange}
         name="Pad.ws"
         onScrollChange={handleOnScrollChange}
         validateEmbeddable={true}
@@ -142,18 +112,19 @@ export default function App() {
               createNewPadAsync={createNewPadAsync}
               renamePad={renamePad}
               deletePad={deletePad}
+              leaveSharedPad={leaveSharedPad}
               updateSharingPolicy={updateSharingPolicy}
               selectTab={selectTab}
             />
           </Footer>
         )}
-
         {excalidrawAPI && user && (
           <Collab
             excalidrawAPI={excalidrawAPI}
-            lastJsonMessage={lastJsonMessage}
-            userId={user.id}
-            sendMessage={sendMessage}
+            user={user}
+            isOnline={!!isAuthenticated}
+            isLoadingAuth={isLoadingAuth}
+            padId={selectedTabId}
           />
         )}
       </Excalidraw>

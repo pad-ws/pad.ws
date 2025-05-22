@@ -123,6 +123,7 @@ class UserStore(Base, BaseModel):
         
         stmt = select(
             PadStore.id,
+            PadStore.owner_id,
             PadStore.display_name,
             PadStore.created_at,
             PadStore.updated_at,
@@ -136,6 +137,7 @@ class UserStore(Base, BaseModel):
         
         return [{
             "id": str(pad.id),
+            "owner_id": str(pad.owner_id),
             "display_name": pad.display_name,
             "created_at": pad.created_at.isoformat(),
             "updated_at": pad.updated_at.isoformat(),
@@ -179,3 +181,13 @@ class UserStore(Base, BaseModel):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
         }
+
+    async def remove_open_pad(self, session: AsyncSession, pad_id: UUID) -> 'UserStore':
+        """Remove a pad from the user's open_pads list"""
+        
+        if pad_id in self.open_pads:
+            pads = self.open_pads.copy()
+            pads.pop(pads.index(pad_id))
+            await self.update(session, {"open_pads": pads})
+
+        return self

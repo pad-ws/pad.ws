@@ -111,3 +111,29 @@ async def get_online_users(
     except Exception as e:
         print(f"Error getting online users: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve online users")
+
+@users_router.delete("/close/{pad_id}")
+async def close_pad(
+    pad_id: UUID,
+    user: UserSession = Depends(require_auth),
+    session: AsyncSession = Depends(get_session)
+):
+    """Remove a pad from the user's open_pads list"""
+    try:
+        # Get the user
+        user_obj = await User.get_by_id(session, user.id)
+        if not user_obj:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found"
+            )
+        await user_obj.remove_open_pad(session, pad_id)
+        
+        return {"success": True, "message": "Pad removed from open pads"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to remove pad from open pads: {str(e)}"
+        )

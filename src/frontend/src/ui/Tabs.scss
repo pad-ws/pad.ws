@@ -47,6 +47,20 @@
                 font-weight: normal;
             }
         }
+
+        /* Styles for tabs with 'public' sharing policy */
+        &.tab-sharing-public {
+        }
+
+        /* Styles for tabs with 'whitelist' sharing policy */
+        /* &.tab-sharing-whitelist {
+            /* TODO: Add styles for whitelisted tabs */
+        /* } */
+
+        /* Styles for tabs with 'private' sharing policy (default) */
+        /* &.tab-sharing-private { */
+            /* Default styles are applied, or add specific private styles here if needed */
+        /* } */
     }
     
     .tabs-wrapper {
