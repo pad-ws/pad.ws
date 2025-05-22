@@ -30,6 +30,7 @@ interface UserResponse {
     given_name: string;
     family_name: string;
     roles: string[];
+    last_selected_pad: string | null;
     pads: {
         id: string;
         display_name: string;
@@ -66,9 +67,17 @@ const fetchUserPads = async (): Promise<PadResponse> => {
         updatedAt: pad.updated_at
     }));
 
+    // Use last_selected_pad if it exists and is in the current tabs, otherwise use first tab
+    let activeTabId = '';
+    if (userData.last_selected_pad && tabs.some(tab => tab.id === userData.last_selected_pad)) {
+        activeTabId = userData.last_selected_pad;
+    } else if (tabs.length > 0) {
+        activeTabId = tabs[0].id;
+    }
+
     return {
         tabs,
-        activeTabId: tabs[0]?.id || ''
+        activeTabId
     };
 };
 
@@ -121,20 +130,23 @@ export const usePadTabs = () => {
 
     // Effect to manage tab selection based on data changes and selectedTabId validity
     useEffect(() => {
-        if (isLoading) {
+        if (isLoading || !data?.tabs) {
             return;
         }
 
-        if (data?.tabs && data.tabs.length > 0) {
-            const isValidSelection = selectedTabId && data.tabs.some(tab => tab.id === selectedTabId);
-            if (!isValidSelection) {
-                setSelectedTabId(data.tabs[0].id);
-            }
-        } else if (data?.tabs && data.tabs.length === 0) {
+        // If we don't have a selectedTabId yet, use the server's activeTabId
+        if (!selectedTabId && data.activeTabId) {
+            setSelectedTabId(data.activeTabId);
+            return;
+        }
+
+        // Only set a tab if we don't have a valid selection
+        if (data.tabs.length > 0 && (!selectedTabId || !data.tabs.some(tab => tab.id === selectedTabId))) {
+            setSelectedTabId(data.tabs[0].id);
+        } else if (data.tabs.length === 0) {
             setSelectedTabId('');
         }
     }, [data, isLoading]);
-
 
     const createPadMutation = useMutation<Tab, Error, void, { previousTabsResponse?: PadResponse, tempTabId?: string }>({
         mutationFn: createNewPad,
@@ -175,7 +187,6 @@ export const usePadTabs = () => {
             } else if (selectedTabId === context?.tempTabId) {
                 setSelectedTabId('');
             }
-            // Optionally: display error to user
         },
         onSuccess: (newlyCreatedTab, variables, context) => {
             queryClient.setQueryData<PadResponse>(['padTabs'], (old) => {
@@ -183,7 +194,6 @@ export const usePadTabs = () => {
                 const newTabs = old.tabs.map(tab =>
                     tab.id === context?.tempTabId ? newlyCreatedTab : tab
                 );
-                // If the temp tab wasn't found (e.g., cache was cleared), add the new tab
                 if (!newTabs.find(tab => tab.id === newlyCreatedTab.id)) {
                     newTabs.push(newlyCreatedTab);
                 }
@@ -238,7 +248,6 @@ export const usePadTabs = () => {
             if (context?.previousTabsResponse) {
                 queryClient.setQueryData<PadResponse>(['padTabs'], context.previousTabsResponse);
             }
-            // Optionally: display error to user
         },
         onSettled: (data, error, variables, context) => {
             queryClient.invalidateQueries({ queryKey: ['padTabs'] });
@@ -280,7 +289,7 @@ export const usePadTabs = () => {
 
                 return {
                     tabs: newTabs,
-                    activeTabId: newSelectedTabId, // Update activeTabId in cache as well
+                    activeTabId: newSelectedTabId,
                 };
             });
             return { previousTabsResponse, previousSelectedTabId, deletedTab };
@@ -292,7 +301,6 @@ export const usePadTabs = () => {
             if (context?.previousSelectedTabId) {
                 setSelectedTabId(context.previousSelectedTabId);
             }
-            // Optionally: display error to user
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['padTabs'] });
@@ -389,9 +397,8 @@ export const usePadTabs = () => {
         onSuccess: (data, padId, context) => {
             const tabLeft = context?.previousTabsResponse?.tabs.find(t => t.id === context.leftPadId);
             if (typeof capture !== 'undefined') {
-                 capture("pad_left", { padId: context.leftPadId, padName: tabLeft?.title || "" });
+                capture("pad_left", { padId: context.leftPadId, padName: tabLeft?.title || "" });
             }
-            console.log(`Pad ${context.leftPadId} left successfully.`);
         },
         onError: (err, padId, context) => {
             if (context?.previousTabsResponse) {
@@ -424,8 +431,8 @@ export const usePadTabs = () => {
         isRenaming: renamePadMutation.isPending,
         deletePad: deletePadMutation.mutate,
         isDeleting: deletePadMutation.isPending,
-        leaveSharedPad: leaveSharedPadMutation.mutate, 
-        isLeavingSharedPad: leaveSharedPadMutation.isPending, 
+        leaveSharedPad: leaveSharedPadMutation.mutate,
+        isLeavingSharedPad: leaveSharedPadMutation.isPending,
         updateSharingPolicy: updateSharingPolicyMutation.mutate,
         isUpdatingSharingPolicy: updateSharingPolicyMutation.isPending,
         selectTab

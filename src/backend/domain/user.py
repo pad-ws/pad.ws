@@ -24,6 +24,7 @@ class User:
         given_name: Optional[str] = None,
         family_name: Optional[str] = None,
         roles: List[str] = None,
+        last_selected_pad: Optional[UUID] = None,
         created_at: datetime = None,
         updated_at: datetime = None,
         store: UserStore = None
@@ -36,6 +37,7 @@ class User:
         self.given_name = given_name
         self.family_name = family_name
         self.roles = roles or []
+        self.last_selected_pad = last_selected_pad
         self.created_at = created_at or datetime.now()
         self.updated_at = updated_at or datetime.now()
         self._store = store
@@ -51,7 +53,8 @@ class User:
         name: Optional[str] = None,
         given_name: Optional[str] = None,
         family_name: Optional[str] = None,
-        roles: List[str] = None
+        roles: List[str] = None,
+        last_selected_pad: Optional[UUID] = None
     ) -> 'User':
         """Create a new user"""
         store = await UserStore.create_user(
@@ -63,7 +66,8 @@ class User:
             name=name,
             given_name=given_name,
             family_name=family_name,
-            roles=roles
+            roles=roles,
+            last_selected_pad=last_selected_pad
         )
         return cls.from_store(store)
 
@@ -85,6 +89,7 @@ class User:
             given_name=store.given_name,
             family_name=store.family_name,
             roles=store.roles,
+            last_selected_pad=store.last_selected_pad,
             created_at=store.created_at,
             updated_at=store.updated_at,
             store=store
@@ -102,6 +107,7 @@ class User:
                 given_name=self.given_name,
                 family_name=self.family_name,
                 roles=self.roles,
+                last_selected_pad=self.last_selected_pad,
                 created_at=self.created_at,
                 updated_at=self.updated_at
             )
@@ -113,6 +119,7 @@ class User:
             self._store.given_name = self.given_name
             self._store.family_name = self.family_name
             self._store.roles = self.roles
+            self._store.last_selected_pad = self.last_selected_pad
             self._store.updated_at = datetime.now()
 
         self._store = await self._store.save(session)
@@ -147,6 +154,7 @@ class User:
             "given_name": self.given_name,
             "family_name": self.family_name,
             "roles": self.roles,
+            "last_selected_pad": str(self.last_selected_pad) if self.last_selected_pad else None,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
         }
@@ -173,7 +181,8 @@ class User:
                 name=user_info.get('name'),
                 given_name=user_info.get('given_name'),
                 family_name=user_info.get('family_name'),
-                roles=user_info.get('realm_access', {}).get('roles', [])
+                roles=user_info.get('realm_access', {}).get('roles', []),
+                last_selected_pad=None
             )
         
         return user
@@ -182,4 +191,11 @@ class User:
         """Remove a pad from the user's open_pads list"""
         if self._store and pad_id in self._store.open_pads:
             self._store = await self._store.remove_open_pad(session, pad_id)
+        return self
+
+    async def set_last_selected_pad(self, session: AsyncSession, pad_id: UUID) -> 'User':
+        """Set the last selected pad for the user"""
+        self.last_selected_pad = pad_id
+        if self._store:
+            self._store = await self._store.set_last_selected_pad(session, pad_id)
         return self

@@ -33,6 +33,7 @@ class UserStore(Base, BaseModel):
     family_name = Column(String(254), nullable=True)
     roles = Column(JSONB, nullable=False, default=[])
     open_pads = Column(ARRAY(SQLUUID(as_uuid=True)), nullable=False, default=[])
+    last_selected_pad = Column(SQLUUID(as_uuid=True), nullable=True)
     
     # Relationships
     pads: Mapped[List["PadStore"]] = relationship(
@@ -57,7 +58,8 @@ class UserStore(Base, BaseModel):
         given_name: Optional[str] = None,
         family_name: Optional[str] = None,
         roles: List[str] = None,
-        open_pads: List[UUID] = None
+        open_pads: List[UUID] = None,
+        last_selected_pad: Optional[UUID] = None
     ) -> 'UserStore':
         """Create a new user"""
         user = cls(
@@ -69,7 +71,8 @@ class UserStore(Base, BaseModel):
             given_name=given_name,
             family_name=family_name,
             roles=roles or [],
-            open_pads=open_pads or []
+            open_pads=open_pads or [],
+            last_selected_pad=last_selected_pad
         )
         session.add(user)
         await session.commit()
@@ -178,6 +181,7 @@ class UserStore(Base, BaseModel):
             "family_name": self.family_name,
             "roles": self.roles,
             "open_pads": [str(pid) for pid in self.open_pads] if self.open_pads else [],
+            "last_selected_pad": str(self.last_selected_pad) if self.last_selected_pad else None,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
         }
@@ -190,4 +194,9 @@ class UserStore(Base, BaseModel):
             pads.pop(pads.index(pad_id))
             await self.update(session, {"open_pads": pads})
 
+        return self
+
+    async def set_last_selected_pad(self, session: AsyncSession, pad_id: UUID) -> 'UserStore':
+        """Set the last selected pad for the user"""
+        await self.update(session, {"last_selected_pad": pad_id})
         return self

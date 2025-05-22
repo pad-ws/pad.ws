@@ -9,6 +9,7 @@ from dependencies import UserSession, require_auth
 from database.models import PadStore
 from database.database import get_session
 from domain.pad import Pad
+from domain.user import User
 
 pad_router = APIRouter()
 
@@ -62,6 +63,11 @@ async def get_pad(
                 status_code=403,
                 detail="Not authorized to access this pad"
             )
+        
+        # Update the user's last selected pad
+        user_obj = await User.get_by_id(session, user.id)
+        if user_obj:
+            await user_obj.set_last_selected_pad(session, pad_id)
             
         pad_dict = pad.to_dict()
         # Get only this user's appState

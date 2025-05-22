@@ -23,6 +23,9 @@ async def get_user_info(
 ):
     """Get the current user's information and their pads"""
     
+    # Get the user from database to access last_selected_pad
+    user_obj = await User.get_by_id(session, user.id)
+    
     # Create token data dictionary from UserSession properties
     token_data = {
         "id": user.id,
@@ -40,7 +43,8 @@ async def get_user_info(
     
     user_data = {
         **token_data,
-        "pads": pads
+        "pads": pads,
+        "last_selected_pad": str(user_obj.last_selected_pad) if user_obj and user_obj.last_selected_pad else None
     }
     
     if os.getenv("VITE_PUBLIC_POSTHOG_KEY"):
