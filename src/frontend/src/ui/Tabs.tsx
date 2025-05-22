@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 
 import type { ExcalidrawImperativeAPI } from "@atyrode/excalidraw/types";
 import { Stack, Button, Section, Tooltip } from "@atyrode/excalidraw";
@@ -25,6 +25,27 @@ interface TabsProps {
     selectTab: (tabId: string) => void;
 }
 
+// Custom hook to check if text is overflowing its container
+const useTextOverflow = () => {
+    const [overflowMap, setOverflowMap] = useState<Record<string, boolean>>({});
+    
+    const checkOverflow = useCallback((element: HTMLElement | null, id: string) => {
+        if (element) {
+            const isOverflowing = element.scrollWidth > element.clientWidth;
+            setOverflowMap(prev => {
+                if (prev[id] !== isOverflowing) {
+                    return { ...prev, [id]: isOverflowing };
+                }
+                return prev;
+            });
+            return isOverflowing;
+        }
+        return false;
+    }, []);
+    
+    return { overflowMap, checkOverflow };
+};
+
 const Tabs: React.FC<TabsProps> = ({
     excalidrawAPI,
     tabs,
@@ -41,10 +62,37 @@ const Tabs: React.FC<TabsProps> = ({
     const { user: currentUser } = useAuthStatus();
     const { isLoading: isPadLoading, error: padError } = usePad(selectedTabId, excalidrawAPI);
     const [displayPadLoadingIndicator, setDisplayPadLoadingIndicator] = useState(false);
-
+    const { overflowMap, checkOverflow } = useTextOverflow();
+    
+    // Create refs for tab titles
+    const titleRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+    
     const appState = excalidrawAPI.getAppState();
     const [startPadIndex, setStartPadIndex] = useState(0);
     const PADS_PER_PAGE = 5;
+    
+    // Check for overflow when tabs change or window resizes
+    useEffect(() => {
+        if (!tabs) return;
+        
+        // Check overflow for visible tabs
+        const visibleTabs = tabs.slice(startPadIndex, startPadIndex + PADS_PER_PAGE);
+        visibleTabs.forEach(tab => {
+            checkOverflow(titleRefs.current[tab.id], tab.id);
+        });
+        
+        // Also check on window resize
+        const handleResize = () => {
+            visibleTabs.forEach(tab => {
+                checkOverflow(titleRefs.current[tab.id], tab.id);
+            });
+        };
+        
+        window.addEventListener('resize', handleResize);
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    }, [tabs, startPadIndex, checkOverflow]);
 
     const [contextMenu, setContextMenu] = useState<{
         visible: boolean;
@@ -293,11 +341,11 @@ const Tabs: React.FC<TabsProps> = ({
                                                     });
                                                 }}
                                             >
-                                                {(selectedTabId === tab.id || tab.title.length > 11) ? (
+                                                {(selectedTabId === tab.id || tab.title.length > 8) ? (
                                                     <Tooltip
                                                         label={
                                                             selectedTabId === tab.id
-                                                                ? (tab.title.length > 11
+                                                                ? (tab.title.length > 8
                                                                     ? `${tab.title} (current pad)`
                                                                     : "Current pad")
                                                                 : tab.title
@@ -308,10 +356,15 @@ const Tabs: React.FC<TabsProps> = ({
                                                                 className={`tab-sharing-${tab.sharingPolicy} ${selectedTabId === tab.id ? "active-pad" : ""}`}
                                                                 children={
                                                                     <div className="tab-content">
-                                                                        {selectedTabId === tab.id && displayPadLoadingIndicator ? "..." : (tab.title.length > 8 ? `${tab.title.substring(0, 11)}...` : tab.title)}
+                                                                        <span 
+                                                                            ref={el => titleRefs.current[tab.id] = el}
+                                                                            className={`tab-title ${overflowMap[tab.id] ? 'tab-title-overflow' : ''}`}
+                                                                        >
+                                                                            {selectedTabId === tab.id && displayPadLoadingIndicator ? "..." : tab.title}
+                                                                        </span>
                                                                         {/* Calculate position based on overall index in `tabs` if needed, or `startPadIndex + index + 1` */}
                                                                         {tab.sharingPolicy === "public" ? 
-                                                                            <Users size={16} className="tab-position tab-users-icon" /> : 
+                                                                            <Users className="tab-position tab-users-icon" /> : 
                                                                             <span className="tab-position">{tabs.findIndex((t: { id: any; }) => t.id === tab.id) + 1}</span>
                                                                         }
                                                                     </div>
@@ -325,9 +378,14 @@ const Tabs: React.FC<TabsProps> = ({
                                                         className={`tab-sharing-${tab.sharingPolicy} ${selectedTabId === tab.id ? "active-pad" : ""}`}
                                                         children={
                                                             <div className="tab-content">
-                                                                {tab.title}
+                                                                <span 
+                                                                    ref={el => titleRefs.current[tab.id] = el}
+                                                                    className={`tab-title ${overflowMap[tab.id] ? 'tab-title-overflow' : ''}`}
+                                                                >
+                                                                    {tab.title}
+                                                                </span>
                                                                 {tab.sharingPolicy === "public" ? 
-                                                                    <Users size={16} className="tab-position tab-users-icon" /> : 
+                                                                    <Users className="tab-position tab-users-icon" /> : 
                                                                     <span className="tab-position">{tabs.findIndex((t: { id: any; }) => t.id === tab.id) + 1}</span>
                                                                 }
                                                             </div>
