@@ -58,10 +58,13 @@
             }
             
             .tab-users-icon.tab-position {
+                width: 16px;
+                height: 16px;
                 font-size: 16px;
                 bottom: -7px;
                 right: -4px;
-                opacity: 0.9;
+                opacity: 0.5;
+                z-index: -1;
             }
         }
         
