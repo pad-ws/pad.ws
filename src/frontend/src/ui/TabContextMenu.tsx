@@ -42,6 +42,7 @@ interface TabContextMenuProps {
   onClose: () => void;
   currentUserId?: string;
   tabOwnerId?: string;
+  sharingPolicy?: string;
 }
 
 // Popover component
@@ -208,16 +209,19 @@ class TabActionManager implements ActionManager {
   onDelete: (padId: string) => void;
   onUpdateSharingPolicy: (padId: string, policy: string) => void;
   app: any;
+  sharingPolicy?: string;
 
   constructor(
     padId: string,
     padName: string,
     onRename: (padId: string, newName: string) => void,
     onDelete: (padId: string) => void,
-    onUpdateSharingPolicy: (padId: string, policy: string) => void
+    onUpdateSharingPolicy: (padId: string, policy: string) => void,
+    sharingPolicy?: string
   ) {
     this.padId = padId;
     this.padName = padName;
+    this.sharingPolicy = sharingPolicy;
     this.onRename = onRename;
     this.onDelete = onDelete;
     this.onUpdateSharingPolicy = onUpdateSharingPolicy;
@@ -236,10 +240,9 @@ class TabActionManager implements ActionManager {
         console.debug('[pad.ws] User confirmed delete, calling onDelete');
         this.onDelete(this.padId);
       }
-    } else if (action.name === 'setPublic') {
-      this.onUpdateSharingPolicy(this.padId, 'public');
-    } else if (action.name === 'setPrivate') {
-      this.onUpdateSharingPolicy(this.padId, 'private');
+    } else if (action.name === 'toggleSharingPolicy') {
+      const newPolicy = this.sharingPolicy === 'public' ? 'private' : 'public';
+      this.onUpdateSharingPolicy(this.padId, newPolicy);
     } else if (action.name === 'copyUrl') {
       const url = `${window.location.origin}/pad/${this.padId}`;
       navigator.clipboard.writeText(url).then(() => {
@@ -262,47 +265,63 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
   onUpdateSharingPolicy,
   onClose,
   currentUserId,
-  tabOwnerId
+  tabOwnerId,
+  sharingPolicy
 }) => {
+  const isOwner = currentUserId && tabOwnerId && currentUserId === tabOwnerId;
+  const isPadPublic = sharingPolicy === 'public';
+
   // Create an action manager instance
-  const actionManager = new TabActionManager(padId, padName, onRename, onDelete, onUpdateSharingPolicy);
+  const actionManager = new TabActionManager(padId, padName, onRename, onDelete, onUpdateSharingPolicy, sharingPolicy);
 
   // Define menu items
-  const menuItems = [
-    {
+  const menuItemsResult: ContextMenuItems = [];
+
+  if (isOwner) {
+    menuItemsResult.push({
       name: 'rename',
       label: 'Rename',
-      predicate: () => true,
-    },
-    CONTEXT_MENU_SEPARATOR,
-    {
-      name: 'setPublic',
-      label: 'Set Public',
-      predicate: () => true,
-    },
-    {
-      name: 'setPrivate',
-      label: 'Set Private',
-      predicate: () => true,
-    },
-    {
-      name: 'copyUrl',
-      label: 'Copy URL',
-      predicate: () => true,
-    },
-    CONTEXT_MENU_SEPARATOR,
-    {
-      name: 'delete',
-      label: () => {
-        if (currentUserId && tabOwnerId && currentUserId !== tabOwnerId) {
-          return 'Leave shared pad';
-        }
-        return 'Delete';
-      },
-      predicate: () => true,
-      dangerous: true,
+    });
+    // No separator needed here if toggleSharingPolicy directly follows
+  }
+
+  // Always show Copy URL
+  menuItemsResult.push({
+    name: 'copyUrl',
+    label: 'Copy URL',
+  });
+  
+  if (isOwner) {
+    // Add separator if rename was added, before toggle policy
+    const renameItemIndex = menuItemsResult.findIndex(item => item && typeof item !== 'string' && item.name === 'rename');
+    const copyUrlItemIndex = menuItemsResult.findIndex(item => item && typeof item !== 'string' && item.name === 'copyUrl');
+
+    if (renameItemIndex !== -1 && copyUrlItemIndex !== -1 && copyUrlItemIndex > renameItemIndex) {
+       menuItemsResult.splice(copyUrlItemIndex, 0, CONTEXT_MENU_SEPARATOR);
+    } else if (renameItemIndex !== -1 && copyUrlItemIndex === -1) {
+      // If copyUrl is not there for some reason, but rename is, add separator after rename
+      menuItemsResult.push(CONTEXT_MENU_SEPARATOR);
     }
-  ];
+
+    menuItemsResult.push({
+      name: 'toggleSharingPolicy',
+      label: () => isPadPublic ? 'Set Private' : 'Set Public',
+    });
+  }
+  
+  // Separator before delete/leave
+  if (menuItemsResult.length > 0 && menuItemsResult[menuItemsResult.length -1] !== CONTEXT_MENU_SEPARATOR) {
+      menuItemsResult.push(CONTEXT_MENU_SEPARATOR);
+  }
+
+  menuItemsResult.push({
+    name: 'delete',
+    label: () => (!isOwner ? 'Leave shared pad' : 'Delete'),
+    dangerous: true,
+  });
+  
+  const menuItems = menuItemsResult.filter(Boolean) as ContextMenuItems;
+
 
   // Create a wrapper for onClose that handles the callback
   const handleClose = (callback?: () => void) => {

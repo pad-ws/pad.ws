@@ -301,6 +301,7 @@ const Tabs: React.FC<TabsProps> = ({
                     y={contextMenu.y}
                     padId={contextMenu.padId}
                     padName={contextMenu.padName}
+                    sharingPolicy={tabs.find(tab => tab.id === contextMenu.padId)?.sharingPolicy}
                     currentUserId={currentUser?.id}
                     tabOwnerId={tabs.find(tab => tab.id === contextMenu.padId)?.ownerId}
                     onRename={(padId: any, newName: any) => {
