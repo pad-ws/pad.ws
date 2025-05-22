@@ -225,7 +225,7 @@ const Tabs: React.FC<TabsProps> = ({
                                                         children={
                                                             <Button
                                                                 onSelect={() => handlePadSelect(tab)}
-                                                                className={selectedTabId === tab.id ? "active-pad" : ""}
+                                                                className={`${selectedTabId === tab.id ? "active-pad" : ""} tab-sharing-${tab.sharingPolicy}`}
                                                                 children={
                                                                     <div className="tab-content">
                                                                         {selectedTabId === tab.id && displayPadLoadingIndicator ? "..." : (tab.title.length > 8 ? `${tab.title.substring(0, 11)}...` : tab.title)}
@@ -239,7 +239,7 @@ const Tabs: React.FC<TabsProps> = ({
                                                 ) : (
                                                     <Button
                                                         onSelect={() => handlePadSelect(tab)}
-                                                        className={selectedTabId === tab.id ? "active-pad" : ""}
+                                                        className={`${selectedTabId === tab.id ? "active-pad" : ""} tab-sharing-${tab.sharingPolicy}`}
                                                         children={
                                                             <div className="tab-content">
                                                                 {tab.title}
