@@ -181,3 +181,10 @@ class UserStore(Base, BaseModel):
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat()
         }
+
+    async def remove_open_pad(self, session: AsyncSession, pad_id: UUID) -> 'UserStore':
+        """Remove a pad from the user's open_pads list"""
+        if pad_id in self.open_pads:
+            self.open_pads.remove(pad_id)
+            await self.save(session)
+        return self
