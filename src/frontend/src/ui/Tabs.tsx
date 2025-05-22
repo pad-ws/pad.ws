@@ -169,8 +169,86 @@ const Tabs: React.FC<TabsProps> = ({
         }
     }, [tabs, startPadIndex, PADS_PER_PAGE, showNextPads, showPreviousPads]);
 
+    useEffect(() => {
+        // Update SVG filter attributes based on CSS variables
+        const publicTabElement = document.querySelector('.tab-sharing-public');
+        if (publicTabElement) {
+            const computedStyle = getComputedStyle(publicTabElement);
+
+            const dilateRadius = computedStyle.getPropertyValue('--tab-glow-dilate-radius').trim();
+            const blurStdDeviation = computedStyle.getPropertyValue('--tab-glow-blur-std-deviation').trim();
+            const opacitySlope = computedStyle.getPropertyValue('--tab-glow-opacity-slope').trim();
+
+            const filterGlow1 = document.getElementById('glow-1');
+            if (filterGlow1) {
+                const feMorphology = filterGlow1.querySelector('feMorphology');
+                if (feMorphology) {
+                    feMorphology.setAttribute('radius', dilateRadius);
+                }
+
+                const feGaussianBlur = filterGlow1.querySelector('feGaussianBlur[result="glow"]');
+                if (feGaussianBlur) {
+                    feGaussianBlur.setAttribute('stdDeviation', blurStdDeviation);
+                }
+
+                const feComponentTransfers = filterGlow1.querySelectorAll('feComponentTransfer');
+                let targetFeFuncA: SVGFEFuncAElement | null = null;
+                feComponentTransfers.forEach(feComp => {
+                    if (feComp.getAttribute('in') !== 'SourceGraphic') {
+                        const feFunc = feComp.querySelector('feFuncA[type="linear"]');
+                        if (feFunc) {
+                            targetFeFuncA = feFunc as SVGFEFuncAElement;
+                        }
+                    }
+                });
+
+                if (targetFeFuncA) {
+                    targetFeFuncA.setAttribute('slope', opacitySlope);
+                }
+            }
+        }
+        // Rerun if tabs change, as a public tab might become visible/active
+    }, [tabs, selectedTabId]);
+
+
     return (
         <>
+            <svg width="0" height="0" aria-hidden="true" style={{ position: 'fixed', top: '-1px', left: '-1px' }}>
+              <filter id="glow-0" x="-25%" y="-25%" width="150%" height="150%">
+                <feComponentTransfer>
+                  <feFuncA type="table" tableValues="0 2 0"/>
+                </feComponentTransfer>
+                <feGaussianBlur stdDeviation="2"/>
+                <feComponentTransfer result="rond">
+                  <feFuncA type="table" tableValues="-2 3"/>
+                </feComponentTransfer>
+                <feMorphology operator="dilate" radius="3"/>
+                <feGaussianBlur stdDeviation="6"/>
+                <feBlend in="rond" result="glow"/>
+                <feComponentTransfer in="SourceGraphic">
+                  <feFuncA type="table" tableValues="0 0 1"/>
+                </feComponentTransfer>
+                <feBlend in2="glow"/>
+              </filter>
+              
+              <filter id="glow-1" x="-25%" y="-25%" width="150%" height="150%">
+                <feComponentTransfer in="SourceGraphic" result="grad">
+                  <feFuncA type="table" tableValues="0 2 0"/>
+                </feComponentTransfer>
+                <feMorphology operator="dilate" radius="3"/>
+                <feGaussianBlur stdDeviation="6" result="glow"/>
+                <feTurbulence type="fractalNoise" baseFrequency="7.13"/>
+                <feDisplacementMap in="glow" scale="12" yChannelSelector="R"/>
+                <feComponentTransfer>
+                  <feFuncA type="linear" slope=".8"/>
+                </feComponentTransfer>
+                <feBlend in="grad" result="out"/>
+                <feComponentTransfer in="SourceGraphic">
+                  <feFuncA type="table" tableValues="0 0 1"/>
+                </feComponentTransfer>
+                <feBlend in2="out"/>
+              </filter>
+            </svg>
             <div className="tabs-bar">
                 <Stack.Col gap={2}>
                     <Section heading="canvasActions">
@@ -227,7 +305,7 @@ const Tabs: React.FC<TabsProps> = ({
                                                         children={
                                                             <Button
                                                                 onSelect={() => handlePadSelect(tab)}
-                                                                className={`${selectedTabId === tab.id ? "active-pad" : ""} tab-sharing-${tab.sharingPolicy}`}
+                                                                className={`tab-sharing-${tab.sharingPolicy} ${selectedTabId === tab.id ? "active-pad" : ""}`}
                                                                 children={
                                                                     <div className="tab-content">
                                                                         {selectedTabId === tab.id && displayPadLoadingIndicator ? "..." : (tab.title.length > 8 ? `${tab.title.substring(0, 11)}...` : tab.title)}
@@ -241,7 +319,7 @@ const Tabs: React.FC<TabsProps> = ({
                                                 ) : (
                                                     <Button
                                                         onSelect={() => handlePadSelect(tab)}
-                                                        className={`${selectedTabId === tab.id ? "active-pad" : ""} tab-sharing-${tab.sharingPolicy}`}
+                                                        className={`tab-sharing-${tab.sharingPolicy} ${selectedTabId === tab.id ? "active-pad" : ""}`}
                                                         children={
                                                             <div className="tab-content">
                                                                 {tab.title}
