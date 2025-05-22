@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 
 import type { ExcalidrawImperativeAPI } from "@atyrode/excalidraw/types";
 import { Stack, Button, Section, Tooltip } from "@atyrode/excalidraw";
-import { FilePlus2, ChevronLeft, ChevronRight } from "lucide-react";
+import { FilePlus2, ChevronLeft, ChevronRight, Users } from "lucide-react";
 
 import { usePad } from "../hooks/usePadData";
 import { useAuthStatus } from "../hooks/useAuthStatus";
@@ -310,7 +310,10 @@ const Tabs: React.FC<TabsProps> = ({
                                                                     <div className="tab-content">
                                                                         {selectedTabId === tab.id && displayPadLoadingIndicator ? "..." : (tab.title.length > 8 ? `${tab.title.substring(0, 11)}...` : tab.title)}
                                                                         {/* Calculate position based on overall index in `tabs` if needed, or `startPadIndex + index + 1` */}
-                                                                        <span className="tab-position">{tabs.findIndex((t: { id: any; }) => t.id === tab.id) + 1}</span>
+                                                                        {tab.sharingPolicy === "public" ? 
+                                                                            <Users size={16} className="tab-position tab-users-icon" /> : 
+                                                                            <span className="tab-position">{tabs.findIndex((t: { id: any; }) => t.id === tab.id) + 1}</span>
+                                                                        }
                                                                     </div>
                                                                 }
                                                             />
@@ -323,7 +326,10 @@ const Tabs: React.FC<TabsProps> = ({
                                                         children={
                                                             <div className="tab-content">
                                                                 {tab.title}
-                                                                <span className="tab-position">{tabs.findIndex((t: { id: any; }) => t.id === tab.id) + 1}</span>
+                                                                {tab.sharingPolicy === "public" ? 
+                                                                    <Users size={16} className="tab-position tab-users-icon" /> : 
+                                                                    <span className="tab-position">{tabs.findIndex((t: { id: any; }) => t.id === tab.id) + 1}</span>
+                                                                }
                                                             </div>
                                                         }
                                                     />
