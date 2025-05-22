@@ -1,10 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 
+export enum SharingPolicy {
+    PRIVATE = 'private',
+    WHITELIST = 'whitelist',
+    PUBLIC = 'public',
+}
+
 export interface Tab {
     id: string;
     title: string;
     ownerId: string;
+    sharingPolicy: SharingPolicy;
     createdAt: string;
     updatedAt: string;
 }
@@ -26,6 +33,7 @@ interface UserResponse {
         id: string;
         display_name: string;
         owner_id: string;
+        sharing_policy: string;
         created_at: string;
         updated_at: string;
     }[];
@@ -52,6 +60,7 @@ const fetchUserPads = async (): Promise<PadResponse> => {
         id: pad.id,
         title: pad.display_name,
         ownerId: pad.owner_id,
+        sharingPolicy: pad.sharing_policy as SharingPolicy,
         createdAt: pad.created_at,
         updatedAt: pad.updated_at
     }));
@@ -66,6 +75,7 @@ interface NewPadApiResponse {
     id: string;
     display_name: string;
     owner_id: string;
+    sharing_policy: SharingPolicy;
     created_at: string;
     updated_at: string;
 }
@@ -93,6 +103,7 @@ const createNewPad = async (): Promise<Tab> => {
         id: newPadResponse.id,
         title: newPadResponse.display_name,
         ownerId: newPadResponse.owner_id,
+        sharingPolicy: newPadResponse.sharing_policy as SharingPolicy,
         createdAt: newPadResponse.created_at,
         updatedAt: newPadResponse.updated_at,
     };
@@ -135,6 +146,7 @@ export const usePadTabs = () => {
                 id: tempTabId,
                 title: 'New pad',
                 ownerId: '',
+                sharingPolicy: SharingPolicy.PRIVATE,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
