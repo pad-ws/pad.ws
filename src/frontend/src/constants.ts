@@ -2,7 +2,7 @@
 export const INITIAL_APP_DATA = {
     appState: {
         theme: "dark",
-        gridModeEnabled: false,
+        gridModeEnabled: true,
         gridSize: 20,
         gridStep: 5,
     },

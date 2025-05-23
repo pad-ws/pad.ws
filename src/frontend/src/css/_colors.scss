@@ -13,9 +13,14 @@ $grey-700: #666;
 $grey-800: #595959;
 $grey-900: #333;
 
-// Accent Colors (https://coolors.co/ff9747-ff7d1a-f06800-e06100-cc5800)
-$accent-light: #ff9747;
-$accent-lighter: #ff7d1a;
-$accent: #f06800; 
-$accent-darker: #e06100;
-$accent-dark: #cc5800;
+
+// Accent colors (https://coolors.co/ff9747-ff7d1a-f06800-e06100-cc5800)
+$accent-light: hsl(26, 100%, 64%);
+$accent-lighter: hsl(26, 100%, 55%);
+$accent: hsl(26, 100%, 47%); 
+$accent-darker: hsl(26, 100%, 44%);
+$accent-dark: hsl(26, 100%, 40%);
+
+// Accent alternative colors
+$accent-faded-dark: hsl(26, 10%, 20%);
+$accent-faded-light: hsl(26, 100%, 90%);
