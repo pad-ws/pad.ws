@@ -301,7 +301,9 @@ class Portal {
       user_id: this.user?.id,
       data: data,
     };
-    console.debug(`[pad.ws] Sending message of type: ${messagePayload.type} for pad ${this.roomId}`);
+    if (messagePayload.type != 'pointer_update') {
+      console.debug(`[pad.ws] Sending message of type: ${messagePayload.type} for pad ${this.roomId}`, messagePayload);
+    }
     this.sendJsonMessage(messagePayload);
   }
 
@@ -321,26 +323,43 @@ class Portal {
     elements: ReadonlyArray<OrderedExcalidrawElement>,
     syncAll: boolean
   ) => {
-    // Filtering logic based on broadcastedElementVersions would go here if not syncAll
-    // For now, simplified:
+    let elementsToSend = elements;
+
+    if (!syncAll) {
+      // Filter elements to send only those that have changed since last broadcast
+      elementsToSend = elements.filter(element => {
+        const lastBroadcastedVersion = this.broadcastedElementVersions.get(element.id) || -1;
+        return element.version > lastBroadcastedVersion;
+      });
+    }
+
     const payload = {
-      // type: updateType, // This was an Excalidraw subtype. Our backend expects a top-level type.
-      // The 'type' in sendMessage will be 'scene_update'. The payload contains details.
-      update_subtype: updateType, // To distinguish between INIT and UPDATE within the 'scene_update' message
-      elements: elements,
+      update_subtype: updateType,
+      elements: elementsToSend,
       // appState: if sending app state changes
     };
 
-    this.sendMessage('scene_update', payload);
+    if (elementsToSend.length > 0 || syncAll) {
+       this.sendMessage('scene_update', payload);
+
+      // Update broadcasted versions for the elements that were actually sent
+      elementsToSend.forEach(element => {
+        if (element && typeof element.id === 'string' && typeof element.version === 'number') {
+          this.broadcastedElementVersions.set(element.id, element.version);
+        }
+      });
+    }
+
 
     if (syncAll) {
+      // Clear versions on full sync to ensure all elements are tracked again
       this.broadcastedElementVersions.clear();
+       elements.forEach(element => {
+        if (element && typeof element.id === 'string' && typeof element.version === 'number') {
+          this.broadcastedElementVersions.set(element.id, element.version);
+        }
+      });
     }
-    elements.forEach(element => {
-      if (element && typeof element.id === 'string' && typeof element.version === 'number') {
-        this.broadcastedElementVersions.set(element.id, element.version);
-      }
-    });
   };
 
   public broadcastUserViewportUpdate = (bounds: any): void => {

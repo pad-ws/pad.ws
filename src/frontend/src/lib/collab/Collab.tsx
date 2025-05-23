@@ -62,6 +62,10 @@ interface CollabState {
 const POINTER_MOVE_THROTTLE_MS = 20;
 const RELAY_VIEWPORT_BOUNDS_THROTTLE_MS = 50;
 
+// Constants for periodic full scene sync
+const ENABLE_PERIODIC_FULL_SYNC = false; // Set to false to disable periodic full sync
+const PERIODIC_FULL_SYNC_INTERVAL_MS = 60000; // Sync every 60 seconds (adjust as needed)
+
 class Collab extends PureComponent<CollabProps, CollabState> {
   [x: string]: any;
   readonly state: CollabState;
@@ -135,6 +139,11 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       // Potentially call a method to broadcast initial scene if this client is the first or needs to sync
       // this.broadcastFullSceneUpdate(true); // Example: true for SCENE_INIT
     }
+
+    // Start periodic full sync if enabled
+    if (ENABLE_PERIODIC_FULL_SYNC) {
+      this.startPeriodicFullSync();
+    }
   }
 
   componentDidUpdate(prevProps: CollabProps, prevState: CollabState) {
@@ -184,7 +193,36 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.removeSceneChangeListeners();
     this.removeScrollChangeListener();
     this.removeFollowListener();
+    this.stopPeriodicFullSync(); // Stop periodic sync on unmount
   }
+
+  /* Periodic Full Sync */
+
+  private periodicFullSyncIntervalId: ReturnType<typeof setInterval> | null = null;
+
+  private startPeriodicFullSync = () => {
+    if (this.periodicFullSyncIntervalId !== null) {
+      // Already running
+      return;
+    }
+    this.periodicFullSyncIntervalId = setInterval(() => {
+      if (this.props.excalidrawAPI && this.portal.isOpen() && this.props.isOnline) {
+        console.debug('[pad.ws] Performing periodic full scene sync.');
+        const allCurrentElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
+        this.portal.broadcastSceneUpdate('SCENE_UPDATE', allCurrentElements, true);
+        this.lastBroadcastedSceneVersion = getSceneVersion(allCurrentElements);
+      }
+    }, PERIODIC_FULL_SYNC_INTERVAL_MS);
+  };
+
+  private stopPeriodicFullSync = () => {
+    if (this.periodicFullSyncIntervalId !== null) {
+      clearInterval(this.periodicFullSyncIntervalId);
+      this.periodicFullSyncIntervalId = null;
+      console.debug('[pad.ws] Stopped periodic full scene sync.');
+    }
+  };
+
 
   /* Pointer */
 
@@ -317,23 +355,17 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     const allCurrentElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
     const currentSceneVersion = getSceneVersion(allCurrentElements);
 
-    // Avoid broadcasting if:
-    // 1. The scene version hasn't actually increased from what this client last broadcasted.
-    // 2. The scene version isn't newer than what this client last processed from a remote update (prevents echo).
+    // Avoid broadcasting if the scene version hasn't actually increased from what this client last broadcasted
+    // and isn't newer than what this client last processed from a remote update (prevents echo).
     if (currentSceneVersion > this.lastBroadcastedSceneVersion && currentSceneVersion > this.state.lastProcessedSceneVersion) {
-      // Send all elements (including deleted) as Excalidraw's reconcile function handles this.
-      // The `false` indicates it's not a full sync (SCENE_INIT), but a regular update.
+      // Send only changed elements (syncAll: false)
       this.portal.broadcastSceneUpdate('SCENE_UPDATE', allCurrentElements, false);
       this.lastBroadcastedSceneVersion = currentSceneVersion;
-    } else if (currentSceneVersion <= this.lastBroadcastedSceneVersion && currentSceneVersion > this.state.lastProcessedSceneVersion) {
-      // This case can happen if an undo/redo operation results in a scene version that was previously broadcasted
-      // but is newer than the last processed remote scene. We should still broadcast.
-      // Or, if a remote update was processed, and then a local action (like selection) triggers onChange
-      // without changing element versions, but we want to ensure our state is robust.
-      // For simplicity now, we only broadcast if strictly newer than last broadcast.
-      // More nuanced logic could be added if specific scenarios require it.
-      // console.log("Scene version not strictly greater than last broadcasted, but greater than last processed. Potentially an echo or no new element changes to broadcast.");
     }
+    // Note: If currentSceneVersion <= this.lastBroadcastedSceneVersion but > this.state.lastProcessedSceneVersion,
+    // it might indicate an undo/redo or a local change that didn't increment element versions.
+    // The current logic avoids broadcasting in this specific case to prevent potential loops,
+    // relying on the periodic full sync to eventually correct any minor inconsistencies.
   };
 
   /* Collaborators */
@@ -438,6 +470,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         const remoteElements = messageData?.elements as ExcalidrawElementType[] | undefined;
 
         if (remoteElements !== undefined && this.props.excalidrawAPI) {
+          console.log(`[pad.ws] Received scene update. Elements count: ${remoteElements.length}`, remoteElements);
           const localElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
           const currentAppState = this.props.excalidrawAPI.getAppState();
           
