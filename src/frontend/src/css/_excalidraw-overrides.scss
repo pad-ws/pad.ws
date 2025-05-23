@@ -9,17 +9,18 @@
     }
 
     .Modal {
-
-        /* When a modal is open */
-        &__background {
-            background-color: rgba(0, 0, 0, 0.3); /* Fades out the background */
-            backdrop-filter: blur(0px); /* Blurs the background */
-        }
-
+        
         /* When a modal is opening */
         &__content {
             animation: Modal__content_fade-in 0.3s ease-out forwards !important; /* Fades in the modal */
         }
+        
+        /* When a modal is open */
+        &__background {
+            background-color: rgba(0, 0, 0, 0.2); /* Fades out the background */
+            backdrop-filter: blur(1px); /* Blurs the background */
+        }
+
     }
 
     /* Excalidraw embeddables container */
@@ -39,26 +40,40 @@
     }
 }
 
-/* Light theme */
+/* Overriding Excalidraw's default (light theme) colors */
 .excalidraw {
+
     --color-on-primary-container: #{$black} !important;
     --color-surface-primary-container: #{$accent-light} !important;
     --color-selection: #{$accent-lighter} !important;
     --button-hover-bg: #{$accent-faded-light} !important;
+
+    .dropdown-menu-button {
+        &:hover {
+            background-color: $accent-faded-light !important;
+        }
+    }
 
     .dropdown-menu-group-title {
         color: $accent-lighter !important;
     }
 }
 
-/* Dark theme */
+/* Overriding Excalidraw's default (dark theme) colors */
 .excalidraw.theme--dark {
+
     --color-on-primary-container: #{$white} !important;
     --color-surface-primary-container: #{$accent} !important;
     --color-selection: #{$accent-darker} !important;
     --button-hover-bg: #{$accent-faded-dark} !important;
+
+    .dropdown-menu-button {
+        &:hover {
+            background-color: $accent-faded-dark !important;
+        }
+    }
     .dropdown-menu-group-title {
-        color: $accent !important;
+        color: $accent-darker !important;
     }
 }
   
