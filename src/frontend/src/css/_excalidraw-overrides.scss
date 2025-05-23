@@ -1,0 +1,12 @@
+.excalidraw {
+    --color-on-primary-container: #{$black} !important;
+    --color-surface-primary-container: #{$accent-light} !important;
+    --color-selection: #{$accent-lighter} !important;
+}
+
+.excalidraw.theme--dark {
+    --color-on-primary-container: #{$white} !important;
+    --color-surface-primary-container: #{$accent} !important;
+    --color-selection: #{$accent-darker} !important;
+}
+  

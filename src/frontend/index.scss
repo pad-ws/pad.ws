@@ -1,51 +1,13 @@
-@font-face {
-    font-family: 'Roboto';
-    src: url('/assets/fonts/Roboto-VariableFont_wdth,wght.ttf') format('truetype-variations');
-    font-weight: 100 900;
-    font-stretch: 75% 100%;
-    font-style: normal;
-    font-display: swap;
-}
-
-/* CSS Variables */
-:root {
-    --embeddable-pointer-events: all;
-}
-
-/* Override Excalidraw styles */
-
-body {
-    margin: 0;
-}
+@import 'src/css/_colors.scss';
+@import 'src/css/_excalidraw-overrides.scss';
+@import 'src/css/_fonts.scss';
 
 #root {
-    height: 100%;
-    width: 100%;
-    position: absolute;
-    z-index: 1;
-    background-color: #111111;
+  height: 100vh;
 }
 
-.excalidraw-wrapper {
-    height: 100%;
-    width: 100%;
-    display: flex;
-    z-index: 1;
-}
-
-.excalidraw.theme--dark {
-    --color-primary-light: #a4571b !important;
-    --color-on-primary-container: #e0dfff !important;
-    --color-surface-primary-container: #cc6d24 !important;
-    --color-selection: #a4571b !important;
-}
-
-.excalidraw .sidebar-trigger {
-    display: none !important;
-}
-
-.excalidraw .layer-ui__wrapper__top-right {
-    gap: 0rem;
+body {
+  margin: 0;
 }
 
 .dropdown-menu-group-title {
