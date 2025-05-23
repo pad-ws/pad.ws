@@ -328,9 +328,50 @@ The backend (e.g., `ws_router.py`) will act as the central authority for scene s
 7.  **Handling `SCENE_INIT` vs. `SCENE_UPDATE` from Client**:
     *   If a client sends `SCENE_INIT` (e.g., on joining), the backend should send its current full authoritative scene for that pad to that client (including all non-deleted elements).
     *   If a client sends `SCENE_UPDATE`, the backend performs reconciliation as described above.
-8.  **Fractional Indexing on Backend**:
-    *   If the backend needs to insert or reorder elements directly (e.g., due to some server-side logic), it would also need to understand and correctly manipulate fractional indices to maintain order. For simple element property updates, only the `index` property itself would be updated if it changes.
-9.  **Atomicity**: Operations involving reading from Redis, reconciling, writing back to Redis, and preparing a broadcast should be as atomic as possible to prevent race conditions. Lua scripting in Redis or careful application-level locking might be necessary for complex operations.
+8.  **Advanced Fractional Indexing Management on Backend**:
+    *   Beyond simply storing an `index` string, the backend, as the authoritative source, must implement robust logic for managing fractional indices to ensure correct element ordering and prevent data corruption. The Excalidraw frontend's `fractionalIndex.ts` provides valuable insights into the required complexities. Key considerations for the backend include:
+        *   **Core Index Generation**:
+            *   The backend needs a reliable way to generate new fractional indices when inserting elements between existing ones or when reordering multiple elements. This is typically achieved using a library function like `generateNKeysBetween(indexA, indexB, count)` from the `fractional-indexing` npm package. The backend will need to find or implement a Python equivalent.
+            *   *Example Scenario*: If inserting 3 new elements between an element with `index="a0"` and an element with `index="a1"`, the backend would need to generate 3 new indices that fall lexicographically between "a0" and "a1".
+        *   **Deterministic Ordering and Tie-Breaking**:
+            *   When retrieving and ordering elements (e.g., from a Redis Sorted Set using the fractional index as the score), a secondary deterministic tie-breaking mechanism is crucial if two elements happen to have the exact same fractional index (which should be rare if generated correctly but is a possible edge case).
+            *   Excalidraw's `orderByFractionalIndex` function breaks ties by comparing element IDs (`a.id < b.id ? -1 : 1`). The backend should implement a similar tie-breaking rule for consistent ordering.
+        *   **Server-Side Index Validation**:
+            *   The backend should validate fractional indices it receives from clients or generates itself to ensure their integrity.
+            *   A core validation function, conceptually similar to `isValidFractionalIndex(index, predecessorIndex, successorIndex)`, is essential.
+            ```typescript
+            // Conceptual logic for isValidFractionalIndex
+            function isValidFractionalIndex(
+              currentIndex: string | undefined,
+              predecessorIndex: string | undefined,
+              successorIndex: string | undefined,
+            ): boolean {
+              if (!currentIndex) { return false; } // Index must exist
+
+              if (predecessorIndex && successorIndex) {
+                // Must be between predecessor and successor
+                return predecessorIndex < currentIndex && currentIndex < successorIndex;
+              }
+              if (!predecessorIndex && successorIndex) {
+                // First element in a sequence
+                return currentIndex < successorIndex;
+              }
+              if (predecessorIndex && !successorIndex) {
+                // Last element in a sequence
+                return predecessorIndex < currentIndex;
+              }
+              // Single element in the list, or an isolated element being checked
+              return true; 
+            }
+            ```
+            *   The backend might also need a broader validation function (like `validateFractionalIndices` in Excalidraw) that iterates through all elements in a pad to check for overall consistency, potentially logging errors or even attempting repairs if inconsistencies are found.
+        *   **Synchronization and Repair of Indices**:
+            *   In complex scenarios (e.g., merging conflicting updates, server-side reordering, or recovering from potential data inconsistencies), the backend might need logic to "heal" or re-synchronize fractional indices.
+            *   Excalidraw's `syncInvalidIndices` and `syncMovedIndices` (along with helpers like `getInvalidIndicesGroups`) demonstrate this. These functions identify groups of elements with invalid or conflicting indices and regenerate them based on their current desired order in the array.
+            *   While a full port of this logic might be complex, the backend should be designed with the possibility that it might need to re-evaluate and potentially regenerate indices for a subset of elements to maintain a correct and consistent order. This is especially important if the backend performs operations that directly alter element order beyond simple appends.
+        *   **Bound Text Elements**: Excalidraw has specific logic for ensuring a bound text element's index is greater than its container's index. If the backend needs to enforce such semantic rules related to element types and their ordering, this adds another layer to index management. For general reconciliation, this might be a secondary concern compared to basic lexicographical ordering.
+    *   Storing elements in a Redis Sorted Set using the fractional index as the score is a good starting point, but the backend application logic will need to embody these advanced management techniques.
+9.  **Atomicity**: Operations involving reading from Redis, reconciling, writing back to Redis, and preparing a broadcast should be as atomic as possible to prevent race conditions. Lua scripting in Redis or careful application-level locking might be necessary for complex operations, especially when updating multiple elements and their fractional indices.
 
 ## 5. Conceptual Diagrams
 
