@@ -29,6 +29,7 @@ from database.database import get_session
 from database.models.user_model import UserStore
 from domain.pad import Pad
 from workers.canvas_worker import CanvasWorker
+from domain.user import User
 
 # Initialize PostHog if API key is available
 if POSTHOG_API_KEY:
@@ -101,7 +102,7 @@ async def serve_index_html(request: Request = None):
                 status_code=500,
             )
     else:
-        # Serve the static build
+        # For production, serve the static build
         return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 @app.get("/pad/{pad_id}")
@@ -129,19 +130,26 @@ async def read_pad(
         # Worker assignment is now handled automatically in Pad.get_by_id()
         print(f"Pad {pad_id} accessed by user {user.id}, worker: {pad.worker_id[:8] if pad.worker_id else 'None'}")
             
-        # Add pad to user's open pads if not already there
-        user_store = await UserStore.get_by_id(session, user.id)
-        if user_store:
+        # Add pad to user's open pads if not already there and update last selected pad
+        user_obj = await User.get_by_id(session, user.id)
+        if user_obj:
             # Convert all UUIDs to strings for comparison
-            open_pads_str = [str(pid) for pid in user_store.open_pads]
+            open_pads_str = [str(pid) for pid in user_obj._store.open_pads]
             if str(pad_id) not in open_pads_str:
                 # Convert back to UUIDs for storage
-                user_store.open_pads = [UUID(pid) for pid in open_pads_str] + [pad_id]
+                user_obj._store.open_pads = [UUID(pid) for pid in open_pads_str] + [pad_id]
                 try:
-                    await user_store.save(session)
+                    await user_obj.save(session)
                 except Exception as e:
                     print(f"Error updating user's open pads: {e}")
                     # Continue even if update fails - don't block pad access
+            
+            # Update last selected pad
+            try:
+                await user_obj.set_last_selected_pad(session, pad_id)
+            except Exception as e:
+                print(f"Error updating last selected pad: {e}")
+                # Continue even if update fails - don't block pad access
         
         return await serve_index_html(request)
     except Exception as e:
