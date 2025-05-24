@@ -27,7 +27,7 @@ class CanvasWorker:
     async def shutdown_instance(cls) -> None:
         """Shutdown the singleton instance."""
         if cls._instance is not None:
-            await cls._instance.stop(flush_remaining=True)
+            await cls._instance.stop()
             cls._instance = None
     
     def __init__(self):
@@ -35,24 +35,17 @@ class CanvasWorker:
         self.worker_id = str(uuid.uuid4())
         self._active_pads: Set[UUID] = set()
         self._pad_tasks: Dict[UUID, asyncio.Task] = {}
+        self._last_processed_ids: Dict[UUID, str] = {}  # Track last processed message ID per pad
     
     async def initialize(self) -> None:
         """Initialize the worker with Redis connection."""
         from cache import RedisClient
         self._redis = await RedisClient.get_instance()
     
-    async def stop(self, flush_remaining: bool = True) -> None:
+    async def stop(self) -> None:
         """Stop the worker and all pad processing tasks."""
-        print(f"Stopping Canvas worker {self.worker_id[:8]} (flush_remaining={flush_remaining})")
+        print(f"Stopping Canvas worker {self.worker_id[:8]}")
         
-        # Optionally flush remaining data before shutdown
-        if flush_remaining:
-            print("Flushing remaining data for all active pads...")
-            for pad_id in list(self._active_pads):
-                try:
-                    await self.flush_pad_data(pad_id)
-                except Exception as e:
-                    print(f"Error flushing data for pad {pad_id}: {e}")
         
         # Stop all pad processing tasks gracefully
         for pad_id in list(self._active_pads):
@@ -144,15 +137,19 @@ class CanvasWorker:
                 pad.worker_id = None
                 await pad.cache()
                 print(f"Released worker assignment for pad {pad_id}")
+            
+            # Clean up the in-memory tracking
+            self._last_processed_ids.pop(pad_id, None)
+            print(f"Cleaned up in-memory tracking for pad {pad_id}")
+            
         except Exception as e:
             print(f"Error releasing worker assignment for pad {pad_id}: {e}")
     
     async def _process_pad_updates(self, pad_id: UUID) -> None:
         """Process updates for a specific pad."""
         stream_key = f"pad:stream:{pad_id}"
-        last_id = "$" # Only process new messages
+        last_id = "$"  # Only process new messages for this worker session
         
-        print(f"Started processing updates for pad {pad_id}")
         try:
             while pad_id in self._active_pads:
                 try:
@@ -166,10 +163,12 @@ class CanvasWorker:
                     stream_name, stream_messages = streams[0]
                     
                     for message_id, message_data in stream_messages:
-                        print(f"Processing message for pad {pad_id}: {message_id}")
                         try:
                             # Process the message
                             await self._process_message(pad_id, message_id, message_data)
+                            
+                            # Update last processed ID in memory
+                            self._last_processed_ids[pad_id] = message_id.decode() if isinstance(message_id, bytes) else message_id
                         except Exception as e:
                             print(f"Error processing message for pad {pad_id}: {e}")
                             
@@ -194,6 +193,8 @@ class CanvasWorker:
                     for message_id, message_data in stream_messages:
                         try:
                             await self._process_message(pad_id, message_id, message_data)
+                            # Update last processed ID for final messages too
+                            self._last_processed_ids[pad_id] = message_id.decode() if isinstance(message_id, bytes) else message_id
                         except Exception as e:
                             print(f"Error processing final message for pad {pad_id}: {e}")
                     
@@ -223,20 +224,13 @@ class CanvasWorker:
                 data[key] = value
                 
         message_type = data.get('type')
-        user_id = data.get('user_id')
-        connection_id = data.get('connection_id')
         message_data = data.get('data')
         
-
-        print(f"DEBUG: message_type = {message_type}")
-        # Only process scene_update messages
-        # if message_type == 'scene_update' and message_data:
-        #     await self.handle_scene_update(
-        #         pad_id=pad_id,
-        #         user_id=user_id,
-        #         connection_id=connection_id,
-        #         data=message_data
-        #     )
+        if message_type == 'scene_update' and message_data:
+            await self.handle_scene_update(
+                pad_id=pad_id,
+                data=message_data
+            )
     
     async def handle_scene_update(
         self, 
@@ -270,7 +264,6 @@ class CanvasWorker:
                 
         # If changes were made, save and broadcast
         if changes_made:
-            # Save to Redis
             await self._save_pad_data(pad_id, pad_data)
     
     async def _get_pad_data(self, pad_id: UUID) -> Dict[str, Any]:
@@ -387,15 +380,24 @@ class CanvasWorker:
     
     async def flush_pad_data(self, pad_id: UUID) -> int:
         """
-        Manually flush any remaining messages from the Redis stream for a pad.
+        Manually flush any remaining unprocessed messages from the Redis stream for a pad.
+        Only processes messages that haven't been processed by this worker session.
         Returns the number of messages processed.
         """
         stream_key = f"pad:stream:{pad_id}"
         processed_count = 0
         
         try:
-            # Process all remaining messages in the stream
-            last_id = "0"  # Start from the beginning to catch any missed messages
+            # Get the last processed message ID from memory
+            last_id = self._last_processed_ids.get(pad_id)
+            
+            if not last_id:
+                # If no messages were processed by this worker, don't flush anything
+                # (avoids processing messages that might have been handled by other workers)
+                print(f"No messages processed by this worker for pad {pad_id}, skipping flush")
+                return 0
+            
+            print(f"Flushing remaining messages for pad {pad_id} from: {last_id}")
             
             while True:
                 streams = await self._redis.xread({stream_key: last_id}, count=100, block=100)
@@ -412,12 +414,15 @@ class CanvasWorker:
                     try:
                         await self._process_message(pad_id, message_id, message_data)
                         processed_count += 1
-                        last_id = message_id
+                        last_id = message_id.decode() if isinstance(message_id, bytes) else message_id
+                        
+                        # Update the in-memory tracking
+                        self._last_processed_ids[pad_id] = last_id
                     except Exception as e:
                         print(f"Error processing message during flush for pad {pad_id}: {e}")
                         
         except Exception as e:
             print(f"Error during flush for pad {pad_id}: {e}")
             
-        print(f"Flushed {processed_count} messages for pad {pad_id}")
+        print(f"Flushed {processed_count} remaining messages for pad {pad_id}")
         return processed_count
