@@ -5,6 +5,8 @@ from typing import Dict, Any, List, Optional, Tuple, Set
 from uuid import UUID
 from datetime import datetime
 
+SAVE_INTERVAL = 300 # 5 minutes in seconds
+
 class CanvasWorker:
     """
     Background worker that processes canvas updates from Redis streams.
@@ -36,6 +38,7 @@ class CanvasWorker:
         self._active_pads: Set[UUID] = set()
         self._pad_tasks: Dict[UUID, asyncio.Task] = {}
         self._last_processed_ids: Dict[UUID, str] = {}  # Track last processed message ID per pad
+        self._periodic_save_tasks: Dict[UUID, asyncio.Task] = {}  # Track periodic save tasks per pad
     
     async def initialize(self) -> None:
         """Initialize the worker with Redis connection."""
@@ -45,7 +48,6 @@ class CanvasWorker:
     async def stop(self) -> None:
         """Stop the worker and all pad processing tasks."""
         print(f"Stopping Canvas worker {self.worker_id[:8]}")
-        
         
         # Stop all pad processing tasks gracefully
         for pad_id in list(self._active_pads):
@@ -63,6 +65,10 @@ class CanvasWorker:
         task = asyncio.create_task(self._process_pad_updates(pad_id))
         self._pad_tasks[pad_id] = task
         
+        # Start periodic save task
+        save_task = asyncio.create_task(self._periodic_save_to_db(pad_id))
+        self._periodic_save_tasks[pad_id] = save_task
+        
         # Set up task cleanup on completion
         def cleanup_task(task_ref):
             if pad_id in self._active_pads:
@@ -70,7 +76,12 @@ class CanvasWorker:
             if pad_id in self._pad_tasks:
                 del self._pad_tasks[pad_id]
         
+        def cleanup_save_task(task_ref):
+            if pad_id in self._periodic_save_tasks:
+                del self._periodic_save_tasks[pad_id]
+        
         task.add_done_callback(cleanup_task)
+        save_task.add_done_callback(cleanup_save_task)
         return True
     
     async def stop_processing_pad(self, pad_id: UUID, graceful: bool = True) -> None:
@@ -78,11 +89,23 @@ class CanvasWorker:
         if pad_id not in self._active_pads:
             return
             
-        print(f"Worker {self.worker_id[:8]} stopping processing for pad {pad_id} (graceful={graceful})")
+        print(f"Worker {self.worker_id[:8]} stopping processing for pad {pad_id} {'gracefully' if graceful else ''}")
         
         if graceful:
             # Graceful shutdown: remove from active pads and let the task finish naturally
             self._active_pads.discard(pad_id)
+            
+            # Stop the periodic save task
+            if pad_id in self._periodic_save_tasks:
+                save_task = self._periodic_save_tasks[pad_id]
+                save_task.cancel()
+                try:
+                    await save_task
+                except asyncio.CancelledError:
+                    pass
+            
+            # Perform final save to database before stopping
+            await self._save_pad(pad_id)
             
             # Wait for the task to complete naturally (it will exit the while loop)
             if pad_id in self._pad_tasks:
@@ -102,7 +125,15 @@ class CanvasWorker:
                     print(f"Processing task for pad {pad_id} was cancelled during graceful shutdown")
                     pass
         else:
-            # Immediate shutdown: cancel the task
+            # Immediate shutdown: cancel the tasks
+            if pad_id in self._periodic_save_tasks:
+                save_task = self._periodic_save_tasks[pad_id]
+                save_task.cancel()
+                try:
+                    await save_task
+                except asyncio.CancelledError:
+                    pass
+            
             if pad_id in self._pad_tasks:
                 task = self._pad_tasks[pad_id]
                 task.cancel()
@@ -115,8 +146,9 @@ class CanvasWorker:
             # Remove from active pads
             self._active_pads.discard(pad_id)
         
-        # Clean up task reference
+        # Clean up task references
         self._pad_tasks.pop(pad_id, None)
+        self._periodic_save_tasks.pop(pad_id, None)
         
         # Clear the worker assignment in the pad
         await self._release_pad_worker(pad_id)
@@ -426,3 +458,43 @@ class CanvasWorker:
             
         print(f"Flushed {processed_count} remaining messages for pad {pad_id}")
         return processed_count
+    
+    async def _periodic_save_to_db(self, pad_id: UUID) -> None:
+        """Periodically save pad data to database every 5 minutes."""
+        try:
+            while pad_id in self._active_pads:
+                await asyncio.sleep(SAVE_INTERVAL)
+                
+                # Only save if pad is still active
+                if pad_id in self._active_pads:
+                    await self._save_pad(pad_id)
+                    
+        except asyncio.CancelledError:
+            print(f"Periodic save task for pad {pad_id} was cancelled")
+        except Exception as e:
+            print(f"Error in periodic save for pad {pad_id}: {e}")
+    
+    async def _save_pad(self, pad_id: UUID) -> bool:
+        """Save pad data using the Pad domain class."""
+        try:
+            # Import here to avoid circular imports
+            from database.database import async_session
+            from domain.pad import Pad
+            
+            # Create database session and save using Pad domain
+            async with async_session() as session:
+                # Get the pad from database (this will also check cache first)
+                pad = await Pad.get_by_id(session, pad_id)
+                
+                if not pad:
+                    print(f"Pad {pad_id} not found in database, skipping save")
+                    return False
+                
+                # Use the domain save method which will save latest data and update cache
+                await pad.save(session)
+                print(f"Successfully saved pad {pad_id} to database via domain class")
+                return True
+                
+        except Exception as e:
+            print(f"Error saving pad {pad_id} to database via domain: {e}")
+            return False
