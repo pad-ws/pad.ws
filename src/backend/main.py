@@ -28,6 +28,7 @@ from routers.ws_router import ws_router
 from database.database import get_session
 from database.models.user_model import UserStore
 from domain.pad import Pad
+from workers.canvas_worker import CanvasWorker
 
 # Initialize PostHog if API key is available
 if POSTHOG_API_KEY:
@@ -35,8 +36,9 @@ if POSTHOG_API_KEY:
     posthog.host = POSTHOG_HOST
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-
+async def lifespan(app: FastAPI):
+    """Manage the lifecycle of the application and its services."""
+    
     if PAD_DEV_MODE:
         print("Starting in dev mode")
 
@@ -49,10 +51,14 @@ async def lifespan(_: FastAPI):
     await redis.ping()
     print("Redis connection established successfully")
     
+    # Initialize the canvas worker
+    canvas_worker = await CanvasWorker.get_instance()
+    print("Canvas worker started successfully")
     
     yield
     
-    # Clean up connections when shutting down
+    # Shutdown
+    await CanvasWorker.shutdown_instance()
     await redis.close()
     await engine.dispose()
 
@@ -120,6 +126,9 @@ async def read_pad(
             print("No access to pad")
             return await serve_index_html(request)
             
+        # Worker assignment is now handled automatically in Pad.get_by_id()
+        print(f"Pad {pad_id} accessed by user {user.id}, worker: {pad.worker_id[:8] if pad.worker_id else 'None'}")
+            
         # Add pad to user's open pads if not already there
         user_store = await UserStore.get_by_id(session, user.id)
         if user_store:
@@ -142,8 +151,6 @@ async def read_pad(
 @app.get("/")
 async def read_root(request: Request, auth: Optional[UserSession] = Depends(optional_auth)):
     return await serve_index_html(request)
-
-
 
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(users_router, prefix="/api/users")

@@ -129,41 +129,9 @@ async def _handle_received_data(raw_data: str, pad_id: UUID, user: UserSession,
             data=client_message_dict.get("data")
         )
 
-        if processed_message.type != "pointer_update":
-            print(f"[WS] {processed_message.timestamp.strftime('%H:%M:%S')} - Type: {processed_message.type} from User: {processed_message.user_id[:5]} Conn: [{processed_message.connection_id[:5]}] on Pad: ({processed_message.pad_id[:5]})")
-
-        # Handle specific follow/unfollow requests by transforming them into broadcastable events
-        if processed_message.type == 'user_follow_request':
-            user_to_follow_id = processed_message.data.get('userToFollowId') if isinstance(processed_message.data, dict) else None
-            if user_to_follow_id:
-                follow_event = WebSocketMessage(
-                    type='user_started_following',
-                    pad_id=str(pad_id),
-                    user_id=str(user.id),  # The user who initiated the follow (the follower)
-                    connection_id=connection_id,
-                    timestamp=datetime.now(timezone.utc),
-                    data={'followerId': str(user.id), 'followedUserId': user_to_follow_id}
-                )
-                await publish_event_to_redis(redis_client, stream_key, follow_event)
-            # Do not publish the original 'user_follow_request' itself
-        elif processed_message.type == 'user_unfollow_request':
-            user_to_unfollow_id = processed_message.data.get('userToUnfollowId') if isinstance(processed_message.data, dict) else None
-            if user_to_unfollow_id:
-                unfollow_event = WebSocketMessage(
-                    type='user_stopped_following',
-                    pad_id=str(pad_id),
-                    user_id=str(user.id),  # The user who initiated the unfollow
-                    connection_id=connection_id,
-                    timestamp=datetime.now(timezone.utc),
-                    data={'unfollowerId': str(user.id), 'unfollowedUserId': user_to_unfollow_id}
-                )
-                await publish_event_to_redis(redis_client, stream_key, unfollow_event)
-            # Do not publish the original 'user_unfollow_request' itself
-        elif processed_message.type == 'pointer_update':
-            # Use pub/sub for pointer updates instead of Redis streams
+        if processed_message.type == 'pointer_update':
             await publish_pointer_update(redis_client, pad_id, processed_message)
         else:
-            # For all other message types, publish them as they are
             await publish_event_to_redis(redis_client, stream_key, processed_message)
             
     except json.JSONDecodeError:

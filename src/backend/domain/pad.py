@@ -34,6 +34,7 @@ class Pad:
         data: Dict[str, Any] = None,
         sharing_policy: str = "private",
         whitelist: List[UUID] = None,
+        worker_id: Optional[str] = None,
     ):
         self.id = id
         self.owner_id = owner_id
@@ -45,6 +46,7 @@ class Pad:
         self.data = data or {}
         self.sharing_policy = sharing_policy or "private"
         self.whitelist = whitelist or []
+        self.worker_id = worker_id  # Cache-only field, not persisted to database
 
     @classmethod
     async def create(
@@ -77,6 +79,7 @@ class Pad:
         redis = await RedisClient.get_instance()
         pad = cls.from_store(store, redis)
         
+        await pad.ensure_worker()
         await pad.cache()
             
         return pad
@@ -105,6 +108,8 @@ class Pad:
             sharing_policy = cached_data.get('sharing_policy', 'private')
             whitelist_str = cached_data.get('whitelist', '[]')
             whitelist = [UUID(uid) for uid in json.loads(whitelist_str)] if whitelist_str else []
+            # Get worker_id from cache (cache-only field)
+            worker_id = cached_data.get('worker_id', None)
             
             # Create a minimal PadStore instance
             store = PadStore(
@@ -128,7 +133,8 @@ class Pad:
                 store=store,
                 redis=redis,
                 sharing_policy=sharing_policy,
-                whitelist=whitelist
+                whitelist=whitelist,
+                worker_id=worker_id
             )
         except (json.JSONDecodeError, KeyError, ValueError, RedisError) as e:
             return None
@@ -144,12 +150,14 @@ class Pad:
         # Try to get from cache first
         pad = await cls.from_redis(redis, pad_id)
         if pad:
+            await pad.ensure_worker()
             return pad
             
         # Fall back to database
         store = await PadStore.get_by_id(session, pad_id)
         if store:
             pad = cls.from_store(store, redis)
+            await pad.ensure_worker()
             await pad.cache()
             return pad
         return None
@@ -199,6 +207,8 @@ class Pad:
 
     async def delete(self, session: AsyncSession) -> bool:
         """Delete the pad from both database and cache"""
+        await self.release_worker()
+        
         success = await self._store.delete(session)
         if success:
             await self.invalidate_cache()
@@ -222,7 +232,8 @@ class Pad:
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
             'sharing_policy': self.sharing_policy,
-            'whitelist': json.dumps([str(uid) for uid in self.whitelist]) if self.whitelist else '[]'
+            'whitelist': json.dumps([str(uid) for uid in self.whitelist]) if self.whitelist else '[]',
+            'worker_id': self.worker_id or ''  # Cache-only field
         }
         try:
             async with self._redis.pipeline() as pipe:
@@ -289,6 +300,46 @@ class Pad:
             return user_id in self.whitelist
         return False
 
+    async def ensure_worker(self) -> bool:
+        """Ensure a worker is assigned to this pad and processing updates"""
+        from workers.canvas_worker import CanvasWorker
+        
+        # If we already have a worker assigned, check if it's still active
+        if self.worker_id and self.worker_id.strip():
+            # TODO: Add worker health check if needed
+            return True
+            
+        # Get the canvas worker instance and assign it to this pad
+        canvas_worker = await CanvasWorker.get_instance()
+        success = await canvas_worker.start_processing_pad(self.id)
+        
+        if success:
+            self.worker_id = canvas_worker.worker_id
+            # Update cache with new worker assignment
+            await self.cache()
+            print(f"Assigned worker {self.worker_id[:8]} to pad {self.id}")
+            return True
+        else:
+            print(f"Failed to assign worker to pad {self.id}")
+            return False
+
+    async def assign_worker(self, worker_id: str) -> None:
+        """Assign a specific worker to this pad (cache-only)"""
+        self.worker_id = worker_id
+        await self.cache()
+
+    async def release_worker(self) -> None:
+        """Release the worker from this pad"""
+        if self.worker_id:
+            from workers.canvas_worker import CanvasWorker
+            canvas_worker = await CanvasWorker.get_instance()
+            await canvas_worker.stop_processing_pad(self.id)
+            
+            old_worker_id = self.worker_id
+            self.worker_id = None
+            await self.cache()
+            print(f"Released worker {old_worker_id[:8]} from pad {self.id}")
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation"""
         return {
@@ -299,10 +350,7 @@ class Pad:
             "sharing_policy": self.sharing_policy,
             "whitelist": [str(uid) for uid in self.whitelist],
             "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
+            "updated_at": self.updated_at.isoformat(),
+            "worker_id": self.worker_id if self.worker_id else None
         }
-
-
-
-
     
