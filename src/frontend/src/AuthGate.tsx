@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useAppConfig } from "./hooks/useAppConfig"; // Import useAppConfig
+import { useAuthStatus } from "./hooks/useAuthStatus";
 
 /**
  * If unauthenticated, it shows the AuthModal as an overlay, but still renders the app behind it.
@@ -15,11 +16,10 @@ export default function AuthGate() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const { config, isLoadingConfig, configError } = useAppConfig(); // Use the hook
-
-  const isAuthenticated = false; //TODO
+  const { isAuthenticated, isLoading: isLoadingAuth } = useAuthStatus();
 
   useEffect(() => {
-    if (isAuthenticated && !coderAuthDone && config && !isLoadingConfig && !configError) {
+    if (isAuthenticated && !isLoadingAuth && !coderAuthDone && config && !isLoadingConfig && !configError) {
       const setupIframe = async () => {
         try {
           if (!config.coderUrl) {
@@ -67,7 +67,7 @@ export default function AuthGate() {
       setCoderAuthDone(true); // Mark as done to prevent retries if config fails
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, coderAuthDone, config, isLoadingConfig, configError]);
+  }, [isAuthenticated, isLoadingAuth, coderAuthDone, config, isLoadingConfig, configError]);
 
   return null;
 }
