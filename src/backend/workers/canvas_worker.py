@@ -492,7 +492,6 @@ class CanvasWorker:
                 
                 # Use the domain save method which will save latest data and update cache
                 await pad.save(session)
-                print(f"Successfully saved pad {pad_id} to database via domain class")
                 return True
                 
         except Exception as e:
