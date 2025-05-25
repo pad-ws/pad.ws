@@ -22,7 +22,7 @@
   }
   
   &--starting {
-    background-color: #3498db; // Blue for starting
+    background-color: #e67e22; // Orange for starting, pending, loading
   }
   
   &--stopping {
@@ -33,9 +33,7 @@
     background-color: #e74c3c; // Red for stopped
   }
   
-  &--loading {
-    background-color: #9b59b6; // Purple for loading
-  }
+  // &--loading style removed as it will use 'starting' modifier
   
   &--unauthenticated {
     background-color: #34495e; // Dark blue for unauthenticated
