@@ -410,55 +410,6 @@ class CanvasWorker:
             
         return sorted(elements, key=get_sort_key)
     
-    async def flush_pad_data(self, pad_id: UUID) -> int:
-        """
-        Manually flush any remaining unprocessed messages from the Redis stream for a pad.
-        Only processes messages that haven't been processed by this worker session.
-        Returns the number of messages processed.
-        """
-        stream_key = f"pad:stream:{pad_id}"
-        processed_count = 0
-        
-        try:
-            # Get the last processed message ID from memory
-            last_id = self._last_processed_ids.get(pad_id)
-            
-            if not last_id:
-                # If no messages were processed by this worker, don't flush anything
-                # (avoids processing messages that might have been handled by other workers)
-                print(f"No messages processed by this worker for pad {pad_id}, skipping flush")
-                return 0
-            
-            print(f"Flushing remaining messages for pad {pad_id} from: {last_id}")
-            
-            while True:
-                streams = await self._redis.xread({stream_key: last_id}, count=100, block=100)
-                
-                if not streams:
-                    break
-                    
-                stream_name, stream_messages = streams[0]
-                
-                if not stream_messages:
-                    break
-                
-                for message_id, message_data in stream_messages:
-                    try:
-                        await self._process_message(pad_id, message_id, message_data)
-                        processed_count += 1
-                        last_id = message_id.decode() if isinstance(message_id, bytes) else message_id
-                        
-                        # Update the in-memory tracking
-                        self._last_processed_ids[pad_id] = last_id
-                    except Exception as e:
-                        print(f"Error processing message during flush for pad {pad_id}: {e}")
-                        
-        except Exception as e:
-            print(f"Error during flush for pad {pad_id}: {e}")
-            
-        print(f"Flushed {processed_count} remaining messages for pad {pad_id}")
-        return processed_count
-    
     async def _periodic_save_to_db(self, pad_id: UUID) -> None:
         """Periodically save pad data to database every 5 minutes."""
         try:

@@ -1,17 +1,18 @@
 import jwt
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 from uuid import UUID
 import os
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from fastapi import Request, HTTPException
+from fastapi import Request, HTTPException, Depends
 
 from cache import RedisClient
 from domain.session import Session
 from domain.user import User
+from domain.pad import Pad
 from coder import CoderAPI
-from database.database import async_session
+from database.database import async_session, get_session
 
 # oidc_config for session creation and user sessions
 oidc_config = {
@@ -53,15 +54,8 @@ class UserSession:
             async def ensure_user():
                 async with async_session() as session:
                     await User.ensure_exists(session, self.token_data)
+            asyncio.create_task(ensure_user())
             
-            # Run the async function and wait for it to complete
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # If we're in an async context, create a task
-                asyncio.create_task(ensure_user())
-            else:
-                # If we're in a sync context, run it directly
-                loop.run_until_complete(ensure_user())
 
         except jwt.InvalidTokenError as e:
             # Log the error and raise an appropriate exception
@@ -185,3 +179,47 @@ def get_coder_api():
     Dependency that provides a CoderAPI instance.
     """
     return CoderAPI()
+
+class PadAccess:
+    """
+    Dependency for handling pad access control.
+    Usage:
+    - require_pad_access = PadAccess()  # For requiring any valid access
+    - require_pad_owner = PadAccess(require_owner=True)  # For owner-only operations
+    """
+    def __init__(self, require_owner: bool = False):
+        self.require_owner = require_owner
+
+    async def __call__(
+        self,
+        pad_id: UUID,
+        user: UserSession = Depends(require_auth),
+        session: AsyncSession = Depends(get_session)
+    ) -> Tuple[Pad, UserSession]:
+        # Get the pad
+        pad = await Pad.get_by_id(session, pad_id)
+        if not pad:
+            raise HTTPException(
+                status_code=404,
+                detail="Pad not found"
+            )
+
+        # Check access permissions
+        if not pad.can_access(user.id):
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized to access this pad"
+            )
+
+        # Check owner requirement if specified
+        if self.require_owner and pad.owner_id != user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the pad owner can perform this operation"
+            )
+
+        return pad, user
+
+# Create dependency instances for pad access
+require_pad_access = PadAccess()
+require_pad_owner = PadAccess(require_owner=True)
