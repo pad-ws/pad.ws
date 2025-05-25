@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidraw/element/types';
 import type { AppState } from '@atyrode/excalidraw/types';
 import './Terminal.scss';
+import { useWorkspace } from '../hooks/useWorkspace';
 
 interface TerminalProps {
   element: NonDeleted<ExcalidrawEmbeddableElement>;
@@ -24,13 +25,7 @@ export const Terminal: React.FC<TerminalProps> = ({
   excalidrawAPI
 }) => {
 
-  const workspaceState = { //TODO
-    status: 'running',
-    username: 'pad.ws',
-    name: 'pad.ws',
-    base_url: 'https://pad.ws',
-    agent: 'pad.ws'
-  }
+  const { workspaceState } = useWorkspace();
   
   const [terminalId, setTerminalId] = useState<string | null>(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
@@ -52,13 +47,14 @@ export const Terminal: React.FC<TerminalProps> = ({
     if (!element || !excalidrawAPI || !workspaceState || !terminalId) return;
     
     try {
-      // Get all elements from the scene
-      const elements = excalidrawAPI.getSceneElements();
+      // Get all scene elements, including deleted ones
+      const allElements = excalidrawAPI.getSceneElementsIncludingDeleted();
       
-      // Find and update the element
-      const updatedElements = elements.map(el => {
+      let elementFound = false;
+      // Map over all elements to find and update the target terminal element
+      const updatedElements = allElements.map((el: ExcalidrawEmbeddableElement) => {
         if (el.id === element.id) {
-          // Create a new customData object with the terminal connection info
+          elementFound = true;
           const connectionInfo: TerminalConnectionInfo = {
             terminalId,
             baseUrl: workspaceState.base_url,
@@ -67,12 +63,12 @@ export const Terminal: React.FC<TerminalProps> = ({
             agent: workspaceState.agent
           };
           
-          const customData = {
+          const newCustomData = {
             ...(el.customData || {}),
             terminalConnectionInfo: connectionInfo
           };
-          
-          return { ...el, customData };
+          // Return a new object for the updated element, preserving all its other properties
+          return { ...el, customData: newCustomData };
         }
         return el;
       });

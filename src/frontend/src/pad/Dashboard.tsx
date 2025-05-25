@@ -4,6 +4,7 @@ import type { AppState } from '@atyrode/excalidraw/types';
 import StateIndicator from './StateIndicator';
 import ControlButton from './buttons/ControlButton';
 import { ActionButtonGrid } from './buttons';
+import { useWorkspace } from '../hooks/useWorkspace';
 import './Dashboard.scss';
 
 // Direct import from types
@@ -32,15 +33,42 @@ export const Dashboard: React.FC<DashboardProps> = ({
   excalidrawAPI
 }) => {
 
-  const workspaceState = { //TODO
-    status: 'running',
-    username: 'pad.ws',
-    name: 'pad.ws',
-    base_url: 'https://pad.ws',
-    agent: 'pad.ws',
-    id: 'pad.ws',
-    error: null
-  }
+  const { workspaceState, isLoadingState, stateError } = useWorkspace();
+
+  const getWelcomeMessage = () => {
+    if (isLoadingState) {
+      return 'Loading workspace status...';
+    }
+    if (stateError) {
+      return 'Error loading workspace status. Please try again.';
+    }
+    if (!workspaceState) {
+      return 'Loading workspace status...'; // Or a more specific "Unknown state"
+    }
+
+    switch (workspaceState.state) {
+      case 'pending':
+        return 'Your workspace is pending...';
+      case 'starting':
+        return 'Your workspace is starting...';
+      case 'stopping':
+        return 'Your workspace is stopping...';
+      case 'stopped':
+        return 'Your workspace is stopped. Start it again to continue.';
+      case 'failed':
+        return 'A workspace error occurred. Please check logs or try restarting.';
+      case 'canceling':
+        return 'Your workspace is being canceled...';
+      case 'canceled':
+        return 'Your workspace has been canceled.';
+      case 'deleting':
+        return 'Your workspace is being deleted...';
+      case 'deleted':
+        return 'Your workspace has been deleted.';
+      default:
+        return `Workspace status: ${workspaceState.state}`;
+    }
+  };
 
   const buttonConfigs: ActionButtonConfig[] = [
     // First row: Terminal buttons
@@ -139,7 +167,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
       {showBottomSection && (
         <div className="dashboard__bottom-section">
-          {workspaceState?.status === 'running' ? (
+          {workspaceState?.state === 'running' ? (
             <ActionButtonGrid
               buttonConfigs={buttonConfigs}
               element={element}
@@ -148,11 +176,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           ) : (
             <div className="dashboard__welcome-message">
               <h1 className="dashboard__welcome-message__title">
-                {workspaceState?.status === 'starting' ? 'Your workspace is starting...' :
-                  workspaceState?.status === 'stopping' ? 'Your workspace is stopping...' :
-                    workspaceState?.status === 'stopped' ? 'Your workspace is stopped, start it again to continue' :
-                      workspaceState?.status === 'error' ? 'Workspace error occurred' :
-                        'Loading workspace status...'}
+                {getWelcomeMessage()}
               </h1>
             </div>
           )}
