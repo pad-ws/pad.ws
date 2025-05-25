@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState } from "react";
 import { Excalidraw, MainMenu, Footer } from "@atyrode/excalidraw";
-import type { ExcalidrawImperativeAPI, AppState, Collaborator as ExcalidrawCollaborator } from "@atyrode/excalidraw/types"; // Added Collaborator
-import type { ExcalidrawEmbeddableElement, NonDeleted, NonDeletedExcalidrawElement } from "@atyrode/excalidraw/element/types";
+import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
+import type { ExcalidrawEmbeddableElement, NonDeleted } from "@atyrode/excalidraw/element/types";
 
 // Hooks
 import { useAuthStatus } from "./hooks/useAuthStatus";
@@ -18,19 +18,10 @@ import Collab from './lib/collab/Collab'; // Updated import path
 // import { initializePostHog } from "./lib/posthog";
 import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRenderer';
 import Tabs from "./ui/Tabs";
-
-export const defaultInitialData = {
-  elements: [],
-  appState: {
-    gridModeEnabled: true,
-    gridSize: 20,
-    gridStep: 5,
-  },
-  files: {},
-};
+import { INITIAL_APP_DATA, HIDDEN_UI_ELEMENTS } from "./constants";
 
 export default function App() {
-  const { isAuthenticated, isLoading: isLoadingAuth, user } = useAuthStatus(); // Changed userProfile to user
+  const { isAuthenticated, isLoading: isLoadingAuth, user } = useAuthStatus();
 
   const {
     tabs,
@@ -71,12 +62,13 @@ export default function App() {
     <>
       <Excalidraw
         excalidrawAPI={(api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api)}
-        theme="dark"
-        initialData={defaultInitialData}
-        name="Pad.ws"
+        initialData={INITIAL_APP_DATA}
+        UIOptions={{
+          hiddenElements: HIDDEN_UI_ELEMENTS,
+        }}
         onScrollChange={handleOnScrollChange}
         validateEmbeddable={true}
-        renderEmbeddable={(element: NonDeleted<ExcalidrawEmbeddableElement>, appState: AppState) => renderCustomEmbeddable(element, appState, excalidrawAPI)}
+        renderEmbeddable={(element: NonDeleted<ExcalidrawEmbeddableElement>, appState: AppState, excalidrawAPI: ExcalidrawImperativeAPI) => renderCustomEmbeddable(element, appState, excalidrawAPI)}
         renderTopRightUI={() => (
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <DiscordButton />

@@ -1,0 +1,81 @@
+/* Excalidraw overrides */
+.excalidraw {
+
+    /* Dropdown "main" menu's titles */
+    .dropdown-menu-group-title {
+        font-weight: 1000 !important;
+        font-size: 15px !important;
+        margin-left: 11px !important;
+    }
+
+    .Modal {
+        
+        /* When a modal is opening */
+        &__content {
+            animation: Modal__content_fade-in 0.3s ease-out forwards !important; /* Fades in the modal */
+        }
+
+        /* When a modal is open */
+        &__background {
+            background-color: rgba(0, 0, 0, 0.2); /* Fades out the background */
+            backdrop-filter: blur(1px); /* Blurs the background */
+        }
+
+    }
+
+    /* Excalidraw embeddables container */
+    &__embeddable-container { 
+        &__inner { /* 2nd layer */
+            border-color: $grey-700 !important; /* Border color */
+            overflow: visible !important; /* Allows display content on the border (title bar, etc) */
+        }
+    }
+
+    /* Excalidraw embeddable (inside the container) */
+    &__embeddable {
+        &__outer { /* 3rd layer */
+            padding: 0px !important; /* Removes the default padding */
+            pointer-events: var(--embeddable-pointer-events, all) !important; /* Allows conditional interaction with the embeddable */
+        }
+    }
+}
+
+/* Overriding Excalidraw's default (light theme) colors */
+.excalidraw {
+
+    --select-highlight-color: #{$accent-lighter} !important; /* Context menu highlight color */
+    --color-on-primary-container: #{$black} !important;
+    --color-surface-primary-container: #{$accent-light} !important;
+    --color-selection: #{$accent-lighter} !important;
+    --button-hover-bg: #{$accent-faded-light} !important;
+
+    .dropdown-menu-button {
+        &:hover {
+            background-color: $accent-faded-light !important;
+        }
+    }
+
+    .dropdown-menu-group-title {
+        color: $accent-lighter !important;
+    }
+}
+
+/* Overriding Excalidraw's default (dark theme) colors */
+.excalidraw.theme--dark {
+
+    --select-highlight-color: #{$accent-darker} !important; /* Context menu highlight color */
+    --color-on-primary-container: #{$white} !important;
+    --color-surface-primary-container: #{$accent} !important;
+    --color-selection: #{$accent-darker} !important;
+    --button-hover-bg: #{$accent-faded-dark} !important;
+
+    .dropdown-menu-button {
+        &:hover {
+            background-color: $accent-faded-dark !important;
+        }
+    }
+    .dropdown-menu-group-title {
+        color: $accent-darker !important;
+    }
+}
+  

@@ -3,7 +3,8 @@ import { useEffect } from 'react';
 import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
 import type { ExcalidrawElement } from "@atyrode/excalidraw/element/types";
 import { normalizeCanvasData } from '../lib/canvas';
-import { defaultInitialData } from '../App';
+import { INITIAL_APP_DATA } from '../constants';
+
 interface PadData {
     elements?: readonly ExcalidrawElement[];
     appState?: Pick<AppState, keyof AppState>;
@@ -42,7 +43,7 @@ export const usePad = (padId: string | null, excalidrawAPI: ExcalidrawImperative
     useEffect(() => {
         if (isTemporaryPad && excalidrawAPI) {
             console.debug(`[pad.ws] Initializing new temporary pad ${padId}`);
-            excalidrawAPI.updateScene(defaultInitialData);
+            excalidrawAPI.updateScene(INITIAL_APP_DATA);
             return; 
         }
 
@@ -55,7 +56,7 @@ export const usePad = (padId: string | null, excalidrawAPI: ExcalidrawImperative
 
     if (isTemporaryPad) {
         return {
-            padData: defaultInitialData,
+            padData: INITIAL_APP_DATA,
             isLoading: false,
             error: null,
             isError: false,
