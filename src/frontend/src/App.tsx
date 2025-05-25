@@ -99,19 +99,21 @@ export default function App() {
 
         {excalidrawAPI && (
           <Footer>
-            <Tabs
-              excalidrawAPI={excalidrawAPI}
-              tabs={tabs}
-              selectedTabId={selectedTabId}
-              isLoading={isLoadingTabs}
-              isCreatingPad={isCreatingPad}
-              createNewPadAsync={createNewPadAsync}
-              renamePad={renamePad}
-              deletePad={deletePad}
-              leaveSharedPad={leaveSharedPad}
-              updateSharingPolicy={updateSharingPolicy}
-              selectTab={selectTab}
-            />
+            {isAuthenticated && (
+              <Tabs
+                excalidrawAPI={excalidrawAPI}
+                tabs={tabs}
+                selectedTabId={selectedTabId}
+                isLoading={isLoadingTabs}
+                isCreatingPad={isCreatingPad}
+                createNewPadAsync={createNewPadAsync}
+                renamePad={renamePad}
+                deletePad={deletePad}
+                leaveSharedPad={leaveSharedPad}
+                updateSharingPolicy={updateSharingPolicy}
+                selectTab={selectTab}
+              />
+            )}
           </Footer>
         )}
         {excalidrawAPI && user && (
