@@ -35,7 +35,7 @@ OIDC_REALM = os.getenv('OIDC_REALM')
 OIDC_REDIRECT_URI = os.getenv('REDIRECT_URI')
 
 default_pad = {}
-with open("templates/dev.json", 'r') as f:
+with open("templates/default.json", 'r') as f:
     default_pad = json.load(f)
 
 # ===== Coder API Configuration =====
