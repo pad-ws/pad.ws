@@ -3,6 +3,9 @@ import { Dialog } from "@atyrode/excalidraw";
 import md5 from 'crypto-js/md5';
 import "./AccountDialog.scss";
 
+// Hooks
+import { useAuthStatus } from "../hooks/useAuthStatus";
+
 interface AccountDialogProps {
   excalidrawAPI?: any;
   onClose?: () => void;
@@ -19,26 +22,7 @@ const AccountDialog: React.FC<AccountDialogProps> = ({
 }) => {
   const [modalIsShown, setModalIsShown] = useState(true);
 
-/* export interface UserProfile {
-  id: string;
-  email: string;
-  username: string;
-  name: string;
-  given_name: string;
-  family_name: string;
-  email_verified: boolean;
-} */
-
-  const profile = { //TODO
-    id: '1234567890',
-    email: 'john.doe@example.com',
-    username: 'johndoe',
-    name: 'John Doe',
-    email_verified: true,
-  }
-
-  const isLoading = false; //TODO
-  const isError = false; //TODO
+  const { user: profile, isLoading, isError } = useAuthStatus();
 
   const handleClose = useCallback(() => {
     setModalIsShown(false);
@@ -74,9 +58,6 @@ const AccountDialog: React.FC<AccountDialogProps> = ({
           <div className="account-dialog__user-info">
             <h2 className="account-dialog__name">
               {profile.name || profile.username}
-              {profile.email_verified && (
-                <span className="account-dialog__verified">✓ Verified</span>
-              )}
             </h2>
             <p className="account-dialog__username">{profile.username}</p>
             <p className="account-dialog__user-id">{profile.id}</p>
