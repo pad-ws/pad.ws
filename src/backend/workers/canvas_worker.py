@@ -5,6 +5,9 @@ from typing import Dict, Any, List, Optional, Tuple, Set
 from uuid import UUID
 from datetime import datetime
 
+from database.database import async_session
+from domain.pad import Pad
+
 SAVE_INTERVAL = 300 # 5 minutes in seconds
 
 class CanvasWorker:
@@ -37,8 +40,8 @@ class CanvasWorker:
         self.worker_id = str(uuid.uuid4())
         self._active_pads: Set[UUID] = set()
         self._pad_tasks: Dict[UUID, asyncio.Task] = {}
-        self._last_processed_ids: Dict[UUID, str] = {}  # Track last processed message ID per pad
-        self._periodic_save_tasks: Dict[UUID, asyncio.Task] = {}  # Track periodic save tasks per pad
+        self._last_processed_ids: Dict[UUID, str] = {}
+        self._periodic_save_tasks: Dict[UUID, asyncio.Task] = {}
     
     async def initialize(self) -> None:
         """Initialize the worker with Redis connection."""
@@ -49,7 +52,6 @@ class CanvasWorker:
         """Stop the worker and all pad processing tasks."""
         print(f"Stopping Canvas worker {self.worker_id[:8]}")
         
-        # Stop all pad processing tasks gracefully
         for pad_id in list(self._active_pads):
             await self.stop_processing_pad(pad_id, graceful=True)
     
@@ -143,32 +145,26 @@ class CanvasWorker:
                     print(f"Processing task for pad {pad_id} was cancelled")
                     pass
             
-            # Remove from active pads
             self._active_pads.discard(pad_id)
         
         # Clean up task references
         self._pad_tasks.pop(pad_id, None)
         self._periodic_save_tasks.pop(pad_id, None)
         
-        # Clear the worker assignment in the pad
         await self._release_pad_worker(pad_id)
     
     async def _release_pad_worker(self, pad_id: UUID) -> None:
         """Release the worker assignment for a pad."""
         try:
-            # Import here to avoid circular imports
-            from domain.pad import Pad
-            from cache import RedisClient
-            
-            # Get the pad from cache and clear the worker assignment
-            redis = await RedisClient.get_instance()
-            pad = await Pad.from_redis(redis, pad_id)
-            
-            if pad and pad.worker_id == self.worker_id:
-                # Only clear if this worker is actually assigned to the pad
-                pad.worker_id = None
-                await pad.cache()
-                print(f"Released worker assignment for pad {pad_id}")
+            # Get the pad using proper session management and clear the worker assignment
+            async with async_session() as session:
+                pad = await Pad.get_by_id(session, pad_id)
+                
+                if pad and pad.worker_id == self.worker_id:
+                    # Only clear if this worker is actually assigned to the pad
+                    pad.worker_id = None
+                    await pad.cache()
+                    print(f"Released worker assignment for pad {pad_id}")
             
             # Clean up the in-memory tracking
             self._last_processed_ids.pop(pad_id, None)
@@ -263,6 +259,12 @@ class CanvasWorker:
                 pad_id=pad_id,
                 data=message_data
             )
+        elif message_type == 'appstate_update' and message_data:
+            await self.handle_appstate_update(
+                pad_id=pad_id,
+                user_id=data.get('user_id'),
+                data=message_data
+            )
     
     async def handle_scene_update(
         self, 
@@ -270,59 +272,66 @@ class CanvasWorker:
         data: Dict[str, Any]
     ) -> None:
         """Handle a scene_update message from a client."""
-        # Load current pad data from Redis
-        pad_data = await self._get_pad_data(pad_id)
-        
-        # Get elements from the message
-        client_elements = data.get("elements", [])
-        
-        # Get files from the message
-        client_files = data.get("files", {})
-        
-        changes_made = False
-        
-        # Update files if needed
-        if client_files and client_files != pad_data.get("files", {}):
-            pad_data["files"] = client_files
-            changes_made = True
-        
-        # Reconcile elements if needed
-        if client_elements:
-            current_elements = pad_data.get("elements", [])
-            reconciled_elements, elements_changed = self._reconcile_elements(current_elements, client_elements)
-            if elements_changed:
-                pad_data["elements"] = reconciled_elements
-                changes_made = True
+        try:
+            async with async_session() as session:
+                pad = await Pad.get_by_id(session, pad_id)
+                if not pad:
+                    print(f"Pad {pad_id} not found for scene update")
+                    return
                 
-        # If changes were made, save and broadcast
-        if changes_made:
-            await self._save_pad_data(pad_id, pad_data)
-    
-    async def _get_pad_data(self, pad_id: UUID) -> Dict[str, Any]:
-        """Get pad data from Redis cache."""
-        cache_key = f"pad:{pad_id}"
-        
-        try:
-            cached_data = await self._redis.hgetall(cache_key)
-            if cached_data and 'data' in cached_data:
-                return json.loads(cached_data['data'])
+                client_elements = data.get("elements", [])
+                client_files = data.get("files", {})
+                
+                changes_made = False
+                
+                # Update files if needed
+                if client_files and client_files != pad.data.get("files", {}):
+                    pad.data["files"] = client_files
+                    changes_made = True
+                
+                # Reconcile elements if needed
+                if client_elements:
+                    current_elements = pad.data.get("elements", [])
+                    reconciled_elements, elements_changed = self._reconcile_elements(current_elements, client_elements)
+                    if elements_changed:
+                        pad.data["elements"] = reconciled_elements
+                        changes_made = True
+                        
+                if changes_made:
+                    await pad.cache()
+                
         except Exception as e:
-            print(f"Error loading pad data from Redis: {e}")
-        
-        # Return empty pad data if not found
-        return {"elements": [], "files": {}}
-    
-    async def _save_pad_data(self, pad_id: UUID, pad_data: Dict[str, Any]) -> None:
-        """Save pad data to Redis cache."""
-        cache_key = f"pad:{pad_id}"
-        
+            print(f"Error handling scene update for pad {pad_id}: {e}")
+
+    async def handle_appstate_update(
+        self, 
+        pad_id: UUID,
+        user_id: str,
+        data: Dict[str, Any]
+    ) -> None:
+        """Handle an appstate_update message from a client. Last writer wins for entire appState."""
         try:
-            # Update just the data field in the hash
-            await self._redis.hset(cache_key, "data", json.dumps(pad_data))
-            # Update the updated_at timestamp
-            await self._redis.hset(cache_key, "updated_at", datetime.now().isoformat())
+            new_appstate = data.get("appState", {})
+            
+            if not new_appstate:
+                return
+            
+            async with async_session() as session:
+                pad = await Pad.get_by_id(session, pad_id)
+                if not pad:
+                    print(f"Pad {pad_id} not found for appstate update")
+                    return
+                    
+                # Update the user's appState (last writer wins - replace entirely)
+                if "appState" not in pad.data:
+                    pad.data["appState"] = {}
+                    
+                pad.data["appState"][user_id] = new_appstate
+                
+                await pad.cache()
+            
         except Exception as e:
-            print(f"Error saving pad data to Redis: {e}")
+            print(f"Error handling appstate update for pad {pad_id}, user {user_id}: {e}")
     
     def _reconcile_elements(
         self, 
@@ -428,10 +437,6 @@ class CanvasWorker:
     async def _save_pad(self, pad_id: UUID) -> bool:
         """Save pad data using the Pad domain class."""
         try:
-            # Import here to avoid circular imports
-            from database.database import async_session
-            from domain.pad import Pad
-            
             # Create database session and save using Pad domain
             async with async_session() as session:
                 # Get the pad from database (this will also check cache first)
@@ -441,7 +446,6 @@ class CanvasWorker:
                     print(f"Pad {pad_id} not found in database, skipping save")
                     return False
                 
-                # Use the domain save method which will save latest data and update cache
                 await pad.save(session)
                 return True
                 
