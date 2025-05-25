@@ -6,13 +6,14 @@ import type { ExcalidrawEmbeddableElement, NonDeleted } from "@atyrode/excalidra
 // Hooks
 import { useAuthStatus } from "./hooks/useAuthStatus";
 import { usePadTabs } from "./hooks/usePadTabs";
+import { useCallbackRefState } from "./hooks/useCallbackRefState";
 
 // Components
 import DiscordButton from './ui/DiscordButton';
 import { MainMenuConfig } from './ui/MainMenu';
 import AuthDialog from './ui/AuthDialog';
 import SettingsDialog from './ui/SettingsDialog';
-import Collab from './lib/collab/Collab'; // Updated import path
+import Collab from './lib/collab/Collab';
 
 // Utils
 // import { initializePostHog } from "./lib/posthog";
@@ -37,7 +38,8 @@ export default function App() {
   } = usePadTabs();
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
+  const [excalidrawAPI, excalidrawRefCallback] = useCallbackRefState<ExcalidrawImperativeAPI>();
+
 
   const handleCloseSettingsModal = () => {
     setShowSettingsModal(false);
@@ -61,9 +63,7 @@ export default function App() {
   return (
     <>
       <Excalidraw
-        excalidrawAPI={(api: ExcalidrawImperativeAPI) => {
-          setExcalidrawAPI(api);
-        }}
+        excalidrawAPI={excalidrawRefCallback}
         initialData={INITIAL_APP_DATA}
         UIOptions={{
           hiddenElements: HIDDEN_UI_ELEMENTS,
