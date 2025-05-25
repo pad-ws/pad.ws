@@ -61,14 +61,18 @@ export default function App() {
   return (
     <>
       <Excalidraw
-        excalidrawAPI={(api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api)}
+        excalidrawAPI={(api: ExcalidrawImperativeAPI) => {
+          setExcalidrawAPI(api);
+        }}
         initialData={INITIAL_APP_DATA}
         UIOptions={{
           hiddenElements: HIDDEN_UI_ELEMENTS,
         }}
         onScrollChange={handleOnScrollChange}
         validateEmbeddable={true}
-        renderEmbeddable={(element: NonDeleted<ExcalidrawEmbeddableElement>, appState: AppState, excalidrawAPI: ExcalidrawImperativeAPI) => renderCustomEmbeddable(element, appState, excalidrawAPI)}
+        renderEmbeddable={(element: NonDeleted<ExcalidrawEmbeddableElement>, appState: AppState) => {
+          return renderCustomEmbeddable(element, appState, excalidrawAPI);
+        }}
         renderTopRightUI={() => (
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <DiscordButton />

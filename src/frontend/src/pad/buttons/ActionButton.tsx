@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Braces, Settings, Plus, ExternalLink, Monitor } from 'lucide-react';
+import { useWorkspace, WorkspaceState } from '../../hooks/useWorkspace';
 import { ActionType, TargetType, CodeVariant, ActionButtonProps } from './types';
 import './ActionButton.scss';
 // import { capture } from '../../utils/posthog';
@@ -26,13 +27,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   settingsEnabled = true, // Default to enabled for backward compatibility
   backgroundColor // Custom background color
 }) => {
-  const workspaceState = { //TODO
-    status: 'running',
-    username: 'pad.ws',
-    name: 'pad.ws',
-    base_url: 'https://pad.ws',
-    agent: 'pad.ws'
-  }
+  const { workspaceState } = useWorkspace();
   
   // Parse settings from parent element's customData if available
   const parseElementSettings = (): { 
@@ -303,9 +298,9 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     }); */  //TODO
     
     if (selectedAction === 'embed') {
-      const excalidrawAPI = (window as any).excalidrawAPI;
+      // Use the excalidrawAPI prop passed to the component
       if (!excalidrawAPI) {
-        console.error('Excalidraw API not available');
+        console.error('Excalidraw API not available from props');
         return;
       }
       
