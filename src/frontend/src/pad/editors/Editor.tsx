@@ -224,7 +224,7 @@ const Editor: React.FC<EditorProps> = ({
     lastSavedLanguageRef.current = currentLanguage;
     
     // Get all elements from the scene
-    const elements = excalidrawAPI.getSceneElements();
+    const elements = excalidrawAPI.getSceneElementsIncludingDeleted();
     
     // Find and update the element
     const updatedElements = elements.map(el => {

@@ -68,7 +68,7 @@ export const useHtmlEditor = (
       }
       
       // Otherwise, create a new element as before
-      const elements = excalidrawAPI.getSceneElements();
+      const elements = excalidrawAPI.getSceneElementsIncludingDeleted();
       
       // Get the current editor content
       const currentContent = editorRef.current.getValue();

@@ -219,7 +219,7 @@ export class ExcalidrawElementFactory {
     excalidrawAPI: ExcalidrawImperativeAPI,
     scrollToView: boolean = true
   ): void {
-    const elements = excalidrawAPI.getSceneElements();
+    const elements = excalidrawAPI.getSceneElementsIncludingDeleted();
     
     excalidrawAPI.updateScene({
       elements: [...elements, element],

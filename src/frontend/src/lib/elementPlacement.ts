@@ -277,7 +277,7 @@ export function placeElement(
     targetPosition.y,
     element.width,
     element.height,
-    excalidrawAPI.getSceneElements(),
+    excalidrawAPI.getSceneElementsIncludingDeleted(),
     bufferPercentage
   );
 }

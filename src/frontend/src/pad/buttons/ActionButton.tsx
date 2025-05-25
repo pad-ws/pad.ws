@@ -118,7 +118,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
         currentSettingsRef.current = newSettings;
         
         // Get all elements from the scene
-        const elements = excalidrawAPI.getSceneElements();
+        const elements = excalidrawAPI.getSceneElementsIncludingDeleted();
         
         // Find and update the parent element
         const updatedElements = elements.map(el => {
