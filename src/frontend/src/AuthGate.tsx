@@ -20,6 +20,7 @@ export default function AuthGate() {
 
   useEffect(() => {
     if (isAuthenticated && !isLoadingAuth && !coderAuthDone && config && !isLoadingConfig && !configError) {
+      console.debug('[pad.ws] Priming Coder OIDC session');
       const setupIframe = async () => {
         try {
           if (!config.coderUrl) {
