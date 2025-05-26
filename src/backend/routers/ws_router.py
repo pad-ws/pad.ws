@@ -229,7 +229,7 @@ async def consume_redis_stream(redis_client: aioredis.Redis, stream_key: str,
                     # Create WebSocketMessage and send to client (if not from this connection)
                     message_to_send = WebSocketMessage(**redis_dict)
                     
-                    if message_to_send.connection_id != connection_id and websocket.client_state.CONNECTED:
+                    if message_to_send.connection_id != connection_id and websocket.client_state.CONNECTED and message_to_send.type != 'appstate_update':
                         await websocket.send_text(message_to_send.model_dump_json())
                 except Exception as e:
                     print(f"Error sending message from Redis: {e}")
