@@ -11,7 +11,7 @@ import { useLogout } from '../hooks/useLogout';
 import { useAuthStatus } from '../hooks/useAuthStatus';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/elementFactory';
 import "./MainMenu.scss";
-
+import { INITIAL_APP_DATA } from '../constants';
 // Function to generate gravatar URL
 const getGravatarUrl = (email: string, size = 32) => {
   const hash = md5(email.toLowerCase().trim()).toString();
@@ -188,11 +188,8 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
       }
     });
 
-    excalidrawAPI.updateScene({
-      appState: {},
-      elements: [],
-      files: [],
-    });
+    excalidrawAPI.updateScene(INITIAL_APP_DATA);
+    
   };
 
   return (
