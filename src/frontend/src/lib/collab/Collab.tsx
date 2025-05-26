@@ -62,7 +62,6 @@ interface CollabState {
 }
 
 const POINTER_MOVE_THROTTLE_MS = 20;
-const RELAY_VIEWPORT_BOUNDS_THROTTLE_MS = 50;
 
 // Constants for periodic full scene sync
 const ENABLE_PERIODIC_FULL_SYNC = false; // Set to false to disable periodic full sync
@@ -79,9 +78,6 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   private unsubExcalidrawPointerDown: (() => void) | null = null;
   private unsubExcalidrawPointerUp: (() => void) | null = null;
   private unsubExcalidrawSceneChange: (() => void) | null = null;
-  private unsubExcalidrawScrollChange: (() => void) | null = null;
-  private unsubExcalidrawUserFollow: (() => void) | null = null;
-  private throttledRelayViewportBounds: any;
   private lastBroadcastedSceneVersion: number = -1;
 
   props: any;
@@ -109,10 +105,6 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.throttledOnPointerMove = throttle((event: PointerEvent) => {
       this.handlePointerMove(event);
     }, POINTER_MOVE_THROTTLE_MS);
-
-    this.throttledRelayViewportBounds = throttle(() => {
-      this.relayViewportBounds();
-    }, RELAY_VIEWPORT_BOUNDS_THROTTLE_MS); // Throttle time 50ms, adjust as needed
 
     this.debouncedBroadcastAppState = debounce((appState: AppState) => {
       if (this.portal.isOpen() && this.props.isOnline) {
@@ -142,8 +134,6 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.updateExcalidrawCollaborators(); // Initial update for collaborators
     this.addPointerEventListeners();
     this.addSceneChangeListeners();
-    this.addScrollChangeListener();
-    this.addFollowListener();
 
     // Initialize lastBroadcastedSceneVersion
     if (this.props.excalidrawAPI) {
@@ -207,13 +197,8 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     if (this.throttledOnPointerMove && typeof this.throttledOnPointerMove.cancel === 'function') {
       this.throttledOnPointerMove.cancel();
     }
-    if (this.throttledRelayViewportBounds && typeof this.throttledRelayViewportBounds.cancel === 'function') {
-      this.throttledRelayViewportBounds.cancel();
-    }
     this.debouncedBroadcastAppState.cancel();
     this.removeSceneChangeListeners();
-    this.removeScrollChangeListener();
-    this.removeFollowListener();
     this.stopPeriodicFullSync(); // Stop periodic sync on unmount
   }
 
@@ -284,68 +269,6 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     const displayTool: 'laser' | 'pointer' = currentTool === 'laser' ? 'laser' : 'pointer';
     const pointerData: PointerData = { x: sceneCoords.x, y: sceneCoords.y, tool: displayTool };
     this.portal.broadcastMouseLocation(pointerData, appState.cursorButton || 'up');
-  };
-
-  /* Followers */
-  
-  private addFollowListener = () => {
-    if (!this.props.excalidrawAPI) return;
-    this.unsubExcalidrawUserFollow = this.props.excalidrawAPI.onUserFollow(
-      (payload) => {
-        const socketIdToFollow = payload.userToFollow.socketId;
-        const action = payload.action;
-        console.log(`[pad.ws] Request to ${action} socket id: ${socketIdToFollow}`);
-
-        if (action === 'FOLLOW' && socketIdToFollow && this.portal.isOpen()) {
-          this.portal.requestFollowUser(socketIdToFollow);
-        } else if (action === 'UNFOLLOW' && socketIdToFollow && this.portal.isOpen()) {
-          this.portal.requestUnfollowUser(socketIdToFollow);
-        }
-      }
-    );
-  };
-
-  private removeFollowListener = () => {
-    if (this.unsubExcalidrawUserFollow) {
-      this.unsubExcalidrawUserFollow();
-      this.unsubExcalidrawUserFollow = null;
-    }
-  };
-
-  private addScrollChangeListener = () => {
-    if (!this.props.excalidrawAPI) return;
-    this.unsubExcalidrawScrollChange = this.props.excalidrawAPI.onScrollChange(
-      this.throttledRelayViewportBounds
-    );
-  };
-
-  private removeScrollChangeListener = () => {
-    if (this.unsubExcalidrawScrollChange) {
-      this.unsubExcalidrawScrollChange();
-      this.unsubExcalidrawScrollChange = null;
-    }
-  };
-
-  private isBeingFollowed = (): boolean => {
-    // This is a placeholder. Actual implementation depends on how `followedBy` is managed.
-    // For Excalidraw, it's often `this.props.excalidrawAPI?.getAppState().followedBy.size > 0`
-    // You need to ensure `appState.followedBy` is populated correctly.
-    // For now, let's assume if there's a user to follow, someone might be following this client.
-    // This logic needs to be robust based on your app's state management for `followedBy`.
-    const appState = this.props.excalidrawAPI?.getAppState();
-    return !!(appState && appState.followedBy && appState.followedBy.size > 0);
-  };
-
-  private relayViewportBounds = () => {
-    if (!this.props.excalidrawAPI || !this.portal.isOpen() || !this.props.isOnline) {
-      return;
-    }
-    const appState = this.props.excalidrawAPI.getAppState();
-    
-    if (this.isBeingFollowed()) {
-      const bounds = getVisibleSceneBounds(appState);
-      this.portal.broadcastUserViewportUpdate(bounds);
-    }
   };
 
   /* Scene */
@@ -512,66 +435,6 @@ class Collab extends PureComponent<CollabProps, CollabState> {
           
           this.props.excalidrawAPI.updateScene({ elements: reconciled as ExcalidrawElementType[], commitToHistory: false });
           this.setState({ lastProcessedSceneVersion: getSceneVersion(reconciled) });
-        }
-        break;
-      }
-      case 'viewport_update': {
-        if (!messageData?.bounds || !this.props.excalidrawAPI) return;
-
-        const remoteBounds = messageData.bounds;
-        const currentAppState = this.props.excalidrawAPI.getAppState();
-        
-        // Ensure userToFollow and its id property exist
-        // Assuming senderId is the user_id of the one whose viewport is being sent
-        if (currentAppState.userToFollow && typeof currentAppState.userToFollow.id === 'string' && currentAppState.userToFollow.id === senderId) {
-          const newAppStateResult = zoomToFitBounds({
-            appState: currentAppState,
-            bounds: remoteBounds,
-            fitToViewport: true,
-            viewportZoomFactor: currentAppState.zoom.value, 
-          });
-          
-          this.props.excalidrawAPI.updateScene({
-            appState: newAppStateResult.appState,
-            commitToHistory: false, // Viewport changes usually don't go into history
-          });
-        }
-        break;
-      }
-      case 'user_started_following': {
-        if (!messageData || !this.props.excalidrawAPI || !this.props.user) return;
-        const { followerId, followedUserId } = messageData as { followerId: string, followedUserId: string };
-
-        console.log(`[pad.ws] User ${followerId} started following ${followedUserId}`);
-        console.log(`[pad.ws] My user profile`, this.props.user);
-        console.log(`[pad.ws] My socket id: ${this.props.connection_id}, my user id: ${this.props.user.id}, my connection id: ${this.props.user.connection_id}`);
-        console.log(`[pad.ws] Am I the one being followed? ${this.props.socketId === followedUserId}`);
-
-        if (this.props.connection_id === followedUserId) {
-          const currentAppState = this.props.excalidrawAPI.getAppState();
-          const newFollowedBy = new Set(currentAppState.followedBy || []);
-          newFollowedBy.add(followerId);
-          this.props.excalidrawAPI.updateScene({ 
-            appState: { ...currentAppState, followedBy: newFollowedBy },
-            commitToHistory: false 
-          });
-          // If this client is the one being followed, immediately send its viewport
-          this.relayViewportBounds();
-        }
-        break;
-      }
-      case 'user_stopped_following': {
-        if (!messageData || !this.props.excalidrawAPI || !this.props.user) return;
-        const { unfollowerId, unfollowedUserId } = messageData as { unfollowerId: string, unfollowedUserId: string };
-        console.log(`[pad.ws] User ${unfollowerId} stopped following ${unfollowedUserId}`);
-        if (this.props.connection_id === unfollowedUserId) {
-          const currentAppState = this.props.excalidrawAPI.getAppState();
-          const newFollowedBy = new Set(currentAppState.followedBy || []);
-          newFollowedBy.delete(unfollowerId);
-          this.props.excalidrawAPI.updateScene({ 
-            appState: { ...currentAppState, followedBy: newFollowedBy },
-            commitToHistory: false 
-          });
         }
         break;
       }

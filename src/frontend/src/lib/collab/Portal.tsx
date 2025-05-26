@@ -363,21 +363,6 @@ class Portal {
     }
   };
 
-  public broadcastUserViewportUpdate = (bounds: any): void => {
-    const payload = {
-      bounds: bounds,
-    };
-    this.sendMessage('viewport_update', payload);
-  };
-
-  public requestFollowUser = (userToFollowId: string): void => {
-    this.sendMessage('user_follow_request', { userToFollowId });
-  };
-
-  public requestUnfollowUser = (userToUnfollowId: string): void => {
-    this.sendMessage('user_unfollow_request', { userToUnfollowId });
-  };
-
   public broadcastAppStateUpdate = (appState: AppState): void => {
     const payload = {
       appState: appState,
