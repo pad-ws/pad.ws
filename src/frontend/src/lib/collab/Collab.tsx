@@ -5,9 +5,7 @@ import {
   viewportCoordsToSceneCoords, 
   getSceneVersion, 
   reconcileElements, 
-  restoreElements,
-  getVisibleSceneBounds,
-  zoomToFitBounds 
+  restoreElements
 } from '@atyrode/excalidraw';
 import throttle from 'lodash.throttle';
 import isEqual from 'lodash.isequal';
@@ -16,6 +14,7 @@ import Portal from './Portal';
 import type { WebSocketMessage, ConnectionStatus } from './Portal';
 import type { UserInfo } from '../../hooks/useAuthStatus';
 import { debounce, type DebouncedFunction } from '../debounce';
+import { POINTER_MOVE_THROTTLE_MS, ENABLE_PERIODIC_FULL_SYNC, PERIODIC_FULL_SYNC_INTERVAL_MS } from '../../constants';
 
 interface PointerData {
   x: number;
@@ -60,12 +59,6 @@ interface CollabState {
   collaborators: Map<SocketId, Collaborator>;
   lastProcessedSceneVersion: number;
 }
-
-const POINTER_MOVE_THROTTLE_MS = 20;
-
-// Constants for periodic full scene sync
-const ENABLE_PERIODIC_FULL_SYNC = false; // Set to false to disable periodic full sync
-const PERIODIC_FULL_SYNC_INTERVAL_MS = 60000; // Sync every 60 seconds (adjust as needed)
 
 class Collab extends PureComponent<CollabProps, CollabState> {
   [x: string]: any;
