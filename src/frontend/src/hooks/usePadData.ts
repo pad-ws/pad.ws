@@ -43,7 +43,8 @@ export const usePad = (padId: string | null, excalidrawAPI: ExcalidrawImperative
     useEffect(() => {
         if (isTemporaryPad && excalidrawAPI) {
             console.debug(`[pad.ws] Initializing new temporary pad ${padId}`);
-            excalidrawAPI.updateScene(INITIAL_APP_DATA);
+            const normalizedData = normalizeCanvasData(INITIAL_APP_DATA);
+            excalidrawAPI.updateScene(normalizedData);
             return; 
         }
 

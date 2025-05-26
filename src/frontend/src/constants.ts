@@ -6,6 +6,8 @@ export const INITIAL_APP_DATA = {
         gridSize: 20,
         gridStep: 5,
     },
+    elements: [],
+    files: [],
 };
 
 // UI elements
