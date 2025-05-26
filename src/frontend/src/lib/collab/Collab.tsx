@@ -10,10 +10,12 @@ import {
   zoomToFitBounds 
 } from '@atyrode/excalidraw';
 import throttle from 'lodash.throttle';
+import isEqual from 'lodash.isequal';
 
 import Portal from './Portal';
 import type { WebSocketMessage, ConnectionStatus } from './Portal';
 import type { UserInfo } from '../../hooks/useAuthStatus';
+import { debounce, type DebouncedFunction } from '../debounce';
 
 interface PointerData {
   x: number;
@@ -70,6 +72,8 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   [x: string]: any;
   readonly state: CollabState;
   private portal: Portal;
+  private debouncedBroadcastAppState: DebouncedFunction<[AppState]>;
+  private lastSentAppState: AppState | null = null;
   
   private throttledOnPointerMove: any; 
   private unsubExcalidrawPointerDown: (() => void) | null = null;
@@ -109,6 +113,20 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.throttledRelayViewportBounds = throttle(() => {
       this.relayViewportBounds();
     }, RELAY_VIEWPORT_BOUNDS_THROTTLE_MS); // Throttle time 50ms, adjust as needed
+
+    this.debouncedBroadcastAppState = debounce((appState: AppState) => {
+      if (this.portal.isOpen() && this.props.isOnline) {
+        if (!this.lastSentAppState || !isEqual(this.lastSentAppState, appState)) {
+          this.portal.broadcastAppStateUpdate(appState);
+          // It's important to store a deep clone if AppState might be mutated elsewhere
+          // or if `isEqual` relies on reference equality for nested objects that might change.
+          // For now, assuming AppState from Excalidraw is a new object or `isEqual` handles it.
+          this.lastSentAppState = { ...appState }; // Store a shallow copy, or deep clone if necessary
+        } else {
+          console.debug('[pad.ws] App state update skipped (no change).');
+        }
+      }
+    }, 500);
   }
 
   /* Component Lifecycle */
@@ -158,6 +176,8 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
     if (this.props.padId !== prevProps.padId) {
       // Portal's updatePadId will handle disconnection from old and connection to new
+      this.debouncedBroadcastAppState.cancel(); // Cancel any pending app state updates for the old pad
+      this.lastSentAppState = null; // Reset last sent app state for the new pad
       this.portal.updatePadId(this.props.padId);
       this.setState({
         collaborators: new Map(),
@@ -190,6 +210,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     if (this.throttledRelayViewportBounds && typeof this.throttledRelayViewportBounds.cancel === 'function') {
       this.throttledRelayViewportBounds.cancel();
     }
+    this.debouncedBroadcastAppState.cancel();
     this.removeSceneChangeListeners();
     this.removeScrollChangeListener();
     this.removeFollowListener();
@@ -334,8 +355,8 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     // The onChange callback from Excalidraw provides elements and appState,
     // but we'll fetch the latest scene directly to ensure we have deleted elements for versioning.
     this.unsubExcalidrawSceneChange = this.props.excalidrawAPI.onChange(
-      () => {
-        this.handleSceneChange();
+      (_elements, appState, _files) => {
+        this.handleSceneChange(appState);
       }
     );
   };
@@ -347,11 +368,17 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     }
   };
 
-  private handleSceneChange = () => {
+  private handleSceneChange = (currentAppState: AppState) => {
     if (!this.props.excalidrawAPI || !this.portal.isOpen() || !this.props.isOnline) {
       return;
     }
 
+    // Broadcast AppState update
+    if (currentAppState) {
+      this.debouncedBroadcastAppState(currentAppState);
+    }
+
+    // Broadcast Scene (elements) update
     const allCurrentElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
     const currentSceneVersion = getSceneVersion(allCurrentElements);
 
@@ -473,7 +500,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
           console.log(`[pad.ws] Received scene update. Elements count: ${remoteElements.length}`, remoteElements);
           const localElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
           const currentAppState = this.props.excalidrawAPI.getAppState();
-          
+
           // Ensure elements are properly restored (e.g., if they are plain objects from JSON)
           const restoredRemoteElements = restoreElements(remoteElements, null);
           

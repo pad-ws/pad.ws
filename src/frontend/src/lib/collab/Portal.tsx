@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type Collab from './Collab';
 import type { OrderedExcalidrawElement } from '@atyrode/excalidraw/element/types';
+import type { AppState } from '@atyrode/excalidraw/types';
 import type { UserInfo } from '../../hooks/useAuthStatus'; // For user details
 
 export const WebSocketMessageSchema = z.object({
@@ -375,6 +376,13 @@ class Portal {
 
   public requestUnfollowUser = (userToUnfollowId: string): void => {
     this.sendMessage('user_unfollow_request', { userToUnfollowId });
+  };
+
+  public broadcastAppStateUpdate = (appState: AppState): void => {
+    const payload = {
+      appState: appState,
+    };
+    this.sendMessage('appstate_update', payload);
   };
 }
 

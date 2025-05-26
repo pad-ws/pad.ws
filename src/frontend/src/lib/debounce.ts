@@ -21,7 +21,7 @@
  */
 
 // Define the interface for the debounced function
-interface DebouncedFunction<T extends any[]> {
+export interface DebouncedFunction<T extends any[]> {
   (...args: T): void;
   /**
    * Immediately executes the debounced function with the last provided arguments
