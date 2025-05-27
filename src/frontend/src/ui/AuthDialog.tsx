@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from "react";
-//import { capture } from "../lib/posthog";
+import { capture } from "../lib/posthog";
 import { GoogleIcon, GithubIcon } from "../icons";
 import "./AuthDialog.scss";
 
@@ -36,7 +36,7 @@ export const AuthDialog = ({
   );
 
   useEffect(() => {
-    //capture("auth_modal_shown");
+    capture("auth_modal_shown");
     
     // Load GitHub buttons script
     const script = document.createElement('script');

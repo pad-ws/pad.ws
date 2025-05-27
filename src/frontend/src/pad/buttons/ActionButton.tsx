@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Braces, Settings, Plus, ExternalLink, Monitor } from 'lucide-react';
-import { useWorkspace, WorkspaceState } from '../../hooks/useWorkspace';
+import { useWorkspace } from '../../hooks/useWorkspace';
 import { ActionType, TargetType, CodeVariant, ActionButtonProps } from './types';
 import './ActionButton.scss';
-// import { capture } from '../../utils/posthog';
+import { capture } from '../../lib/posthog';
 import { ExcalidrawElementFactory, PlacementMode } from '../../lib/elementFactory';
 
 // Interface for button settings stored in customData
@@ -291,11 +291,11 @@ const ActionButton: React.FC<ActionButtonProps> = ({
 
   
   const executeAction = () => {
-    /* capture('action_button_clicked', {
+    capture('action_button_clicked', {
       target: selectedTarget,
       action: selectedAction,
       codeVariant: selectedTarget === 'code' ? selectedCodeVariant : null
-    }); */  //TODO
+    });
     
     if (selectedAction === 'embed') {
       // Use the excalidrawAPI prop passed to the component

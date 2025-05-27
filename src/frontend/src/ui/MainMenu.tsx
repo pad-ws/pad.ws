@@ -6,12 +6,12 @@ import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 import { LogOut, SquarePlus, LayoutDashboard, User, Text, Settings, Terminal, FileText, FlaskConical } from 'lucide-react';
 import AccountDialog from './AccountDialog';
 import md5 from 'crypto-js/md5';
-// import { capture } from '../utils/posthog';
 import { useLogout } from '../hooks/useLogout';
 import { useAuthStatus } from '../hooks/useAuthStatus';
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/elementFactory';
 import "./MainMenu.scss";
 import { INITIAL_APP_DATA } from '../constants';
+import { capture } from '../lib/posthog';
 // Function to generate gravatar URL
 const getGravatarUrl = (email: string, size = 32) => {
   const hash = md5(email.toLowerCase().trim()).toString();
@@ -140,7 +140,7 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
   };
 
   const handleLogout = () => {
-    // capture('logout_clicked');
+    capture('logout_clicked');
 
     logoutMutation(undefined, {
       onSuccess: (data) => {

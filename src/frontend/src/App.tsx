@@ -16,7 +16,7 @@ import SettingsDialog from './ui/SettingsDialog';
 import Collab from './lib/collab/Collab';
 
 // Utils
-// import { initializePostHog } from "./lib/posthog";
+import { initializePostHog } from "./lib/posthog";
 import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRenderer';
 import Tabs from "./ui/Tabs";
 import { INITIAL_APP_DATA, HIDDEN_UI_ELEMENTS } from "./constants";
