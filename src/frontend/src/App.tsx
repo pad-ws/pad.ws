@@ -35,7 +35,7 @@ export default function App() {
     selectTab,
     updateSharingPolicy,
     leaveSharedPad
-  } = usePadTabs();
+  } = usePadTabs(isAuthenticated);
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [excalidrawAPI, excalidrawRefCallback] = useCallbackRefState<ExcalidrawImperativeAPI>();

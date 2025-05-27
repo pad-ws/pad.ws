@@ -119,13 +119,14 @@ const createNewPad = async (): Promise<Tab> => {
     };
 };
 
-export const usePadTabs = () => {
+export const usePadTabs = (isAuthenticated?: boolean) => {
     const queryClient = useQueryClient();
     const [selectedTabId, setSelectedTabId] = useState<string>('');
 
     const { data, isLoading, error, isError } = useQuery<PadResponse, Error>({
         queryKey: ['padTabs'],
         queryFn: fetchUserPads,
+        enabled: isAuthenticated === true,
     });
 
     // Effect to manage tab selection based on data changes and selectedTabId validity
