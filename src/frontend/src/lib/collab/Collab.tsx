@@ -1,10 +1,10 @@
 import React, { PureComponent } from 'react';
 import type { ExcalidrawImperativeAPI, AppState, SocketId, Collaborator as ExcalidrawCollaboratorType } from '@atyrode/excalidraw/types';
 import type { ExcalidrawElement as ExcalidrawElementType } from '@atyrode/excalidraw/element/types';
-import { 
-  viewportCoordsToSceneCoords, 
-  getSceneVersion, 
-  reconcileElements, 
+import {
+  viewportCoordsToSceneCoords,
+  getSceneVersion,
+  reconcileElements,
   restoreElements
 } from '@atyrode/excalidraw';
 import throttle from 'lodash.throttle';
@@ -66,8 +66,8 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   private portal: Portal;
   private debouncedBroadcastAppState: DebouncedFunction<[AppState]>;
   private lastSentAppState: AppState | null = null;
-  
-  private throttledOnPointerMove: any; 
+
+  private throttledOnPointerMove: any;
   private unsubExcalidrawPointerDown: (() => void) | null = null;
   private unsubExcalidrawPointerUp: (() => void) | null = null;
   private unsubExcalidrawSceneChange: (() => void) | null = null;
@@ -102,23 +102,91 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.debouncedBroadcastAppState = debounce((appState: AppState) => {
       if (this.portal.isOpen() && this.props.isOnline) {
         if (!this.lastSentAppState || !isEqual(this.lastSentAppState, appState)) {
-          this.portal.broadcastAppStateUpdate(appState);
-          // It's important to store a deep clone if AppState might be mutated elsewhere
-          // or if `isEqual` relies on reference equality for nested objects that might change.
-          // For now, assuming AppState from Excalidraw is a new object or `isEqual` handles it.
-          this.lastSentAppState = { ...appState }; // Store a shallow copy, or deep clone if necessary
-        } else {
-          console.debug('[pad.ws] App state update skipped (no change).');
+          if (this.lastSentAppState) {
+            const changes = this.detectAppStateChanges(this.lastSentAppState, appState);
+            if (Object.keys(changes).length > 0) {
+              console.debug('[pad.ws] AppState changes detected:', changes);
+              this.portal.broadcastAppStateUpdate(appState);
+              this.lastSentAppState = { ...appState };
+            }
+          } else {
+            this.portal.broadcastAppStateUpdate(appState);
+            this.lastSentAppState = { ...appState };
+          }
         }
       }
     }, 500);
   }
 
+  /* AppState Change Detection */
+
+  private detectAppStateChanges = (oldState: AppState, newState: AppState): Record<string, { old: any, new: any }> => {
+    const changes: Record<string, { old: any, new: any }> = {};
+
+    // Get all unique keys from both old and new state
+    const allKeys = new Set([
+      ...Object.keys(oldState),
+      ...Object.keys(newState)
+    ]);
+
+    // Compare each field dynamically, but exclude collaborators field
+    allKeys.forEach(field => {
+      // Skip collaborators field - those are updates about other users, not changes by this user
+      if (field === 'collaborators') return;
+
+      const oldValue = oldState[field as keyof AppState];
+      const newValue = newState[field as keyof AppState];
+
+      if (this.hasChanged(oldValue, newValue)) {
+        changes[field] = {
+          old: this.serializeValue(oldValue),
+          new: this.serializeValue(newValue)
+        };
+      }
+    });
+
+    return changes;
+  };
+
+  private hasChanged = (oldValue: any, newValue: any): boolean => {
+    // Handle Maps (like selectedElementIds)
+    if (oldValue instanceof Map && newValue instanceof Map) {
+      if (oldValue.size !== newValue.size) return true;
+      const oldEntries = Array.from(oldValue.entries());
+      for (const [key, value] of oldEntries) {
+        if (!newValue.has(key) || newValue.get(key) !== value) return true;
+      }
+      return false;
+    }
+
+    // Handle objects with zoom value
+    if (typeof oldValue === 'object' && typeof newValue === 'object' && oldValue !== null && newValue !== null) {
+      // Special handling for zoom object
+      if ('value' in oldValue && 'value' in newValue) {
+        return oldValue.value !== newValue.value;
+      }
+      return JSON.stringify(oldValue) !== JSON.stringify(newValue);
+    }
+
+    // Handle primitives
+    return oldValue !== newValue;
+  };
+
+  private serializeValue = (value: any): any => {
+    if (value instanceof Map) {
+      return Object.fromEntries(value);
+    }
+    if (typeof value === 'object' && value !== null) {
+      return { ...value };
+    }
+    return value;
+  };
+
   /* Component Lifecycle */
 
   componentDidMount() {
     if (this.portal) {
-        this.portal.initiate();
+      this.portal.initiate();
     }
 
     if (this.props.user) {
@@ -133,10 +201,10 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       const initialElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
       // Set initial broadcast version.
       this.lastBroadcastedSceneVersion = getSceneVersion(initialElements);
-       // Also set the initial processed version from local state
-      this.setState({lastProcessedSceneVersion: this.lastBroadcastedSceneVersion});
+      // Also set the initial processed version from local state
+      this.setState({ lastProcessedSceneVersion: this.lastBroadcastedSceneVersion });
     }
-     if (this.props.isOnline && this.props.padId) {
+    if (this.props.isOnline && this.props.padId) {
       // Potentially call a method to broadcast initial scene if this client is the first or needs to sync
       // this.broadcastFullSceneUpdate(true); // Example: true for SCENE_INIT
     }
@@ -178,7 +246,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         this.setState({ lastProcessedSceneVersion: this.lastBroadcastedSceneVersion });
       }
     }
-    
+
     if (this.state.collaborators !== prevState.collaborators) {
       if (this.updateExcalidrawCollaborators) this.updateExcalidrawCollaborators();
     }
@@ -253,7 +321,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     const pointerData: PointerData = { x: sceneCoords.x, y: sceneCoords.y, tool: displayTool, button: button };
     this.portal.broadcastMouseLocation(pointerData, button);
   };
-  
+
   private handlePointerMove = (event: PointerEvent) => {
     if (!this.props.excalidrawAPI || !this.portal.isOpen() || !this.props.isOnline) return;
     const appState = this.props.excalidrawAPI.getAppState();
@@ -328,13 +396,13 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         if (this.props.user && this.props.user.id === collab.id) return;
 
         excalidrawCollaborators.set(id, {
-          id: collab.id, 
-          pointer: collab.pointer, 
+          id: collab.id,
+          pointer: collab.pointer,
           username: collab.username,
-          button: collab.button, 
-          selectedElementIds: 
-          collab.selectedElementIds,
-          color: collab.color, 
+          button: collab.button,
+          selectedElementIds:
+            collab.selectedElementIds,
+          color: collab.color,
           avatarUrl: collab.avatarUrl,
         });
       });
@@ -348,10 +416,10 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     this.setState({ connectionStatus: status });
     // Potentially update UI or take actions based on status
     if (status === 'Failed' || (status === 'Closed' && !this.portal.isOpen())) {
-        // Clear collaborators if connection is definitively lost
-        this.setState({ collaborators: new Map() }, () => {
-            if (this.updateExcalidrawCollaborators) this.updateExcalidrawCollaborators();
-        });
+      // Clear collaborators if connection is definitively lost
+      this.setState({ collaborators: new Map() }, () => {
+        if (this.updateExcalidrawCollaborators) this.updateExcalidrawCollaborators();
+      });
     }
   };
 
@@ -370,10 +438,10 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         this.setState(prevState => {
           if (prevState.collaborators.has(senderId) || (this.props.user?.id && senderIdString === this.props.user.id)) return null;
           const newCollaborator: Collaborator = {
-            id: user_id as SocketId, 
-            username: username, 
+            id: user_id as SocketId,
+            username: username,
             pointer: { x: 0, y: 0, tool: 'pointer' },
-            color: getRandomCollaboratorColor(), 
+            color: getRandomCollaboratorColor(),
             userState: 'active',
           };
           const newCollaborators = new Map(prevState.collaborators);
@@ -419,13 +487,13 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
           // Ensure elements are properly restored (e.g., if they are plain objects from JSON)
           const restoredRemoteElements = restoreElements(remoteElements, null);
-          
+
           const reconciled = reconcileElements(
             localElements,
             restoredRemoteElements as any[], // Cast as any if type conflicts, ensure it matches Excalidraw's expected RemoteExcalidrawElement[]
             currentAppState
           );
-          
+
           this.props.excalidrawAPI.updateScene({ elements: reconciled as ExcalidrawElementType[], commitToHistory: false });
           this.setState({ lastProcessedSceneVersion: getSceneVersion(reconciled) });
         }
@@ -439,7 +507,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
           this.setState(prevState => {
             const newCollaborators = new Map<SocketId, Collaborator>();
             collaboratorsList.forEach(collabData => {
-              
+
               console.debug(`[pad.ws] Collaborator data: ${JSON.stringify(collabData)}`);
               if (collabData.user_id && collabData.user_id !== this.props.user?.id) {
 
