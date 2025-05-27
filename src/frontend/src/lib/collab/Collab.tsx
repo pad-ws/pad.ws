@@ -505,7 +505,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         const remoteElements = messageData?.elements as ExcalidrawElementType[] | undefined;
 
         if (remoteElements !== undefined && this.props.excalidrawAPI) {
-          console.log(`[pad.ws] Received scene update. Elements count: ${remoteElements.length}`, remoteElements);
+          console.debug(`[pad.ws] Received scene update. Elements count: ${remoteElements.length}`, remoteElements);
           const localElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
           const currentAppState = this.props.excalidrawAPI.getAppState();
 
