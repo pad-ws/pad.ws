@@ -72,6 +72,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   private unsubExcalidrawPointerUp: (() => void) | null = null;
   private unsubExcalidrawSceneChange: (() => void) | null = null;
   private lastBroadcastedSceneVersion: number = -1;
+  private isInitialLoad: boolean = true;
 
   props: any;
 
@@ -82,7 +83,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       connectionStatus: 'Uninstantiated',
       username: props.user?.username || props.user?.id || '',
       collaborators: new Map(),
-      lastProcessedSceneVersion: -1, // Version of the scene after applying remote changes
+      lastProcessedSceneVersion: -1,
     };
 
     this.portal = new Portal(
@@ -131,7 +132,6 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
     // Compare each field dynamically, but exclude collaborators field
     allKeys.forEach(field => {
-      // Skip collaborators field - those are updates about other users, not changes by this user
       if (field === 'collaborators') return;
 
       const oldValue = oldState[field as keyof AppState];
@@ -213,6 +213,8 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     if (ENABLE_PERIODIC_FULL_SYNC) {
       this.startPeriodicFullSync();
     }
+
+    this.isInitialLoad = false;
   }
 
   componentDidUpdate(prevProps: CollabProps, prevState: CollabState) {
@@ -229,6 +231,12 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       // Portal's updatePadId will handle disconnection from old and connection to new
       this.debouncedBroadcastAppState.cancel(); // Cancel any pending app state updates for the old pad
       this.lastSentAppState = null; // Reset last sent app state for the new pad
+
+      // Reset versions immediately when switching pads
+      this.lastBroadcastedSceneVersion = -1;
+      // Mark as initial load for the new pad
+      this.isInitialLoad = true;
+
       this.portal.updatePadId(this.props.padId);
       this.setState({
         collaborators: new Map(),
@@ -236,15 +244,6 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         username: this.props.user?.username || this.props.user?.id || '',
         // connectionStatus will be updated by portal's callbacks
       });
-      this.lastBroadcastedSceneVersion = -1;
-
-      // Listeners might need to be re-evaluated if excalidrawAPI instance changes with padId
-      // For now, assuming excalidrawAPI is stable or re-bound by parent
-      if (this.props.excalidrawAPI) {
-        const initialElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
-        this.lastBroadcastedSceneVersion = getSceneVersion(initialElements);
-        this.setState({ lastProcessedSceneVersion: this.lastBroadcastedSceneVersion });
-      }
     }
 
     if (this.state.collaborators !== prevState.collaborators) {
@@ -365,6 +364,31 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     // Broadcast Scene (elements) update
     const allCurrentElements = this.props.excalidrawAPI.getSceneElementsIncludingDeleted();
     const currentSceneVersion = getSceneVersion(allCurrentElements);
+
+    if (allCurrentElements.length === 0 && this.isInitialLoad) {
+      // No elements in the scene is the temporary scene
+      return;
+    }
+
+    // Handle version initialization (either fresh pad or loading from backend)
+    if (this.lastBroadcastedSceneVersion === -1 || this.state.lastProcessedSceneVersion === -1) {
+      // Initialize versions
+      this.lastBroadcastedSceneVersion = currentSceneVersion;
+      this.setState({ lastProcessedSceneVersion: currentSceneVersion });
+
+      // Only broadcast if this is NOT an initial load (i.e., it's a genuinely fresh pad with user changes)
+      // and there are elements to broadcast
+      if (!this.isInitialLoad && allCurrentElements.length > 0) {
+        this.portal.broadcastSceneUpdate('SCENE_UPDATE', allCurrentElements, false);
+      }
+
+      // Mark initial load as complete if it was an initial load
+      if (this.isInitialLoad) {
+        this.isInitialLoad = false;
+      }
+
+      return;
+    }
 
     // Avoid broadcasting if the scene version hasn't actually increased from what this client last broadcasted
     // and isn't newer than what this client last processed from a remote update (prevents echo).
@@ -495,7 +519,17 @@ class Collab extends PureComponent<CollabProps, CollabState> {
           );
 
           this.props.excalidrawAPI.updateScene({ elements: reconciled as ExcalidrawElementType[], commitToHistory: false });
-          this.setState({ lastProcessedSceneVersion: getSceneVersion(reconciled) });
+
+          const reconciledVersion = getSceneVersion(reconciled);
+          this.setState({ lastProcessedSceneVersion: reconciledVersion });
+
+          // If this is a fresh pad (lastBroadcastedSceneVersion is -1), initialize it
+          if (this.lastBroadcastedSceneVersion === -1) {
+            console.debug('[pad.ws] Initializing lastBroadcastedSceneVersion from remote scene update');
+            this.lastBroadcastedSceneVersion = reconciledVersion;
+            // Mark initial load as complete since we received remote data
+            this.isInitialLoad = false;
+          }
         }
         break;
       }
