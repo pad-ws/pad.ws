@@ -12,6 +12,8 @@ from dependencies import get_coder_api, get_session_domain
 from coder import CoderAPI
 from dependencies import optional_auth, UserSession
 from domain.session import Session
+from database.database import async_session
+from domain.user import User
 
 auth_router = APIRouter()
 
@@ -80,6 +82,17 @@ async def callback(
         
         access_token = token_data['access_token']
         user_info = jwt.decode(access_token, options={"verify_signature": False})
+        
+        # Ensure user exists in database (only during login)
+        async with async_session() as db_session:
+            try:
+                await User.ensure_exists(db_session, user_info)
+            except Exception as e:
+                # Handle duplicate key violations gracefully - this means user already exists
+                if "duplicate key value violates unique constraint" in str(e) or "already exists" in str(e):
+                    print(f"User {user_info.get('sub')} already exists in database (race condition handled)")
+                else:
+                    raise e
         
         try:
             user_data, _ = coder_api.ensure_user_exists(

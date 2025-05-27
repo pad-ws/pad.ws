@@ -12,7 +12,7 @@ from domain.session import Session
 from domain.user import User
 from domain.pad import Pad
 from coder import CoderAPI
-from database.database import async_session, get_session
+from database.database import get_session
 
 # oidc_config for session creation and user sessions
 oidc_config = {
@@ -49,19 +49,12 @@ class UserSession:
                 algorithms=["RS256"],
                 audience=oidc_config['client_id']
             )
-
-            # Ensure user exists in database
-            async def ensure_user():
-                async with async_session() as session:
-                    await User.ensure_exists(session, self.token_data)
-            asyncio.create_task(ensure_user())
             
-
         except jwt.InvalidTokenError as e:
             # Log the error and raise an appropriate exception
             print(f"Invalid token: {str(e)}")
             raise ValueError(f"Invalid authentication token: {str(e)}")
-        
+
     @property
     def is_authenticated(self) -> bool:
         """Check if the session is authenticated"""
