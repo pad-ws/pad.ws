@@ -4,7 +4,7 @@ from uuid import UUID
 
 import posthog
 import jwt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cache import RedisClient
@@ -12,12 +12,15 @@ from config import get_jwks_client, OIDC_CLIENT_ID, FRONTEND_URL
 from dependencies import UserSession, require_admin, require_auth
 from database.database import get_session
 from domain.user import User
+from domain.pad import Pad
 
 users_router = APIRouter()
 
 
 @users_router.get("/me")
 async def get_user_info(
+    request: Request,
+    response: Response,
     user: UserSession = Depends(require_auth),
     session: AsyncSession = Depends(get_session),
 ):
@@ -25,6 +28,34 @@ async def get_user_info(
     
     # Get the user from database to access last_selected_pad
     user_obj = await User.get_by_id(session, user.id)
+    
+    # Check for pending pad cookie
+    pending_pad_id = request.cookies.get("pending_pad_id")
+    if pending_pad_id:
+        try:
+            pad_id = UUID(pending_pad_id)
+            pad = await Pad.get_by_id(session, pad_id)
+            
+            if pad and pad.can_access(user.id):
+                # Convert all UUIDs to strings for comparison
+                open_pads_str = [str(pid) for pid in user_obj._store.open_pads]
+                if str(pad_id) not in open_pads_str:
+                    user_obj._store.open_pads = [UUID(pid) for pid in open_pads_str] + [pad_id]
+                    await user_obj.save(session)
+                
+                # Update last selected pad
+                await user_obj.set_last_selected_pad(session, pad_id)
+            
+        except (ValueError, Exception) as e:
+            print(f"Error processing pending pad: {e}")
+        finally:
+            # Always clear the cookie with same settings as when setting it
+            response.delete_cookie(
+                key="pending_pad_id",
+                secure=True,
+                httponly=False,
+                samesite="lax"
+            )
     
     # Create token data dictionary from UserSession properties
     token_data = {
