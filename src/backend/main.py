@@ -81,15 +81,6 @@ async def serve_index_html(request: Request = None, response: Response = None, p
     Helper function to serve the index.html file or proxy to dev server based on PAD_DEV_MODE.
     Optionally sets a pending_pad_id cookie if pad_id is provided.
     """
-    # Set cookie if pad_id is provided
-    if pad_id is not None and response is not None:
-        response.set_cookie(
-            key="pending_pad_id",
-            value=str(pad_id),
-            httponly=True,
-            secure=True,
-            samesite="lax"
-        )
     
     if PAD_DEV_MODE:
         try:
@@ -101,18 +92,43 @@ async def serve_index_html(request: Request = None, response: Response = None, p
             
             async with httpx.AsyncClient() as client:
                 proxy_response = await client.get(url)
-                response.body = proxy_response.content
-                response.status_code = proxy_response.status_code
-                response.media_type = proxy_response.headers.get("content-type")
-                return response
+                # Create a new response with the proxied content
+                final_response = Response(
+                    content=proxy_response.content,
+                    status_code=proxy_response.status_code,
+                    media_type=proxy_response.headers.get("content-type")
+                )
+                
+                # Set cookie if pad_id is provided
+                if pad_id is not None:
+                    final_response.set_cookie(
+                        key="pending_pad_id",
+                        value=str(pad_id),
+                        httponly=True,
+                        secure=True,
+                        samesite="lax"
+                    )
+                
+                return final_response
         except Exception as e:
             error_message = f"Error proxying to dev server: {e}"
             print(error_message)
-            response.status_code = 500
-            return response
+            return Response(content=error_message, status_code=500)
     else:
         # For production, serve the static build
-        return FileResponse(os.path.join(STATIC_DIR, "index.html"), background=response)
+        file_response = FileResponse(os.path.join(STATIC_DIR, "index.html"))
+        
+        # Set cookie if pad_id is provided
+        if pad_id is not None:
+            file_response.set_cookie(
+                key="pending_pad_id",
+                value=str(pad_id),
+                httponly=True,
+                secure=True,
+                samesite="lax"
+            )
+        
+        return file_response
 
 @app.get("/pad/{pad_id}")
 async def read_pad(
