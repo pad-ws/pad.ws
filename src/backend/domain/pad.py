@@ -340,6 +340,28 @@ class Pad:
             await self.cache()
             print(f"Released worker {old_worker_id[:8]} from pad {self.id}")
 
+    async def get_connected_users(self) -> List[Dict[str, str]]:
+        """Get all connected users from the pad users hash as a list of dicts with user_id and username."""
+        key = f"pad:users:{self.id}"
+        try:
+            # Get all users from the hash
+            all_users = await self._redis.hgetall(key)
+            
+            # Convert to list of dicts with user_id and username
+            connected_users = []
+            for user_id, user_data_str in all_users.items():
+                user_id_str = user_id.decode() if isinstance(user_id, bytes) else user_id
+                user_data = json.loads(user_data_str.decode() if isinstance(user_data_str, bytes) else user_data_str)
+                connected_users.append({
+                    "user_id": user_id_str,
+                    "username": user_data["username"]
+                })
+            
+            return connected_users
+        except Exception as e:
+            print(f"Error getting connected users from Redis for pad {self.id}: {e}")
+            return []
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation"""
         return {

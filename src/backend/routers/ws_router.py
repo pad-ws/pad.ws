@@ -337,28 +337,6 @@ async def remove_connection(redis_client: aioredis.Redis, pad_id: UUID, user_id:
     except Exception as e:
         print(f"Error removing connection from Redis: {e}")
 
-async def get_connected_users(redis_client: aioredis.Redis, pad_id: UUID) -> List[Dict[str, str]]:
-    """Get all connected users from the pad users hash as a list of dicts with user_id and username."""
-    key = f"pad:users:{pad_id}"
-    try:
-        # Get all users from the hash
-        all_users = await redis_client.hgetall(key)
-        
-        # Convert to list of dicts with user_id and username
-        connected_users = []
-        for user_id, user_data_str in all_users.items():
-            user_id_str = user_id.decode() if isinstance(user_id, bytes) else user_id
-            user_data = json.loads(user_data_str.decode() if isinstance(user_data_str, bytes) else user_data_str)
-            connected_users.append({
-                "user_id": user_id_str,
-                "username": user_data["username"]
-            })
-        
-        return connected_users
-    except Exception as e:
-        print(f"Error getting connected users from Redis: {e}")
-        return []
-
 @ws_router.websocket("/ws/pad/{pad_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
@@ -391,9 +369,9 @@ async def websocket_endpoint(
             redis_client = await RedisClient.get_instance()
 
             await add_connection(redis_client, pad_id, str(user.id), user.username, connection_id)
-            connected_users = await get_connected_users(redis_client, pad_id)
 
             # Send connected message to client with connected users info
+            connected_users = await pad.get_connected_users()
             connected_msg = WebSocketMessage(
                 type="connected",
                 pad_id=str(pad_id),
