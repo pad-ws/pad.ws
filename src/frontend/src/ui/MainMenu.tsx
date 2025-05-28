@@ -6,6 +6,9 @@ import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 import { LogOut, SquarePlus, LayoutDashboard, User, Text, Settings, Terminal, FileText, FlaskConical } from 'lucide-react';
 import md5 from 'crypto-js/md5';
 
+// Components
+import SettingsDialog from './SettingsDialog'; // Added import
+
 import { useLogout } from '../hooks/useLogout';
 import { useAuthStatus } from '../hooks/useAuthStatus';
 
@@ -25,19 +28,15 @@ const getGravatarUrl = (email: string, size = 32) => {
 interface MainMenuConfigProps {
   MainMenu: typeof MainMenuType;
   excalidrawAPI: ExcalidrawImperativeAPI | null;
-  showPadsModal: boolean;
-  setShowPadsModal: (show: boolean) => void;
-  showSettingsModal?: boolean;
-  setShowSettingsModal?: (show: boolean) => void;
 }
 
 export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
   MainMenu,
   excalidrawAPI,
-  setShowPadsModal,
-  setShowSettingsModal = (show: boolean) => {},
 }) => {
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+
   const { mutate: logoutMutation, isPending: isLoggingOut } = useLogout();
   const { user, isLoading, isError } = useAuthStatus();
 
@@ -132,12 +131,12 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     });
   };
 
-  const handleManagePadsClick = () => {
-    setShowPadsModal(true);
-  };
-
   const handleSettingsClick = () => {
     setShowSettingsModal(true);
+  };
+
+  const handleCloseSettingsModal = () => { // Added handler to close settings modal
+    setShowSettingsModal(false);
   };
   
   const handleAccountClick = () => {
@@ -205,6 +204,12 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
           onClose={() => setShowAccountModal(false)} 
         />
       )}
+      {showSettingsModal && ( // Added conditional rendering for SettingsDialog
+        <SettingsDialog
+          excalidrawAPI={excalidrawAPI}
+          onClose={handleCloseSettingsModal}
+        />
+      )}
       <MainMenu>
         <div className="main-menu__top-row">
           <span className="main-menu__label" style={{ gap: 0.2 }}>
@@ -227,12 +232,6 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
         <MainMenu.DefaultItems.LoadScene />
         <MainMenu.DefaultItems.Export />
         <MainMenu.DefaultItems.SaveAsImage />
-        <MainMenu.Item
-          icon={<FileText />}
-          onClick={handleManagePadsClick}
-        >
-          Manage pads...
-        </MainMenu.Item>
         <MainMenu.DefaultItems.ClearCanvas />
       </MainMenu.Group>
       
