@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Excalidraw, MainMenu, Footer } from "@atyrode/excalidraw";
 import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
 import type { ExcalidrawEmbeddableElement, NonDeleted } from "@atyrode/excalidraw/element/types";
@@ -7,6 +7,7 @@ import type { ExcalidrawEmbeddableElement, NonDeleted } from "@atyrode/excalidra
 import { useAuthStatus } from "./hooks/useAuthStatus";
 import { usePadTabs } from "./hooks/usePadTabs";
 import { useCallbackRefState } from "./hooks/useCallbackRefState";
+import { useAppConfig } from "./hooks/useAppConfig";
 
 // Components
 import DiscordButton from './ui/DiscordButton';
@@ -22,6 +23,7 @@ import Tabs from "./ui/Tabs";
 import { INITIAL_APP_DATA, HIDDEN_UI_ELEMENTS } from "./constants";
 
 export default function App() {
+  const { config, configError } = useAppConfig();
   const { isAuthenticated, isLoading: isLoadingAuth, user } = useAuthStatus();
 
   const {
@@ -49,16 +51,16 @@ export default function App() {
     lockEmbeddables(excalidrawAPI?.getAppState());
   };
 
-  // useEffect(() => {
-  //   if (appConfig?.posthogKey && appConfig?.posthogHost) {
-  //     initializePostHog({
-  //       posthogKey: appConfig.posthogKey,
-  //       posthogHost: appConfig.posthogHost,
-  //     });
-  //   } else if (configError) {
-  //     console.error('[pad.ws] Failed to load app config:', configError);
-  //   }
-  // }, [appConfig, configError]);
+  useEffect(() => {
+    if (config?.posthogKey && config?.posthogHost) {
+      initializePostHog({
+        posthogKey: config.posthogKey,
+        posthogHost: config.posthogHost,
+      });
+    } else if (configError) {
+      console.error('[pad.ws] Failed to load app config:', configError);
+    }
+  }, [config, configError]);
 
   return (
     <>
