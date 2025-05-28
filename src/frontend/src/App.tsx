@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { Excalidraw, MainMenu, Footer } from "@atyrode/excalidraw";
 import type { ExcalidrawImperativeAPI, AppState } from "@atyrode/excalidraw/types";
 import type { ExcalidrawEmbeddableElement, NonDeleted } from "@atyrode/excalidraw/element/types";
