@@ -67,22 +67,6 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     });
   };
 
-  const handleDevToolsClick = () => {
-    if (!excalidrawAPI) return;
-    
-    const devToolsElement = ExcalidrawElementFactory.createEmbeddableElement({
-      link: "!dev",
-      width: 800,
-      height: 500
-    });
-    
-    ExcalidrawElementFactory.placeInScene(devToolsElement, excalidrawAPI, {
-      mode: PlacementMode.NEAR_VIEWPORT_CENTER,
-      bufferPercentage: 10,
-      scrollToView: true
-    });
-  };
-
   const handleInsertButtonClick = () => {
     if (!excalidrawAPI) return;
     
@@ -261,12 +245,6 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
           onClick={handleInsertButtonClick}
         >
           Action Button
-        </MainMenu.Item>
-        <MainMenu.Item
-          icon={<FlaskConical />}
-          onClick={handleDevToolsClick}
-        >
-          Dev. Tools
         </MainMenu.Item>
       </MainMenu.Group>
       
