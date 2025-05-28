@@ -50,6 +50,15 @@
     width: 100%;
     height: 100%;
     z-index: 5;
+    background-color: rgba(0, 0, 0, 0.2) !important;
+    backdrop-filter: blur(1px) !important;
+  }
+
+  .Modal { /* Overriding the Excalidraw override for the pad.ws logo! */
+    &__background {
+      background-color: none !important;
+      backdrop-filter: none !important;
+    }
   }
 
   &__logo-container {
