@@ -1,21 +1,21 @@
 import React, { useMemo, useEffect } from "react";
+
+import { Dialog } from "@atyrode/excalidraw";
+
 import { capture } from "../lib/posthog";
 import { GoogleIcon, GithubIcon } from "../icons";
 import "./AuthDialog.scss";
 
-import { Dialog } from "@atyrode/excalidraw";
 
 interface AuthDialogProps {
   description?: React.ReactNode;
-  warningText?: string;
-  onClose?: () => void;
+  warningText?: React.ReactNode;
   children?: React.ReactNode;
 }
 
 export const AuthDialog = ({
   description = <>Welcome to your <strong className="highlight">whiteboard IDE</strong>. <br /><br /> Open <strong className="highlight">terminals</strong>, <strong className="highlight">VSCode</strong>, or <strong className="highlight">Cursor</strong> in your pad, and start coding right away.</>,
   warningText = <>This is an open-source project in beta.<br /> Back up your work!</>,
-  onClose,
   children,
 }: AuthDialogProps) => {
   const logoMessages = [
