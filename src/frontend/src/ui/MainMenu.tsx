@@ -4,19 +4,24 @@ import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 
 import { LogOut, SquarePlus, LayoutDashboard, User, Text, Settings, Terminal, FileText, FlaskConical } from 'lucide-react';
-import AccountDialog from './AccountDialog';
 import md5 from 'crypto-js/md5';
+
 import { useLogout } from '../hooks/useLogout';
 import { useAuthStatus } from '../hooks/useAuthStatus';
+
 import { ExcalidrawElementFactory, PlacementMode } from '../lib/elementFactory';
-import "./MainMenu.scss";
 import { INITIAL_APP_DATA } from '../constants';
 import { capture } from '../lib/posthog';
+import "./MainMenu.scss";
+import AccountDialog from './AccountDialog';
+
+
 // Function to generate gravatar URL
 const getGravatarUrl = (email: string, size = 32) => {
   const hash = md5(email.toLowerCase().trim()).toString();
   return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon`;
 };
+
 interface MainMenuConfigProps {
   MainMenu: typeof MainMenuType;
   excalidrawAPI: ExcalidrawImperativeAPI | null;
