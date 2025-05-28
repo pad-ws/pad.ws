@@ -52,7 +52,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (config?.posthogKey && config?.posthogHost) {
+    if (!config?.devMode && config?.posthogKey && config?.posthogHost) {
       initializePostHog({
         posthogKey: config.posthogKey,
         posthogHost: config.posthogHost,
