@@ -47,7 +47,7 @@ export default function App() {
     setShowSettingsModal(false);
   };
 
-  const handleOnScrollChange = (scrollX: number, scrollY: number) => {
+  const handleOnScrollChange = () => {
     lockEmbeddables(excalidrawAPI?.getAppState());
   };
 
