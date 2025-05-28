@@ -5,7 +5,7 @@ import type { ExcalidrawEmbeddableElement, NonDeleted } from "@atyrode/excalidra
 
 // Hooks
 import { useAuthStatus } from "./hooks/useAuthStatus";
-import { PadTabsProvider } from "./contexts/TabsContext";
+import { PadTabsProvider } from "./contexts/PadTabsContext";
 import { useCallbackRefState } from "./hooks/useCallbackRefState";
 import { useAppConfig } from "./hooks/useAppConfig";
 
@@ -18,8 +18,8 @@ import Collab from './lib/collab/Collab';
 // Utils
 import { initializePostHog } from "./lib/posthog";
 import { lockEmbeddables, renderCustomEmbeddable } from './CustomEmbeddableRenderer';
-import Tabs from "./ui/Tabs";
 import { INITIAL_APP_DATA, HIDDEN_UI_ELEMENTS } from "./constants";
+import PadTabs from "./ui/PadTabs";
 
 export default function App() {
   const { config, configError } = useAppConfig();
@@ -47,19 +47,19 @@ export default function App() {
       <PadTabsProvider isAuthenticated={isAuthenticated}>
         <Excalidraw
           excalidrawAPI={excalidrawRefCallback}
-        initialData={INITIAL_APP_DATA}
-        UIOptions={{
-          hiddenElements: HIDDEN_UI_ELEMENTS,
-        }}
-        onScrollChange={handleOnScrollChange}
-        validateEmbeddable={true}
-        renderEmbeddable={(element: NonDeleted<ExcalidrawEmbeddableElement>, appState: AppState) => {
-          return renderCustomEmbeddable(element, appState, excalidrawAPI);
-        }}
-        renderTopRightUI={() => (
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <DiscordButton />
-          </div>
+          initialData={INITIAL_APP_DATA}
+          UIOptions={{
+            hiddenElements: HIDDEN_UI_ELEMENTS,
+          }}
+          onScrollChange={handleOnScrollChange}
+          validateEmbeddable={true}
+          renderEmbeddable={(element: NonDeleted<ExcalidrawEmbeddableElement>, appState: AppState) => {
+            return renderCustomEmbeddable(element, appState, excalidrawAPI);
+          }}
+          renderTopRightUI={() => (
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+              <DiscordButton />
+            </div>
         )}
       >
         <MainMenuConfig
@@ -71,21 +71,21 @@ export default function App() {
           <AuthDialog />
         )}
 
-          {excalidrawAPI && (
-            <Footer>
-              {isAuthenticated && (
-                <Tabs excalidrawAPI={excalidrawAPI} />
-              )}
-            </Footer>
-          )}
-          {excalidrawAPI && user && (
-            <Collab
-              excalidrawAPI={excalidrawAPI}
-              user={user}
-              isOnline={!!isAuthenticated}
-              isLoadingAuth={isLoadingAuth}
-            />
-          )}
+        {excalidrawAPI && (
+          <Footer>
+            {isAuthenticated && (
+              <PadTabs excalidrawAPI={excalidrawAPI} />
+            )}
+          </Footer>
+        )}
+        {excalidrawAPI && user && (
+          <Collab
+            excalidrawAPI={excalidrawAPI}
+            user={user}
+            isOnline={!!isAuthenticated}
+            isLoadingAuth={isLoadingAuth}
+          />
+        )}
         </Excalidraw>
       </PadTabsProvider>
     </>

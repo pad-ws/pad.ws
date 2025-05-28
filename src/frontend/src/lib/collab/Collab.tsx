@@ -15,8 +15,8 @@ import type { WebSocketMessage, ConnectionStatus } from './Portal';
 import type { UserInfo } from '../../hooks/useAuthStatus';
 import { debounce, type DebouncedFunction } from '../debounce';
 import { POINTER_MOVE_THROTTLE_MS, ENABLE_PERIODIC_FULL_SYNC, PERIODIC_FULL_SYNC_INTERVAL_MS } from '../../constants';
-import { PadTabsContext } from '../../contexts/TabsContext'; // Adjust path
-import type { PadTabsContextType } from '../../contexts/TabsContext'; // Import type
+import { PadTabsContext } from '../../contexts/PadTabsContext'; // Adjust path
+import type { PadTabsContextType } from '../../contexts/PadTabsContext'; // Import type
 
 interface PointerData {
   x: number;

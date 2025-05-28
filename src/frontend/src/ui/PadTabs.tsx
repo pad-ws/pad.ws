@@ -6,11 +6,11 @@ import { FilePlus2, ChevronLeft, ChevronRight, Users } from "lucide-react";
 
 import { usePad } from "../hooks/usePadData";
 import { useAuthStatus } from "../hooks/useAuthStatus";
-import { usePadTabsContext } from "../contexts/TabsContext"; 
+import { usePadTabsContext } from "../contexts/PadTabsContext"; 
 import type { Tab } from "../hooks/usePadTabs";
 import { capture } from "../lib/posthog";
 import TabContextMenu from "./TabContextMenu";
-import "./Tabs.scss";
+import "./PadTabs.scss";
 
 interface TabsProps {
     excalidrawAPI: ExcalidrawImperativeAPI;
@@ -37,7 +37,7 @@ const useTextOverflow = () => {
     return { overflowMap, checkOverflow };
 };
 
-const Tabs: React.FC<TabsProps> = ({
+const PadTabs: React.FC<TabsProps> = ({
     excalidrawAPI,
 }) => {
     const {
@@ -480,4 +480,4 @@ const Tabs: React.FC<TabsProps> = ({
     );
 };
 
-export default Tabs;
+export default PadTabs;
