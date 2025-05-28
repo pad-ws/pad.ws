@@ -7,7 +7,7 @@ import { LogOut, SquarePlus, LayoutDashboard, User, Text, Settings, Terminal, Fi
 import md5 from 'crypto-js/md5';
 
 // Components
-import SettingsDialog from './SettingsDialog'; // Added import
+import SettingsDialog from './SettingsDialog';
 
 import { useLogout } from '../hooks/useLogout';
 import { useAuthStatus } from '../hooks/useAuthStatus';
@@ -135,7 +135,7 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     setShowSettingsModal(true);
   };
 
-  const handleCloseSettingsModal = () => { // Added handler to close settings modal
+  const handleCloseSettingsModal = () => {
     setShowSettingsModal(false);
   };
   
@@ -151,7 +151,7 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
         const keycloakLogoutUrl = data.logout_url;
 
         const createIframeLoader = (url: string, debugName: string): Promise<void> => {
-          return new Promise<void>((resolve, reject) => { // Added reject for error handling
+          return new Promise<void>((resolve, reject) => {
             const iframe = document.createElement("iframe");
             iframe.style.display = "none";
             iframe.src = url;
@@ -204,7 +204,7 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
           onClose={() => setShowAccountModal(false)} 
         />
       )}
-      {showSettingsModal && ( // Added conditional rendering for SettingsDialog
+      {showSettingsModal && (
         <SettingsDialog
           excalidrawAPI={excalidrawAPI}
           onClose={handleCloseSettingsModal}

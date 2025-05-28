@@ -219,7 +219,7 @@ class TabActionManager implements ActionManager {
     onRename: (padId: string, newName: string) => void,
     onDelete: (padId: string) => void, // This is for deleteOwnedPad
     onUpdateSharingPolicy: (padId: string, policy: string) => void,
-    onLeaveSharedPad: (padId: string) => void, // Moved before optional param
+    onLeaveSharedPad: (padId: string) => void,
     sharingPolicy?: string
   ) {
     this.padId = padId;
@@ -244,7 +244,7 @@ class TabActionManager implements ActionManager {
         console.debug('[pad.ws] User confirmed delete, calling onDelete');
         this.onDelete(this.padId); // Calls original onDelete for owned pads
       }
-    } else if (action.name === 'leaveSharedPad') { // New action for leaving
+    } else if (action.name === 'leaveSharedPad') {
       console.debug('[pad.ws] Attempting to leave shared pad:', this.padId, this.padName);
       if (window.confirm(`Are you sure you want to leave "${this.padName}"? This will remove it from your list of open pads.`)) {
         this.onLeaveSharedPad(this.padId); // Calls the new handler
