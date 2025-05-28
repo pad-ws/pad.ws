@@ -62,6 +62,7 @@ interface CollabState {
   lastProcessedSceneVersion: number;
 }
 
+// TODO: Component wide-refactor is needed: this should be a functional component.
 class Collab extends PureComponent<CollabProps, CollabState> {
   static contextType = PadTabsContext;
   context!: PadTabsContextType; // Assert context will be available
@@ -227,6 +228,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
 
   componentDidUpdate(prevProps: CollabProps, prevState: CollabState) {
     const selectedTabIdFromContext = this.context.selectedTabId;
+    // TODO: This is a bit of a hack to get the previous context value.
     // To get previous context value, you need to pass it to componentDidUpdate if using getDerivedStateFromProps,
     // or manage it in state if necessary. For direct comparison, we'll compare current context with previous prop-derived ID if that was the logic.
     // However, the more direct way is to compare this.context.selectedTabId with the previous value of this.context.selectedTabId.
@@ -256,6 +258,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       this.portal.updateAuthInfo(this.props.user, this.props.isOnline, this.props.isLoadingAuth);
     }
 
+    // TODO: This is a bit of a hack to get the previous context value.
     // Check if selectedTabId from context has changed
     // This is a bit tricky with static contextType as prevContext isn't directly available.
     // A common pattern is to compare this.context.selectedTabId with a stored previous value.
