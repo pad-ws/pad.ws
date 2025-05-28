@@ -4,6 +4,7 @@ interface AppConfig {
   coderUrl: string;
   posthogKey: string;
   posthogHost: string;
+  devMode: boolean;
 }
 
 const fetchAppConfig = async (): Promise<AppConfig> => {
@@ -31,6 +32,7 @@ export const useAppConfig = () => {
     gcTime: Infinity, // Renamed from cacheTime in v5
   });
 
+  console.log('data', data);
   return {
     config: data,
     isLoadingConfig: isLoading,

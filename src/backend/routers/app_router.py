@@ -32,5 +32,6 @@ async def get_app_config():
     return {
         "coderUrl": os.getenv("CODER_URL", ""),
         "posthogKey": os.getenv("VITE_PUBLIC_POSTHOG_KEY", ""),
-        "posthogHost": os.getenv("VITE_PUBLIC_POSTHOG_HOST", "")
+        "posthogHost": os.getenv("VITE_PUBLIC_POSTHOG_HOST", ""),
+        "devMode": os.getenv("PAD_DEV_MODE", "false") == "true",
     }
