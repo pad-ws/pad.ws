@@ -1,4 +1,4 @@
-import React, { PureComponent } from 'react';
+import { PureComponent } from 'react';
 import type { ExcalidrawImperativeAPI, AppState, SocketId, Collaborator as ExcalidrawCollaboratorType } from '@atyrode/excalidraw/types';
 import type { ExcalidrawElement as ExcalidrawElementType } from '@atyrode/excalidraw/element/types';
 import {
@@ -490,13 +490,13 @@ class Collab extends PureComponent<CollabProps, CollabState> {
         if (messageData.button) pointerDataIn.button = messageData.button;
         this.setState(prevState => {
           const newCollaborators = new Map(prevState.collaborators);
-          const existing = newCollaborators.get(user_id);
+          const existing = newCollaborators.get(user_id as SocketId);
           const updatedCollaborator: Collaborator = {
             ...(existing as Collaborator),
             pointer: pointerDataIn,
             button: pointerDataIn.button
           };
-          newCollaborators.set(user_id, updatedCollaborator);
+          newCollaborators.set(user_id as SocketId, updatedCollaborator);
           return { collaborators: newCollaborators };
         });
         break;

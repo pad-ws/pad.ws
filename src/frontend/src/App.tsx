@@ -13,7 +13,6 @@ import { useAppConfig } from "./hooks/useAppConfig";
 import DiscordButton from './ui/DiscordButton';
 import { MainMenuConfig } from './ui/MainMenu';
 import AuthDialog from './ui/AuthDialog';
-import SettingsDialog from './ui/SettingsDialog';
 import Collab from './lib/collab/Collab';
 
 // Utils
@@ -39,15 +38,9 @@ export default function App() {
     leaveSharedPad
   } = usePadTabs(isAuthenticated);
 
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [excalidrawAPI, excalidrawRefCallback] = useCallbackRefState<ExcalidrawImperativeAPI>();
 
-
-  const handleCloseSettingsModal = () => {
-    setShowSettingsModal(false);
-  };
-
-  const handleOnScrollChange = (scrollX: number, scrollY: number) => {
+  const handleOnScrollChange = () => {
     lockEmbeddables(excalidrawAPI?.getAppState());
   };
 
@@ -84,19 +77,10 @@ export default function App() {
         <MainMenuConfig
           MainMenu={MainMenu}
           excalidrawAPI={excalidrawAPI}
-          showSettingsModal={showSettingsModal}
-          setShowSettingsModal={setShowSettingsModal}
         />
 
         {!isLoadingAuth && !isAuthenticated && (
-          <AuthDialog onClose={() => { }} />
-        )}
-
-        {showSettingsModal && (
-          <SettingsDialog
-            excalidrawAPI={excalidrawAPI}
-            onClose={handleCloseSettingsModal}
-          />
+          <AuthDialog />
         )}
 
         {excalidrawAPI && (

@@ -10,7 +10,3 @@ export interface UserSettings {
    */
   embedLockDebounceTime?: number;
 }
-
-export const DEFAULT_SETTINGS: UserSettings = {
-  embedLockDebounceTime: 350, // Default value from CustomEmbeddableRenderer.tsx
-};

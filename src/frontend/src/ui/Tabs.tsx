@@ -357,7 +357,7 @@ const Tabs: React.FC<TabsProps> = ({
                                                                 children={
                                                                     <div className="tab-content">
                                                                         <span 
-                                                                            ref={el => titleRefs.current[tab.id] = el}
+                                                                            ref={el => { titleRefs.current[tab.id] = el; }}
                                                                             className={`tab-title ${overflowMap[tab.id] ? 'tab-title-overflow' : ''}`}
                                                                         >
                                                                             {selectedTabId === tab.id && displayPadLoadingIndicator ? "..." : tab.title}
@@ -379,7 +379,7 @@ const Tabs: React.FC<TabsProps> = ({
                                                         children={
                                                             <div className="tab-content">
                                                                 <span 
-                                                                    ref={el => titleRefs.current[tab.id] = el}
+                                                                    ref={el => { titleRefs.current[tab.id] = el; }}
                                                                     className={`tab-title ${overflowMap[tab.id] ? 'tab-title-overflow' : ''}`}
                                                                 >
                                                                     {tab.title}

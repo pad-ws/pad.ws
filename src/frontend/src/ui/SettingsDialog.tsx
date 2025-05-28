@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { Dialog } from "@atyrode/excalidraw";
 import { Range } from "./Range";
-import { UserSettings, DEFAULT_SETTINGS } from "../types/settings";
-// import { capture } from "../lib/posthog";
+import { UserSettings } from "./types";
+import { DEFAULT_SETTINGS } from "../constants";
+
 import "./SettingsDialog.scss";
 
 interface SettingsDialogProps {

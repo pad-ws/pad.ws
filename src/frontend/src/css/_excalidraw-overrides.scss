@@ -48,12 +48,6 @@
     --color-surface-primary-container: #{$accent-light} !important;
     --color-selection: #{$accent-lighter} !important;
 
-    .dropdown-menu-button {
-        &:hover {
-            background-color: $accent-faded-light !important;
-        }
-    }
-
     .dropdown-menu-group-title {
         color: $accent-lighter !important;
     }
@@ -67,11 +61,6 @@
     --color-surface-primary-container: #{$accent} !important;
     --color-selection: #{$accent-darker} !important;
 
-    .dropdown-menu-button {
-        &:hover {
-            background-color: $accent-faded-dark !important;
-        }
-    }
     .dropdown-menu-group-title {
         color: $accent-darker !important;
     }

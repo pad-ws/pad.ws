@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useAppConfig } from "./hooks/useAppConfig"; // Import useAppConfig
+import { useAppConfig } from "./hooks/useAppConfig";
 import { useAuthStatus } from "./hooks/useAuthStatus";
 
 /**
