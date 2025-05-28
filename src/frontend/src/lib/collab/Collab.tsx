@@ -15,6 +15,8 @@ import type { WebSocketMessage, ConnectionStatus } from './Portal';
 import type { UserInfo } from '../../hooks/useAuthStatus';
 import { debounce, type DebouncedFunction } from '../debounce';
 import { POINTER_MOVE_THROTTLE_MS, ENABLE_PERIODIC_FULL_SYNC, PERIODIC_FULL_SYNC_INTERVAL_MS } from '../../constants';
+import { PadTabsContext } from '../../contexts/TabsContext'; // Adjust path
+import type { PadTabsContextType } from '../../contexts/TabsContext'; // Import type
 
 interface PointerData {
   x: number;
@@ -49,7 +51,7 @@ interface CollabProps {
   user: UserInfo | null;
   isOnline: boolean;
   isLoadingAuth: boolean;
-  padId: string | null;
+  // padId: string | null; // This prop will be removed
 }
 
 interface CollabState {
@@ -61,9 +63,12 @@ interface CollabState {
 }
 
 class Collab extends PureComponent<CollabProps, CollabState> {
+  static contextType = PadTabsContext;
+  context!: PadTabsContextType; // Assert context will be available
+
   [x: string]: any;
   readonly state: CollabState;
-  private portal: Portal;
+  private portal!: Portal; // Initialize in constructor or componentDidMount
   private debouncedBroadcastAppState: DebouncedFunction<[AppState]>;
   private lastSentAppState: AppState | null = null;
 
@@ -86,16 +91,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       lastProcessedSceneVersion: -1,
     };
 
-    this.portal = new Portal(
-      this,
-      props.padId,
-      props.user,
-      props.isOnline, // Passing isOnline as isAuthenticated
-      props.isLoadingAuth,
-      this.handlePortalStatusChange,
-      this.handlePortalMessage
-    );
-
+    // Portal initialization will be done in componentDidMount to access context
     this.throttledOnPointerMove = throttle((event: PointerEvent) => {
       this.handlePointerMove(event);
     }, POINTER_MOVE_THROTTLE_MS);
@@ -185,6 +181,18 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   /* Component Lifecycle */
 
   componentDidMount() {
+    const selectedTabIdFromContext = this.context.selectedTabId;
+
+    this.portal = new Portal(
+      this,
+      selectedTabIdFromContext, 
+      this.props.user,
+      this.props.isOnline,
+      this.props.isLoadingAuth,
+      this.handlePortalStatusChange,
+      this.handlePortalMessage
+    );
+
     if (this.portal) {
       this.portal.initiate();
     }
@@ -192,7 +200,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
     if (this.props.user) {
       this.updateUsername(this.props.user);
     }
-    this.updateExcalidrawCollaborators(); // Initial update for collaborators
+    this.updateExcalidrawCollaborators(); 
     this.addPointerEventListeners();
     this.addSceneChangeListeners();
 
@@ -204,7 +212,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       // Also set the initial processed version from local state
       this.setState({ lastProcessedSceneVersion: this.lastBroadcastedSceneVersion });
     }
-    if (this.props.isOnline && this.props.padId) {
+    if (this.props.isOnline && selectedTabIdFromContext) {
       // Potentially call a method to broadcast initial scene if this client is the first or needs to sync
       // this.broadcastFullSceneUpdate(true); // Example: true for SCENE_INIT
     }
@@ -218,6 +226,27 @@ class Collab extends PureComponent<CollabProps, CollabState> {
   }
 
   componentDidUpdate(prevProps: CollabProps, prevState: CollabState) {
+    const selectedTabIdFromContext = this.context.selectedTabId;
+    // To get previous context value, you need to pass it to componentDidUpdate if using getDerivedStateFromProps,
+    // or manage it in state if necessary. For direct comparison, we'll compare current context with previous prop-derived ID if that was the logic.
+    // However, the more direct way is to compare this.context.selectedTabId with the previous value of this.context.selectedTabId.
+    // React doesn't pass prevContext to cDU by default for static contextType.
+    // A common workaround is to store relevant context parts in state if you need to compare.
+    // Or, if the update logic for portal.updatePadId only depends on the *current* context.selectedTabId
+    // and its change from the *previous* selectedTabId (which was effectively props.padId),
+    // we need to ensure we have the "previous" selectedTabId.
+    // One way: store selectedTabId in component state and update it from context.
+    // For simplicity here, we'll assume the portal's updatePadId is idempotent or handles changes correctly.
+    // A more robust way:
+    // if (selectedTabIdFromContext !== this.portal.getCurrentPadId()) { // Assuming portal exposes current padId
+    //    this.portal.updatePadId(selectedTabIdFromContext);
+    // }
+    // For now, let's check against the previous value of selectedTabId that would have been derived from props.
+    // This requires a bit of care. The most straightforward is to compare this.context.selectedTabId
+    // with a value stored from the *previous render's context*.
+    // Since `prevContext` isn't passed, we'd typically store `selectedTabId` in `this.state`
+    // and update it in `getDerivedStateFromProps` or `componentDidUpdate` if it changes in context.
+
     if (
       this.props.user !== prevProps.user ||
       this.props.isOnline !== prevProps.isOnline ||
@@ -227,7 +256,14 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       this.portal.updateAuthInfo(this.props.user, this.props.isOnline, this.props.isLoadingAuth);
     }
 
-    if (this.props.padId !== prevProps.padId) {
+    // Check if selectedTabId from context has changed
+    // This is a bit tricky with static contextType as prevContext isn't directly available.
+    // A common pattern is to compare this.context.selectedTabId with a stored previous value.
+    // For this example, we'll assume a simplified check. If this causes issues,
+    // selectedTabId might need to be mirrored in the component's state.
+    const previousPadId = this.portal.getPadId(); // Use the new getter
+
+    if (selectedTabIdFromContext !== previousPadId) { 
       // Portal's updatePadId will handle disconnection from old and connection to new
       this.debouncedBroadcastAppState.cancel(); // Cancel any pending app state updates for the old pad
       this.lastSentAppState = null; // Reset last sent app state for the new pad
@@ -237,7 +273,7 @@ class Collab extends PureComponent<CollabProps, CollabState> {
       // Mark as initial load for the new pad
       this.isInitialLoad = true;
 
-      this.portal.updatePadId(this.props.padId);
+      this.portal.updatePadId(selectedTabIdFromContext); 
       this.setState({
         collaborators: new Map(),
         lastProcessedSceneVersion: -1,

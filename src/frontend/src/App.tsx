@@ -5,7 +5,7 @@ import type { ExcalidrawEmbeddableElement, NonDeleted } from "@atyrode/excalidra
 
 // Hooks
 import { useAuthStatus } from "./hooks/useAuthStatus";
-import { usePadTabs } from "./hooks/usePadTabs";
+import { PadTabsProvider } from "./contexts/TabsContext";
 import { useCallbackRefState } from "./hooks/useCallbackRefState";
 import { useAppConfig } from "./hooks/useAppConfig";
 
@@ -24,19 +24,6 @@ import { INITIAL_APP_DATA, HIDDEN_UI_ELEMENTS } from "./constants";
 export default function App() {
   const { config, configError } = useAppConfig();
   const { isAuthenticated, isLoading: isLoadingAuth, user } = useAuthStatus();
-
-  const {
-    tabs,
-    selectedTabId,
-    isLoading: isLoadingTabs,
-    createNewPadAsync,
-    isCreating: isCreatingPad,
-    renamePad,
-    deletePad,
-    selectTab,
-    updateSharingPolicy,
-    leaveSharedPad
-  } = usePadTabs(isAuthenticated);
 
   const [excalidrawAPI, excalidrawRefCallback] = useCallbackRefState<ExcalidrawImperativeAPI>();
 
@@ -57,8 +44,9 @@ export default function App() {
 
   return (
     <>
-      <Excalidraw
-        excalidrawAPI={excalidrawRefCallback}
+      <PadTabsProvider isAuthenticated={isAuthenticated}>
+        <Excalidraw
+          excalidrawAPI={excalidrawRefCallback}
         initialData={INITIAL_APP_DATA}
         UIOptions={{
           hiddenElements: HIDDEN_UI_ELEMENTS,
@@ -83,35 +71,23 @@ export default function App() {
           <AuthDialog />
         )}
 
-        {excalidrawAPI && (
-          <Footer>
-            {isAuthenticated && (
-              <Tabs
-                excalidrawAPI={excalidrawAPI}
-                tabs={tabs}
-                selectedTabId={selectedTabId}
-                isLoading={isLoadingTabs}
-                isCreatingPad={isCreatingPad}
-                createNewPadAsync={createNewPadAsync}
-                renamePad={renamePad}
-                deletePad={deletePad}
-                leaveSharedPad={leaveSharedPad}
-                updateSharingPolicy={updateSharingPolicy}
-                selectTab={selectTab}
-              />
-            )}
-          </Footer>
-        )}
-        {excalidrawAPI && user && (
-          <Collab
-            excalidrawAPI={excalidrawAPI}
-            user={user}
-            isOnline={!!isAuthenticated}
-            isLoadingAuth={isLoadingAuth}
-            padId={selectedTabId}
-          />
-        )}
-      </Excalidraw>
+          {excalidrawAPI && (
+            <Footer>
+              {isAuthenticated && (
+                <Tabs excalidrawAPI={excalidrawAPI} />
+              )}
+            </Footer>
+          )}
+          {excalidrawAPI && user && (
+            <Collab
+              excalidrawAPI={excalidrawAPI}
+              user={user}
+              isOnline={!!isAuthenticated}
+              isLoadingAuth={isLoadingAuth}
+            />
+          )}
+        </Excalidraw>
+      </PadTabsProvider>
     </>
   );
 }

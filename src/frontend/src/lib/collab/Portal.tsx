@@ -89,6 +89,10 @@ class Portal {
     return this.currentConnectionStatus;
   }
 
+  public getPadId(): string | null {
+    return this.roomId;
+  }
+
   private getSocketUrl(): string | null {
     if (!this.roomId || this.roomId.startsWith('temp-')) {
       return null;

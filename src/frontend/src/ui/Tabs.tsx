@@ -6,6 +6,7 @@ import { FilePlus2, ChevronLeft, ChevronRight, Users } from "lucide-react";
 
 import { usePad } from "../hooks/usePadData";
 import { useAuthStatus } from "../hooks/useAuthStatus";
+import { usePadTabsContext } from "../contexts/TabsContext"; 
 import type { Tab } from "../hooks/usePadTabs";
 import { capture } from "../lib/posthog";
 import TabContextMenu from "./TabContextMenu";
@@ -13,16 +14,6 @@ import "./Tabs.scss";
 
 interface TabsProps {
     excalidrawAPI: ExcalidrawImperativeAPI;
-    tabs: Tab[];
-    selectedTabId: string | null;
-    isLoading: boolean;
-    isCreatingPad: boolean;
-    createNewPadAsync: () => Promise<Tab | null | undefined>;
-    renamePad: (args: { padId: string; newName: string }) => void;
-    deletePad: (padId: string) => void;
-    leaveSharedPad: (padId: string) => void;
-    updateSharingPolicy: (args: { padId: string; policy: string }) => void;
-    selectTab: (tabId: string) => void;
 }
 
 // Custom hook to check if text is overflowing its container
@@ -48,17 +39,20 @@ const useTextOverflow = () => {
 
 const Tabs: React.FC<TabsProps> = ({
     excalidrawAPI,
-    tabs,
-    selectedTabId,
-    isLoading,
-    isCreatingPad,
-    createNewPadAsync,
-    renamePad,
-    deletePad,
-    leaveSharedPad, // Destructure new prop
-    updateSharingPolicy,
-    selectTab,
 }) => {
+    const {
+        tabs,
+        selectedTabId,
+        isLoading, // This is isLoading for tabs data
+        isCreating: isCreatingPad,
+        createNewPadAsync,
+        renamePad,
+        deletePad,
+        leaveSharedPad,
+        updateSharingPolicy,
+        selectTab
+    } = usePadTabsContext();
+
     const { user: currentUser } = useAuthStatus();
     const { isLoading: isPadLoading, error: padError } = usePad(selectedTabId, excalidrawAPI);
     const [displayPadLoadingIndicator, setDisplayPadLoadingIndicator] = useState(false);
