@@ -27,10 +27,6 @@ export default function App() {
 
   const [excalidrawAPI, excalidrawRefCallback] = useCallbackRefState<ExcalidrawImperativeAPI>();
 
-  const handleOnScrollChange = () => {
-    lockEmbeddables(excalidrawAPI?.getAppState());
-  };
-
   useEffect(() => {
     if (!config?.devMode && config?.posthogKey && config?.posthogHost) {
       initializePostHog({
@@ -51,7 +47,7 @@ export default function App() {
           UIOptions={{
             hiddenElements: HIDDEN_UI_ELEMENTS,
           }}
-          onScrollChange={handleOnScrollChange}
+          onScrollChange={() => lockEmbeddables(excalidrawAPI?.getAppState())}
           validateEmbeddable={true}
           renderEmbeddable={(element: NonDeleted<ExcalidrawEmbeddableElement>, appState: AppState) => {
             return renderCustomEmbeddable(element, appState, excalidrawAPI);
