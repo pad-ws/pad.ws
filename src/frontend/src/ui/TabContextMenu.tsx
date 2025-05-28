@@ -37,8 +37,13 @@ interface TabContextMenuProps {
   padId: string;
   padName: string;
   onRename: (padId: string, newName: string) => void;
-  onDelete: (padId: string) => void;
+  onDelete: (padId: string) => void; // For deleting owned pads
+  onUpdateSharingPolicy: (padId: string, policy: string) => void;
   onClose: () => void;
+  currentUserId?: string;
+  tabOwnerId?: string;
+  sharingPolicy?: string;
+  onLeaveSharedPad: (padId: string) => void; // For leaving shared pads
 }
 
 // Popover component
@@ -52,69 +57,69 @@ const Popover: React.FC<{
   viewportWidth?: number;
   viewportHeight?: number;
   children: React.ReactNode;
-}> = ({ 
-  onCloseRequest, 
-  top, 
-  left, 
-  children, 
+}> = ({
+  onCloseRequest,
+  top,
+  left,
+  children,
   fitInViewport = false,
   offsetLeft = 0,
   offsetTop = 0,
   viewportWidth = window.innerWidth,
   viewportHeight = window.innerHeight
 }) => {
-  const popoverRef = useRef<HTMLDivElement>(null);
-  
-  // Handle clicks outside the popover to close it
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-        onCloseRequest();
+    const popoverRef = useRef<HTMLDivElement>(null);
+
+    // Handle clicks outside the popover to close it
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+          onCloseRequest();
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }, [onCloseRequest]);
+
+    // Adjust position if needed to fit in viewport
+    useEffect(() => {
+      if (fitInViewport && popoverRef.current) {
+        const rect = popoverRef.current.getBoundingClientRect();
+        const adjustedLeft = Math.min(left, viewportWidth - rect.width);
+        const adjustedTop = Math.min(top, viewportHeight - rect.height);
+
+        if (popoverRef.current) {
+          popoverRef.current.style.left = `${adjustedLeft}px`;
+          popoverRef.current.style.top = `${adjustedTop}px`;
+        }
       }
-    };
+    }, [fitInViewport, left, top, viewportWidth, viewportHeight]);
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [onCloseRequest]);
-
-  // Adjust position if needed to fit in viewport
-  useEffect(() => {
-    if (fitInViewport && popoverRef.current) {
-      const rect = popoverRef.current.getBoundingClientRect();
-      const adjustedLeft = Math.min(left, viewportWidth - rect.width);
-      const adjustedTop = Math.min(top, viewportHeight - rect.height);
-      
-      if (popoverRef.current) {
-        popoverRef.current.style.left = `${adjustedLeft}px`;
-        popoverRef.current.style.top = `${adjustedTop}px`;
-      }
-    }
-  }, [fitInViewport, left, top, viewportWidth, viewportHeight]);
-
-  return (
-    <div 
-      ref={popoverRef}
-      style={{
-        position: 'fixed',
-        top: `${top}px`,
-        left: `${left}px`,
-        zIndex: 1000,
-      }}
-    >
-      {children}
-    </div>
-  );
-};
+    return (
+      <div
+        ref={popoverRef}
+        style={{
+          position: 'fixed',
+          top: `${top}px`,
+          left: `${left}px`,
+          zIndex: 1000,
+        }}
+      >
+        {children}
+      </div>
+    );
+  };
 
 // ContextMenu component
-const ContextMenu: React.FC<ContextMenuProps> = ({ 
-  actionManager, 
-  items, 
-  top, 
-  left, 
-  onClose 
+const ContextMenu: React.FC<ContextMenuProps> = ({
+  actionManager,
+  items,
+  top,
+  left,
+  onClose
 }) => {
   // Filter items based on predicate
   const filteredItems = items.reduce((acc: ContextMenuItem[], item) => {
@@ -170,14 +175,11 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
               key={idx}
               data-testid={actionName}
               onClick={() => {
-                // Log the click
-                console.debug('[pad.ws] Menu item clicked:', item.name);
-                
                 // Store the callback to execute after closing
                 const callback = () => {
                   actionManager.executeAction(item, "contextMenu");
                 };
-                
+
                 // Close the menu and execute the callback
                 onClose(callback);
               }}
@@ -205,36 +207,58 @@ class TabActionManager implements ActionManager {
   padId: string;
   padName: string;
   onRename: (padId: string, newName: string) => void;
-  onDelete: (padId: string) => void;
+  onDelete: (padId: string) => void; // For deleteOwnedPad
+  onUpdateSharingPolicy: (padId: string, policy: string) => void;
   app: any;
+  sharingPolicy?: string;
+  onLeaveSharedPad: (padId: string) => void; // For leaveSharedPad
 
   constructor(
     padId: string,
     padName: string,
     onRename: (padId: string, newName: string) => void,
-    onDelete: (padId: string) => void
+    onDelete: (padId: string) => void, // This is for deleteOwnedPad
+    onUpdateSharingPolicy: (padId: string, policy: string) => void,
+    onLeaveSharedPad: (padId: string) => void, // Moved before optional param
+    sharingPolicy?: string
   ) {
     this.padId = padId;
     this.padName = padName;
     this.onRename = onRename;
-    this.onDelete = onDelete;
+    this.onDelete = onDelete; // Will be called by 'deleteOwnedPad'
+    this.onUpdateSharingPolicy = onUpdateSharingPolicy;
+    this.onLeaveSharedPad = onLeaveSharedPad; // Will be called by 'leaveSharedPad'
+    this.sharingPolicy = sharingPolicy;
     this.app = { props: {} };
   }
 
   executeAction(action: Action, source: string) {
-    console.debug('[pad.ws] Executing action:', action.name, 'from source:', source);
-    
     if (action.name === 'rename') {
       const newName = window.prompt('Rename pad', this.padName);
       if (newName && newName.trim() !== '') {
         this.onRename(this.padId, newName);
       }
-    } else if (action.name === 'delete') {
-      console.debug('[pad.ws] Attempting to delete pad:', this.padId, this.padName);
+    } else if (action.name === 'deleteOwnedPad') { // Renamed from 'delete'
+      console.debug('[pad.ws] Attempting to delete owned pad:', this.padId, this.padName);
       if (window.confirm(`Are you sure you want to delete "${this.padName}"?`)) {
         console.debug('[pad.ws] User confirmed delete, calling onDelete');
-        this.onDelete(this.padId);
+        this.onDelete(this.padId); // Calls original onDelete for owned pads
       }
+    } else if (action.name === 'leaveSharedPad') { // New action for leaving
+      console.debug('[pad.ws] Attempting to leave shared pad:', this.padId, this.padName);
+      if (window.confirm(`Are you sure you want to leave "${this.padName}"? This will remove it from your list of open pads.`)) {
+        this.onLeaveSharedPad(this.padId); // Calls the new handler
+      }
+    } else if (action.name === 'toggleSharingPolicy') {
+      const newPolicy = this.sharingPolicy === 'public' ? 'private' : 'public';
+      this.onUpdateSharingPolicy(this.padId, newPolicy);
+    } else if (action.name === 'copyUrl') {
+      const url = `${window.location.origin}/pad/${this.padId}`;
+      navigator.clipboard.writeText(url).then(() => {
+        console.debug('[pad.ws] URL copied to clipboard:', url);
+      }).catch(err => {
+        console.error('[pad.ws] Failed to copy URL:', err);
+      });
     }
   }
 }
@@ -247,35 +271,71 @@ const TabContextMenu: React.FC<TabContextMenuProps> = ({
   padName,
   onRename,
   onDelete,
-  onClose
+  onUpdateSharingPolicy,
+  onClose,
+  currentUserId,
+  tabOwnerId,
+  sharingPolicy,
+  onLeaveSharedPad // Destructure new prop
 }) => {
+  const isOwner = currentUserId && tabOwnerId && currentUserId === tabOwnerId;
+  const isPadPublic = sharingPolicy === 'public';
+
   // Create an action manager instance
-  const actionManager = new TabActionManager(padId, padName, onRename, onDelete);
+  const actionManager = new TabActionManager(padId, padName, onRename, onDelete, onUpdateSharingPolicy, onLeaveSharedPad, sharingPolicy);
 
   // Define menu items
-  const menuItems = [
-    {
+  const menuItemsResult: ContextMenuItems = [];
+
+  if (isOwner) {
+    menuItemsResult.push({
       name: 'rename',
       label: 'Rename',
-      predicate: () => true,
-    },
-    CONTEXT_MENU_SEPARATOR, // Add separator between rename and delete
-    {
-      name: 'delete',
-      label: 'Delete',
-      predicate: () => true,
-      dangerous: true,
+    });
+    // No separator needed here if toggleSharingPolicy directly follows
+  }
+
+  // Always show Copy URL
+  menuItemsResult.push({
+    name: 'copyUrl',
+    label: 'Copy URL',
+  });
+  
+  if (isOwner) {
+    // Add separator if rename was added, before toggle policy
+    const renameItemIndex = menuItemsResult.findIndex(item => item && typeof item !== 'string' && item.name === 'rename');
+    const copyUrlItemIndex = menuItemsResult.findIndex(item => item && typeof item !== 'string' && item.name === 'copyUrl');
+
+    if (renameItemIndex !== -1 && copyUrlItemIndex !== -1 && copyUrlItemIndex > renameItemIndex) {
+       menuItemsResult.splice(copyUrlItemIndex, 0, CONTEXT_MENU_SEPARATOR);
+    } else if (renameItemIndex !== -1 && copyUrlItemIndex === -1) {
+      // If copyUrl is not there for some reason, but rename is, add separator after rename
+      menuItemsResult.push(CONTEXT_MENU_SEPARATOR);
     }
-  ];
+
+    menuItemsResult.push({
+      name: 'toggleSharingPolicy',
+      label: () => isPadPublic ? 'Set Private' : 'Set Public',
+    });
+  }
+  
+  // Separator before delete/leave
+  if (menuItemsResult.length > 0 && menuItemsResult[menuItemsResult.length -1] !== CONTEXT_MENU_SEPARATOR) {
+      menuItemsResult.push(CONTEXT_MENU_SEPARATOR);
+  }
+
+  menuItemsResult.push({
+    name: !isOwner ? 'leaveSharedPad' : 'deleteOwnedPad', // Dynamically set action name
+    label: () => (!isOwner ? 'Leave shared pad' : 'Delete'),
+    dangerous: true,
+  });
+  
+  const menuItems = menuItemsResult.filter(Boolean) as ContextMenuItems;
+
 
   // Create a wrapper for onClose that handles the callback
   const handleClose = (callback?: () => void) => {
-    console.debug('[pad.ws] TabContextMenu handleClose called, has callback:', !!callback);
-    
-    // First call the original onClose
     onClose();
-    
-    // Then execute the callback if provided
     if (callback) {
       callback();
     }

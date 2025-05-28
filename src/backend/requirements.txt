@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 httpx
 jinja2
 asyncpg
@@ -11,4 +11,5 @@ posthog
 redis
 psycopg2-binary
 python-multipart
-cryptography  # Required for JWT key handling
+websockets
+cryptography

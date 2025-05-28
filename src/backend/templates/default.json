@@ -2180,7 +2180,13 @@
             "backgroundColor": "#e9ecef",
             "customData": {
                 "showHyperlinkIcon": false,
-                "showClickableHint": false
+                "showClickableHint": false,
+                "borderOffsets": {
+                    "top": 40,
+                    "right": 10,
+                    "bottom": 10,
+                    "left": 10
+                }
             }
         }
     ]

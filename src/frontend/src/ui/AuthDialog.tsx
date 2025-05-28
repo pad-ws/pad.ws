@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { capture } from "../utils/posthog";
-import { queryClient } from "../api/queryClient";
+import React, { useMemo, useEffect } from "react";
+import { capture } from "../lib/posthog";
 import { GoogleIcon, GithubIcon } from "../icons";
 import "./AuthDialog.scss";
 
@@ -19,9 +18,6 @@ export const AuthDialog = ({
   onClose,
   children,
 }: AuthDialogProps) => {
-  const [modalIsShown, setModalIsShown] = useState(true);
-  
-  // Array of random messages that the logo can "say"
   const logoMessages = [
     "Hello there!",
     "Welcome to pad.ws!",
@@ -33,13 +29,12 @@ export const AuthDialog = ({
     "Let's get productive!",
     "Let's turn ideas into code!"
   ];
-  
-  // Select a random message when component mounts
-  const randomMessage = useMemo(() => {
-    const randomIndex = Math.floor(Math.random() * logoMessages.length);
-    return logoMessages[randomIndex];
-  }, []);
-  
+
+  const randomMessage = useMemo(() =>
+    logoMessages[Math.floor(Math.random() * logoMessages.length)],
+    []
+  );
+
   useEffect(() => {
     capture("auth_modal_shown");
     
@@ -58,70 +53,24 @@ export const AuthDialog = ({
     };
   }, []);
 
-  useEffect(() => {
-    const checkLocalStorage = () => {
-      const authCompleted = localStorage.getItem('auth_completed');
-      if (authCompleted) {
-        localStorage.removeItem('auth_completed');
-        queryClient.invalidateQueries({ queryKey: ['auth'] });
-        clearInterval(intervalId);
-        handleClose();
-      }
-    };
-    
-    const intervalId = setInterval(checkLocalStorage, 500);
-    
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, []);
-
-  const handleClose = React.useCallback(() => {
-    setModalIsShown(false);
-
-    if (onClose) {
-      onClose();
-    }
-  }, [onClose]);
-
-  // Prepare the content for the Dialog
   const dialogContent = (
     <div className="auth-modal__content">
       <p className="auth-modal__description">{description}</p>
-      
-      {/* Sign-in buttons */}
+
       <div className="auth-modal__buttons">
-        <button
-          onClick={() => {
-            window.open(
-              "/auth/login?kc_idp_hint=google&popup=1",
-              "authPopup",
-              "width=500,height=700,noopener,noreferrer"
-            );
-          }}
-        >
+        <button onClick={() => window.open("/api/auth/login?kc_idp_hint=google&popup=1", "authPopup", "width=500,height=700,noopener,noreferrer")}>
           <GoogleIcon className="google-icon" />
           <span>Continue with Google</span>
         </button>
 
-        <button
-          onClick={() => {
-            window.open(
-              "/auth/login?kc_idp_hint=github&popup=1",
-              "authPopup",
-              "width=500,height=700,noopener,noreferrer"
-            );
-          }}
-        >
+        <button onClick={() => window.open("/api/auth/login?kc_idp_hint=github&popup=1", "authPopup", "width=500,height=700,noopener,noreferrer")}>
           <GithubIcon />
           <span>Continue with GitHub</span>
         </button>
       </div>
 
-      {/* Footer */}
       <div className="auth-modal__footer">
-                {/* Warning message */}
-                <div className="auth-modal__warning">
+        <div className="auth-modal__warning">
           {warningText}
         </div>
 
@@ -135,42 +84,29 @@ export const AuthDialog = ({
            aria-label="Star pad-ws/pad.ws on GitHub">
           Star
         </a>
-
-
       </div>
-      
     </div>
   );
 
   return (
-    <>
-      {modalIsShown && (
-        <div className="auth-modal__wrapper">
-          <div className="auth-modal__logo-container">
-            <img 
-              src="/assets/images/favicon.png" 
-              alt="pad.ws logo" 
-              className="auth-modal__logo" 
-            />
-            <div className="auth-modal__logo-speech-bubble">
-              {randomMessage}
-            </div>
+    <div className="auth-modal__wrapper">
+      <div className="auth-modal__logo-container">
+        <img src="/assets/images/favicon.png" alt="pad.ws logo" className="auth-modal__logo" />
+        <div className="auth-modal__logo-speech-bubble">{randomMessage}</div>
+      </div>
+      <Dialog
+        className="auth-modal"
+        size="small"
+        onCloseRequest={() => { }}
+        title={
+          <div id="modal-title" className="auth-modal__title-container">
+            <h2 className="auth-modal__title">pad<span className="auth-modal__title-dot">.ws</span></h2>
           </div>
-          <Dialog
-            className="auth-modal"
-            size="small"
-            onCloseRequest={handleClose}
-            title={
-              <div id="modal-title" className="auth-modal__title-container">
-                <h2 className="auth-modal__title">pad<span className="auth-modal__title-dot">.ws</span></h2>
-              </div>
-            }
-            closeOnClickOutside={false}
-            children={children || dialogContent}
-          />
-        </div>
-      )}
-    </>
+        }
+        closeOnClickOutside={false}
+        children={children || dialogContent}
+      />
+    </div>
   );
 };
 

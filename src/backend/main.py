@@ -2,104 +2,69 @@ import os
 import json
 from contextlib import asynccontextmanager
 from typing import Optional
+from uuid import UUID
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import posthog
-from fastapi import FastAPI, Request, Depends
+import httpx
+from fastapi import FastAPI, Request, Depends, Response
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from database import init_db
-from config import STATIC_DIR, ASSETS_DIR, POSTHOG_API_KEY, POSTHOG_HOST, redis_client, redis_pool
+from database import init_db, engine
+from config import (
+    STATIC_DIR, ASSETS_DIR, POSTHOG_API_KEY, POSTHOG_HOST, 
+    PAD_DEV_MODE, DEV_FRONTEND_URL
+)
+from cache import RedisClient
 from dependencies import UserSession, optional_auth
 from routers.auth_router import auth_router
-from routers.user_router import user_router
+from routers.users_router import users_router
 from routers.workspace_router import workspace_router
 from routers.pad_router import pad_router
-from routers.template_pad_router import template_pad_router
 from routers.app_router import app_router
-from database.service import TemplatePadService
-from database.database import async_session
+from routers.ws_router import ws_router
+from database.database import get_session
+from database.models.user_model import UserStore
+from domain.pad import Pad
+from workers.canvas_worker import CanvasWorker
+from domain.user import User
 
 # Initialize PostHog if API key is available
 if POSTHOG_API_KEY:
     posthog.project_api_key = POSTHOG_API_KEY
     posthog.host = POSTHOG_HOST
 
-async def load_templates():
-    """
-    Load all templates from the templates directory into the database if they don't exist.
-    
-    This function reads all JSON files in the templates directory, extracts the display name
-    from the "appState.pad.displayName" field, uses the filename as the name, and stores
-    the entire JSON as the data.
-    """
-    try:
-        # Get a session and template service
-        async with async_session() as session:
-            template_service = TemplatePadService(session)
-            
-            # Get the templates directory path
-            templates_dir = os.path.join(os.path.dirname(__file__), "templates")
-            
-            # Iterate through all JSON files in the templates directory
-            for filename in os.listdir(templates_dir):
-                if filename.endswith(".json"):
-                    # Use the filename without extension as the name
-                    name = os.path.splitext(filename)[0]
-                    
-                    # Check if template already exists
-                    existing_template = await template_service.get_template_by_name(name)
-
-                    if not existing_template:
-
-                        file_path = os.path.join(templates_dir, filename)
-                        
-                        # Read the JSON file
-                        with open(file_path, 'r') as f:
-                            template_data = json.load(f)
-                        
-                        # Extract the display name from the JSON
-                        display_name = template_data.get("appState", {}).get("pad", {}).get("displayName", "Untitled")
-                        
-                        # Create the template if it doesn't exist
-                        await template_service.create_template(
-                            name=name,
-                            display_name=display_name,
-                            data=template_data
-                        )
-                        print(f"Added template: {name} ({display_name})")
-                    else:
-                        print(f"Template already in database: '{name}'")
-            
-    except Exception as e:
-        print(f"Error loading templates: {str(e)}")
-
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app: FastAPI):
+    """Manage the lifecycle of the application and its services."""
+    
+    if PAD_DEV_MODE:
+        print("Starting in dev mode")
+
     # Initialize database
     await init_db()
     print("Database connection established successfully")
     
-    redis_client.ping()
+    # Initialize Redis client and verify connection
+    redis = await RedisClient.get_instance()
+    await redis.ping()
     print("Redis connection established successfully")
     
-    # Load all templates from the templates directory
-    await load_templates()
-    print("Templates loaded successfully")
+    # Initialize the canvas worker
+    canvas_worker = await CanvasWorker.get_instance()
+    print("Canvas worker started successfully")
     
     yield
     
-    # Clean up connections when shutting down
-    try:
-        redis_pool.disconnect()
-        print("Redis connections closed")
-    except Exception as e:
-        print(f"Error closing Redis connections: {str(e)}")
+    # Shutdown
+    await CanvasWorker.shutdown_instance()
+    await redis.close()
+    await engine.dispose()
 
 app = FastAPI(lifespan=lifespan)
 
-# CORS middleware setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -111,17 +76,97 @@ app.add_middleware(
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+async def serve_index_html(request: Request = None, response: Response = None, pad_id: Optional[UUID] = None):
+    """
+    Helper function to serve the index.html file or proxy to dev server based on PAD_DEV_MODE.
+    Optionally sets a pending_pad_id cookie if pad_id is provided.
+    """
+    
+    if PAD_DEV_MODE:
+        try:
+            # Proxy the request to the development server's root URL
+            url = f"{DEV_FRONTEND_URL}/"
+            # If request path is available, use it for proxying
+            if request and str(request.url).replace(str(request.base_url), ""):
+                url = f"{DEV_FRONTEND_URL}{request.url.path}"
+            
+            async with httpx.AsyncClient() as client:
+                proxy_response = await client.get(url)
+                # Create a new response with the proxied content
+                final_response = Response(
+                    content=proxy_response.content,
+                    status_code=proxy_response.status_code,
+                    media_type=proxy_response.headers.get("content-type")
+                )
+                
+                # Set cookie if pad_id is provided
+                if pad_id is not None:
+                    final_response.set_cookie(
+                        key="pending_pad_id",
+                        value=str(pad_id),
+                        httponly=True,
+                        secure=True,
+                        samesite="lax"
+                    )
+                
+                return final_response
+        except Exception as e:
+            error_message = f"Error proxying to dev server: {e}"
+            print(error_message)
+            return Response(content=error_message, status_code=500)
+    else:
+        # For production, serve the static build
+        file_response = FileResponse(os.path.join(STATIC_DIR, "index.html"))
+        
+        # Set cookie if pad_id is provided
+        if pad_id is not None:
+            file_response.set_cookie(
+                key="pending_pad_id",
+                value=str(pad_id),
+                httponly=True,
+                secure=True,
+                samesite="lax"
+            )
+        
+        return file_response
+
+@app.get("/pad/{pad_id}")
+async def read_pad(
+    pad_id: UUID,
+    request: Request,
+    response: Response,
+    user: Optional[UserSession] = Depends(optional_auth),
+    session: AsyncSession = Depends(get_session)
+):
+    if not user:
+        return await serve_index_html(request, response, pad_id)
+        
+    try:
+        pad = await Pad.get_by_id(session, pad_id)
+        if not pad:
+            print("No pad found")
+            return await serve_index_html(request, response)
+            
+        if not pad.can_access(user.id):
+            print("No access to pad")
+            return await serve_index_html(request, response)
+            
+        # Just serve the page if user has access
+        return await serve_index_html(request, response, pad_id)
+    except Exception as e:
+        print(f"Error in read_pad endpoint: {e}")
+        return await serve_index_html(request, response, pad_id)
+
 @app.get("/")
 async def read_root(request: Request, auth: Optional[UserSession] = Depends(optional_auth)):
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+    return await serve_index_html(request)
 
-# Include routers in the main app with the /api prefix
-app.include_router(auth_router, prefix="/auth")
-app.include_router(user_router, prefix="/api/users")
+app.include_router(auth_router, prefix="/api/auth")
+app.include_router(users_router, prefix="/api/users")
 app.include_router(workspace_router, prefix="/api/workspace")
 app.include_router(pad_router, prefix="/api/pad")
-app.include_router(template_pad_router, prefix="/api/templates")
 app.include_router(app_router, prefix="/api/app")
+app.include_router(ws_router)
     
 if __name__ == "__main__":
     import uvicorn

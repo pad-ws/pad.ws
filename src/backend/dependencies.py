@@ -1,40 +1,60 @@
 import jwt
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 from uuid import UUID
+import os
+import asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import Request, HTTPException, Depends
 
-from config import get_session, is_token_expired, refresh_token
-from database.service import UserService
+from cache import RedisClient
+from domain.session import Session
+from domain.user import User
+from domain.pad import Pad
 from coder import CoderAPI
+from database.database import get_session
+
+# oidc_config for session creation and user sessions
+oidc_config = {
+    'server_url': os.getenv('OIDC_SERVER_URL'),
+    'realm': os.getenv('OIDC_REALM'),
+    'client_id': os.getenv('OIDC_CLIENT_ID'),
+    'client_secret': os.getenv('OIDC_CLIENT_SECRET'),
+    'redirect_uri': os.getenv('REDIRECT_URI')
+}
+
+async def get_session_domain() -> Session:
+    """Get a Session domain instance for the current request."""
+    redis_client = await RedisClient.get_instance()
+    return Session(redis_client, oidc_config)
 
 class UserSession:
     """
     Unified user session model that integrates authentication data with user information.
     This provides a single interface for accessing both token data and user details.
     """
-    def __init__(self, access_token: str, token_data: dict, user_id: UUID = None):
+    def __init__(self, access_token: str, token_data: dict, session_domain: Session, user_id: UUID = None):
         self.access_token = access_token
         self._user_data = None
+        self._session_domain = session_domain
 
         # Get the signing key and decode with verification
-        from config import get_jwks_client, OIDC_CLIENT_ID
         try:
-            jwks_client = get_jwks_client()
+            jwks_client = self._session_domain._get_jwks_client()
             signing_key = jwks_client.get_signing_key_from_jwt(access_token)
             
             self.token_data = jwt.decode(
                 access_token,
                 signing_key.key,
                 algorithms=["RS256"],
-                audience=OIDC_CLIENT_ID
+                audience=oidc_config['client_id']
             )
-
+            
         except jwt.InvalidTokenError as e:
             # Log the error and raise an appropriate exception
             print(f"Invalid token: {str(e)}")
             raise ValueError(f"Invalid authentication token: {str(e)}")
-        
+
     @property
     def is_authenticated(self) -> bool:
         """Check if the session is authenticated"""
@@ -84,12 +104,6 @@ class UserSession:
     def is_admin(self) -> bool:
         """Check if user has admin role"""
         return "admin" in self.roles
-    
-    async def get_user_data(self, user_service: UserService) -> Dict[str, Any]:
-        """Get user data from database, caching the result"""
-        if self._user_data is None and self.id:
-            self._user_data = await user_service.get_user(self.id)
-        return self._user_data
 
 class AuthDependency:
     """
@@ -104,27 +118,31 @@ class AuthDependency:
         # Get session ID from cookies
         session_id = request.cookies.get('session_id')
         
+        # Get session domain instance
+        current_session_domain = await get_session_domain()
+
         # Handle missing session ID
         if not session_id:
             return self._handle_auth_error("Not authenticated")
             
         # Get session data from Redis
-        session = get_session(session_id)
-        if not session:
+        session_data = await current_session_domain.get(session_id)
+        if not session_data:
             return self._handle_auth_error("Not authenticated")
             
         # Handle token expiration
-        if is_token_expired(session):
+        if current_session_domain.is_token_expired(session_data):
             # Try to refresh the token
-            success, new_session = await refresh_token(session_id, session)
+            success, new_session_data = await current_session_domain.refresh_token(session_id, session_data)
             if not success:
                 return self._handle_auth_error("Session expired")
-            session = new_session
+            session_data = new_session_data
         
         # Create user session object
         user_session = UserSession(
-            access_token=session.get('access_token'),
-            token_data=session
+            access_token=session_data.get('access_token'),
+            token_data=session_data,
+            session_domain=current_session_domain
         )
         
         # Check admin requirement if specified
@@ -154,3 +172,47 @@ def get_coder_api():
     Dependency that provides a CoderAPI instance.
     """
     return CoderAPI()
+
+class PadAccess:
+    """
+    Dependency for handling pad access control.
+    Usage:
+    - require_pad_access = PadAccess()  # For requiring any valid access
+    - require_pad_owner = PadAccess(require_owner=True)  # For owner-only operations
+    """
+    def __init__(self, require_owner: bool = False):
+        self.require_owner = require_owner
+
+    async def __call__(
+        self,
+        pad_id: UUID,
+        user: UserSession = Depends(require_auth),
+        session: AsyncSession = Depends(get_session)
+    ) -> Tuple[Pad, UserSession]:
+        # Get the pad
+        pad = await Pad.get_by_id(session, pad_id)
+        if not pad:
+            raise HTTPException(
+                status_code=404,
+                detail="Pad not found"
+            )
+
+        # Check access permissions
+        if not pad.can_access(user.id):
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized to access this pad"
+            )
+
+        # Check owner requirement if specified
+        if self.require_owner and pad.owner_id != user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the pad owner can perform this operation"
+            )
+
+        return pad, user
+
+# Create dependency instances for pad access
+require_pad_access = PadAccess()
+require_pad_owner = PadAccess(require_owner=True)

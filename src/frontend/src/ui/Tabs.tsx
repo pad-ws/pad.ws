@@ -1,42 +1,99 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 
 import type { ExcalidrawImperativeAPI } from "@atyrode/excalidraw/types";
 import { Stack, Button, Section, Tooltip } from "@atyrode/excalidraw";
-import { FilePlus2, ChevronLeft, ChevronRight } from "lucide-react";
-import { useAllPads, useSaveCanvas, useRenamePad, useDeletePad, PadData } from "../api/hooks";
-import { queryClient } from "../api/queryClient";
-import { capture } from "../utils/posthog";
-import { 
-  getPadData, 
-  storePadData, 
-  setActivePad, 
-  getStoredActivePad,
-  loadPadData,
-  saveCurrentPadBeforeSwitching,
-  createNewPad,
-  setScrollIndex,
-  getStoredScrollIndex
-} from "../utils/canvasUtils";
+import { FilePlus2, ChevronLeft, ChevronRight, Users } from "lucide-react";
+
+import { usePad } from "../hooks/usePadData";
+import { useAuthStatus } from "../hooks/useAuthStatus";
+import type { Tab } from "../hooks/usePadTabs";
+import { capture } from "../lib/posthog";
 import TabContextMenu from "./TabContextMenu";
 import "./Tabs.scss";
 
 interface TabsProps {
-  excalidrawAPI: ExcalidrawImperativeAPI;
+    excalidrawAPI: ExcalidrawImperativeAPI;
+    tabs: Tab[];
+    selectedTabId: string | null;
+    isLoading: boolean;
+    isCreatingPad: boolean;
+    createNewPadAsync: () => Promise<Tab | null | undefined>;
+    renamePad: (args: { padId: string; newName: string }) => void;
+    deletePad: (padId: string) => void;
+    leaveSharedPad: (padId: string) => void; // Added prop
+    updateSharingPolicy: (args: { padId: string; policy: string }) => void;
+    selectTab: (tabId: string) => void;
 }
 
-const Tabs: React.FC<TabsProps> = ({
-  excalidrawAPI,
-}: {
-  excalidrawAPI: ExcalidrawImperativeAPI;
-}) => {
-    const { data: pads, isLoading } = useAllPads();
-    const appState = excalidrawAPI.getAppState();
-    const [isCreatingPad, setIsCreatingPad] = useState(false);
-    const [activePadId, setActivePadId] = useState<string | null>(null);
-    const [startPadIndex, setStartPadIndex] = useState(getStoredScrollIndex());
-    const PADS_PER_PAGE = 5; // Show 5 pads at a time
+// Custom hook to check if text is overflowing its container
+const useTextOverflow = () => {
+    const [overflowMap, setOverflowMap] = useState<Record<string, boolean>>({});
     
-    // Context menu state
+    const checkOverflow = useCallback((element: HTMLElement | null, id: string) => {
+        if (element) {
+            const isOverflowing = element.scrollWidth > element.clientWidth;
+            setOverflowMap(prev => {
+                if (prev[id] !== isOverflowing) {
+                    return { ...prev, [id]: isOverflowing };
+                }
+                return prev;
+            });
+            return isOverflowing;
+        }
+        return false;
+    }, []);
+    
+    return { overflowMap, checkOverflow };
+};
+
+const Tabs: React.FC<TabsProps> = ({
+    excalidrawAPI,
+    tabs,
+    selectedTabId,
+    isLoading,
+    isCreatingPad,
+    createNewPadAsync,
+    renamePad,
+    deletePad,
+    leaveSharedPad, // Destructure new prop
+    updateSharingPolicy,
+    selectTab,
+}) => {
+    const { user: currentUser } = useAuthStatus();
+    const { isLoading: isPadLoading, error: padError } = usePad(selectedTabId, excalidrawAPI);
+    const [displayPadLoadingIndicator, setDisplayPadLoadingIndicator] = useState(false);
+    const { overflowMap, checkOverflow } = useTextOverflow();
+    
+    // Create refs for tab titles
+    const titleRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+    
+    const appState = excalidrawAPI.getAppState();
+    const [startPadIndex, setStartPadIndex] = useState(0);
+    const PADS_PER_PAGE = 5;
+    
+    // Check for overflow when tabs change or window resizes
+    useEffect(() => {
+        if (!tabs) return;
+        
+        // Check overflow for visible tabs
+        const visibleTabs = tabs.slice(startPadIndex, startPadIndex + PADS_PER_PAGE);
+        visibleTabs.forEach(tab => {
+            checkOverflow(titleRefs.current[tab.id], tab.id);
+        });
+        
+        // Also check on window resize
+        const handleResize = () => {
+            visibleTabs.forEach(tab => {
+                checkOverflow(titleRefs.current[tab.id], tab.id);
+            });
+        };
+        
+        window.addEventListener('resize', handleResize);
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    }, [tabs, startPadIndex, checkOverflow]);
+
     const [contextMenu, setContextMenu] = useState<{
         visible: boolean;
         x: number;
@@ -50,279 +107,209 @@ const Tabs: React.FC<TabsProps> = ({
         padId: '',
         padName: ''
     });
-    
-    // Get the saveCanvas mutation
-    const { mutate: saveCanvas } = useSaveCanvas({
-        onSuccess: () => {
-            console.debug("[pad.ws] Canvas saved to database successfully");
-        },
-        onError: (error) => {
-            console.error("[pad.ws] Failed to save canvas to database:", error);
-        }
-    });
-    
-    // Get the renamePad mutation
-    const { mutate: renamePad } = useRenamePad({
-        onSuccess: (data, variables) => {
-            console.debug("[pad.ws] Pad renamed successfully");
-            
-            // Update the cache directly instead of refetching
-            const { padId, newName } = variables;
-            
-            // Get the current pads from the query cache
-            const currentPads = queryClient.getQueryData<PadData[]>(['allPads']);
-            
-            if (currentPads) {
-                // Create a new array with the updated pad name
-                const updatedPads = currentPads.map(pad => 
-                    pad.id === padId 
-                        ? { ...pad, display_name: newName } 
-                        : pad
-                );
-                
-                // Update the query cache with the new data
-                queryClient.setQueryData(['allPads'], updatedPads);
-            }
-        },
-        onError: (error) => {
-            console.error("[pad.ws] Failed to rename pad:", error);
-        }
-    });
-    
-    // Get the deletePad mutation
-    const { mutate: deletePad } = useDeletePad({
-        onSuccess: (data, padId) => {
-            console.debug("[pad.ws] Pad deleted successfully");
-            
-            // Update the cache directly instead of refetching
-            // Get the current pads from the query cache
-            const currentPads = queryClient.getQueryData<PadData[]>(['allPads']);
-            
-            if (currentPads) {
-                // Create a new array without the deleted pad
-                const updatedPads = currentPads.filter(pad => pad.id !== padId);
-                
-                // Update the query cache with the new data
-                queryClient.setQueryData(['allPads'], updatedPads);
-                
-                // Recompute the startPadIndex to avoid visual artifacts
-                // If deleting a pad would result in an empty space at the end of the tab bar
-                if (startPadIndex > 0 && startPadIndex + PADS_PER_PAGE > updatedPads.length) {
-                    // Calculate the new index that ensures the tab bar is filled properly
-                    // but never goes below 0
-                    const newIndex = Math.max(0, updatedPads.length - PADS_PER_PAGE);
-                    setStartPadIndex(newIndex);
-                    setScrollIndex(newIndex);
-                }
-            }
-        },
-        onError: (error) => {
-            console.error("[pad.ws] Failed to delete pad:", error);
-        }
-    });
 
-    const handlePadSelect = (pad: any) => {
-        // Save the current canvas before switching tabs
-        if (activePadId) {
-            saveCurrentPadBeforeSwitching(excalidrawAPI, activePadId, saveCanvas);
-        }
-        
-        // Set the new active pad ID
-        setActivePadId(pad.id);
-        // Store the active pad ID globally
-        setActivePad(pad.id);
-        
-        // Load the pad data
-        loadPadData(excalidrawAPI, pad.id, pad.data);
+    const handlePadSelect = (pad: Tab) => {
+        selectTab(pad.id);
     };
 
-    // Listen for active pad change events
-    useEffect(() => {
-        const handleActivePadChange = (event: Event) => {
-            const customEvent = event as CustomEvent;
-            const newActivePadId = customEvent.detail;
-            console.debug(`[pad.ws] Received activePadChanged event with padId: ${newActivePadId}`);
-            setActivePadId(newActivePadId);
-        };
-        
-        // Add event listener
-        window.addEventListener('activePadChanged', handleActivePadChange);
-        
-        // Clean up
-        return () => {
-            window.removeEventListener('activePadChanged', handleActivePadChange);
-        };
-    }, []);
-
-    // Set the active pad ID when the component mounts and when the pads data changes
-    useEffect(() => {
-        if (!isLoading && pads && pads.length > 0) {
-            // Check if there's a stored active pad ID
-            const storedActivePadId = getStoredActivePad();
-            
-            if (!activePadId || !pads.some(pad => pad.id === activePadId)) {
-                // Find the pad that matches the stored ID, or use the first pad if no match
-                let padToActivate = pads[0];
-                
-                if (storedActivePadId) {
-                    // Try to find the pad with the stored ID
-                    const matchingPad = pads.find(pad => pad.id === storedActivePadId);
-                    if (matchingPad) {
-                        console.debug(`[pad.ws] Found stored active pad: ${storedActivePadId}`);
-                        padToActivate = matchingPad;
-                    } else {
-                        console.debug(`[pad.ws] Stored active pad ${storedActivePadId} not found in available pads`);
-                    }
-                }
-                
-                // Set the active pad ID
-                setActivePadId(padToActivate.id);
-                // Store the active pad ID globally
-                setActivePad(padToActivate.id);
-                
-                // If the current canvas is empty, load the pad data
-                const currentElements = excalidrawAPI.getSceneElements();
-                if (currentElements.length === 0) {
-                    // Load the pad data using the imported function
-                    loadPadData(excalidrawAPI, padToActivate.id, padToActivate.data);
-                }
-            } else if (storedActivePadId && storedActivePadId !== activePadId) {
-                // Update local state to match global state
-                setActivePadId(storedActivePadId);
-            }
-            
-            // Store all pads in local storage for the first time
-            pads.forEach(pad => {
-                // Only store if not already in local storage
-                if (!getPadData(pad.id)) {
-                    storePadData(pad.id, pad.data);
-                }
-            });
-        }
-    }, [pads, isLoading, activePadId, excalidrawAPI]);
-
     const handleCreateNewPad = async () => {
-        if (isCreatingPad) return; // Prevent multiple clicks
-        
+        if (isCreatingPad) return;
+
         try {
-            setIsCreatingPad(true);
-            
-            // Create a new pad using the imported function
-            const newPad = await createNewPad(excalidrawAPI, activePadId, saveCanvas);
-            
-            // Track pad creation event
-            capture("pad_created", {
-                padId: newPad.id,
-                padName: newPad.display_name
-            });
-            
-            // Set the active pad ID in the component state
-            setActivePadId(newPad.id);
-            
-            // Get the current pads from the query cache
-            const currentPads = queryClient.getQueryData<PadData[]>(['allPads']);
-            
-            if (currentPads) {
-                // Find the index of the newly created pad
-                const newPadIndex = currentPads.findIndex(pad => pad.id === newPad.id);
-                
+            const newPad = await createNewPadAsync();
+
+            if (newPad) {
+                capture("pad_created", {
+                    padId: newPad.id,
+                    padName: newPad.title
+                });
+
+                const newPadIndex = tabs.findIndex((tab: { id: any; }) => tab.id === newPad.id);
                 if (newPadIndex !== -1) {
-                    const newStartIndex = Math.max(0, Math.min(newPadIndex - PADS_PER_PAGE + 1, currentPads.length - PADS_PER_PAGE));
+                    const newStartIndex = Math.max(0, Math.min(newPadIndex - PADS_PER_PAGE + 1, tabs.length - PADS_PER_PAGE));
                     setStartPadIndex(newStartIndex);
-                    setScrollIndex(newStartIndex);
+                } else {
+                    if (tabs.length >= PADS_PER_PAGE) {
+                        setStartPadIndex(Math.max(0, tabs.length + 1 - PADS_PER_PAGE));
+                    }
                 }
             }
         } catch (error) {
             console.error('Error creating new pad:', error);
-        } finally {
-            setIsCreatingPad(false);
         }
     };
 
-    // Navigation functions - move by 1 pad at a time
+    useEffect(() => {
+        if (tabs && startPadIndex > 0 && startPadIndex + PADS_PER_PAGE > tabs.length) {
+            const newIndex = Math.max(0, tabs.length - PADS_PER_PAGE);
+            setStartPadIndex(newIndex);
+        }
+    }, [tabs, startPadIndex, PADS_PER_PAGE]);
+
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (isPadLoading && selectedTabId) {
+            if (!displayPadLoadingIndicator) {
+                timer = setTimeout(() => {
+                    if (isPadLoading) {
+                        setDisplayPadLoadingIndicator(true);
+                    }
+                }, 200);
+            }
+        } else {
+            setDisplayPadLoadingIndicator(false);
+        }
+
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [isPadLoading, selectedTabId, displayPadLoadingIndicator]);
+
+
     const showPreviousPads = () => {
         const newIndex = Math.max(0, startPadIndex - 1);
         setStartPadIndex(newIndex);
-        setScrollIndex(newIndex);
     };
 
     const showNextPads = () => {
-        if (pads) {
-            const newIndex = Math.min(startPadIndex + 1, Math.max(0, pads.length - PADS_PER_PAGE));
+        if (tabs) {
+            const newIndex = Math.min(startPadIndex + 1, Math.max(0, tabs.length - PADS_PER_PAGE));
             setStartPadIndex(newIndex);
-            setScrollIndex(newIndex);
         }
     };
 
-    // Create a ref for the tabs wrapper to handle wheel events
     const tabsWrapperRef = useRef<HTMLDivElement>(null);
-    
-    // Track last wheel event time to throttle scrolling
     const lastWheelTimeRef = useRef<number>(0);
-    const wheelThrottleMs = 70; // Minimum time between wheel actions in milliseconds
-    
-    // Set up wheel event listener with passive: false to properly prevent default behavior
+    const wheelThrottleMs = 70;
+
     useLayoutEffect(() => {
         const handleWheel = (e: WheelEvent) => {
-            // Always prevent default to stop page navigation
             e.preventDefault();
             e.stopPropagation();
-            
-            // Throttle wheel events to prevent too rapid scrolling
+
             const now = Date.now();
             if (now - lastWheelTimeRef.current < wheelThrottleMs) {
                 return;
             }
-            
-            // Update last wheel time
             lastWheelTimeRef.current = now;
-            
-            // Prioritize horizontal scrolling (deltaX) if present
+
             if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-                // Horizontal scrolling
-                if (e.deltaX > 0 && pads && startPadIndex < pads.length - PADS_PER_PAGE) {
+                if (e.deltaX > 0 && tabs && startPadIndex < tabs.length - PADS_PER_PAGE) {
                     showNextPads();
                 } else if (e.deltaX < 0 && startPadIndex > 0) {
                     showPreviousPads();
                 }
             } else {
-                // Vertical scrolling - treat down as right, up as left (common convention)
-                if (e.deltaY > 0 && pads && startPadIndex < pads.length - PADS_PER_PAGE) {
+                if (e.deltaY > 0 && tabs && startPadIndex < tabs.length - PADS_PER_PAGE) {
                     showNextPads();
                 } else if (e.deltaY < 0 && startPadIndex > 0) {
                     showPreviousPads();
                 }
             }
         };
-        
-        const tabsWrapper = tabsWrapperRef.current;
-        if (tabsWrapper) {
-            // Add wheel event listener with passive: false option
-            tabsWrapper.addEventListener('wheel', handleWheel, { passive: false });
-            
-            // Clean up the event listener when component unmounts
+
+        const localTabsWrapperRef = tabsWrapperRef.current;
+        if (localTabsWrapperRef) {
+            localTabsWrapperRef.addEventListener('wheel', handleWheel, { passive: false });
             return () => {
-                tabsWrapper.removeEventListener('wheel', handleWheel);
+                localTabsWrapperRef.removeEventListener('wheel', handleWheel);
             };
         }
-    }, [pads, startPadIndex, PADS_PER_PAGE]);  // Dependencies needed for boundary checks
+    }, [tabs, startPadIndex, PADS_PER_PAGE, showNextPads, showPreviousPads]);
+
+    useEffect(() => {
+        // Update SVG filter attributes based on CSS variables
+        const publicTabElement = document.querySelector('.tab-sharing-public');
+        if (publicTabElement) {
+            const computedStyle = getComputedStyle(publicTabElement);
+
+            const dilateRadius = computedStyle.getPropertyValue('--tab-glow-dilate-radius').trim();
+            const blurStdDeviation = computedStyle.getPropertyValue('--tab-glow-blur-std-deviation').trim();
+            const opacitySlope = computedStyle.getPropertyValue('--tab-glow-opacity-slope').trim();
+
+            const filterGlow1 = document.getElementById('glow-1');
+            if (filterGlow1) {
+                const feMorphology = filterGlow1.querySelector('feMorphology');
+                if (feMorphology) {
+                    feMorphology.setAttribute('radius', dilateRadius);
+                }
+
+                const feGaussianBlur = filterGlow1.querySelector('feGaussianBlur[result="glow"]');
+                if (feGaussianBlur) {
+                    feGaussianBlur.setAttribute('stdDeviation', blurStdDeviation);
+                }
+
+                const feComponentTransfers = filterGlow1.querySelectorAll('feComponentTransfer');
+                let targetFeFuncA: SVGFEFuncAElement | null = null;
+                feComponentTransfers.forEach(feComp => {
+                    if (feComp.getAttribute('in') !== 'SourceGraphic') {
+                        const feFunc = feComp.querySelector('feFuncA[type="linear"]');
+                        if (feFunc) {
+                            targetFeFuncA = feFunc as SVGFEFuncAElement;
+                        }
+                    }
+                });
+
+                if (targetFeFuncA) {
+                    targetFeFuncA.setAttribute('slope', opacitySlope);
+                }
+            }
+        }
+        // Rerun if tabs change, as a public tab might become visible/active
+    }, [tabs, selectedTabId]);
+
 
     return (
         <>
+            <svg width="0" height="0" aria-hidden="true" style={{ position: 'fixed', top: '-1px', left: '-1px' }}>
+              <filter id="glow-0" x="-25%" y="-25%" width="150%" height="150%">
+                <feComponentTransfer>
+                  <feFuncA type="table" tableValues="0 2 0"/>
+                </feComponentTransfer>
+                <feGaussianBlur stdDeviation="2"/>
+                <feComponentTransfer result="rond">
+                  <feFuncA type="table" tableValues="-2 3"/>
+                </feComponentTransfer>
+                <feMorphology operator="dilate" radius="3"/>
+                <feGaussianBlur stdDeviation="6"/>
+                <feBlend in="rond" result="glow"/>
+                <feComponentTransfer in="SourceGraphic">
+                  <feFuncA type="table" tableValues="0 0 1"/>
+                </feComponentTransfer>
+                <feBlend in2="glow"/>
+              </filter>
+              
+              <filter id="glow-1" x="-25%" y="-25%" width="150%" height="150%">
+                <feComponentTransfer in="SourceGraphic" result="grad">
+                  <feFuncA type="table" tableValues="0 2 0"/>
+                </feComponentTransfer>
+                <feMorphology operator="dilate" radius="3"/>
+                <feGaussianBlur stdDeviation="6" result="glow"/>
+                <feTurbulence type="fractalNoise" baseFrequency="7.13"/>
+                <feDisplacementMap in="glow" scale="12" yChannelSelector="R"/>
+                <feComponentTransfer>
+                  <feFuncA type="linear" slope=".8"/>
+                </feComponentTransfer>
+                <feBlend in="grad" result="out"/>
+                <feComponentTransfer in="SourceGraphic">
+                  <feFuncA type="table" tableValues="0 0 1"/>
+                </feComponentTransfer>
+                <feBlend in2="out"/>
+              </filter>
+            </svg>
             <div className="tabs-bar">
                 <Stack.Col gap={2}>
                     <Section heading="canvasActions">
                         {!appState.viewModeEnabled && (
                             <>
-                                <div 
+                                <div
                                     className="tabs-wrapper"
                                     ref={tabsWrapperRef}
                                 >
-                                    {/* New pad button */}
                                     <div className="new-tab-button-container">
                                         <Tooltip label={isCreatingPad ? "Creating new pad..." : "New pad"} children={
                                             <Button
-                                                onSelect={isCreatingPad ? () => {} : handleCreateNewPad}
+                                                onSelect={isCreatingPad ? () => { } : handleCreateNewPad}
                                                 className={isCreatingPad ? "creating-pad" : ""}
                                                 children={
                                                     <div className="ToolIcon__icon">
@@ -332,77 +319,90 @@ const Tabs: React.FC<TabsProps> = ({
                                             />
                                         } />
                                     </div>
-                                    
+
                                     <div className="tabs-container">
-                                    {/* Loading indicator */}
-                                    {isLoading && (
-                                        <div className="loading-indicator">
-                                            Loading pads...
-                                        </div>
-                                    )}
-                                
-                                    {/* List visible pads (5 at a time) */}
-                                    {!isLoading && pads && pads.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).map((pad) => (
-                                    <div 
-                                        key={pad.id}
-                                        onContextMenu={(e) => {
-                                            e.preventDefault();
-                                            setContextMenu({
-                                                visible: true,
-                                                x: e.clientX,
-                                                y: e.clientY,
-                                                padId: pad.id,
-                                                padName: pad.display_name
-                                            });
-                                        }}
-                                    >
-                                        {/* Show tooltip for all active tabs or truncated names */}
-                                        {(activePadId === pad.id || pad.display_name.length > 11) ? (
-                                            <Tooltip 
-                                                label={
-                                                    activePadId === pad.id 
-                                                        ? (pad.display_name.length > 11 
-                                                            ? `${pad.display_name} (current pad)` 
-                                                            : "Current pad")
-                                                        : pad.display_name
-                                                } 
-                                                children={
+                                        {isLoading && !isPadLoading && (
+                                            <div className="loading-indicator">
+                                                Loading pads...
+                                            </div>
+                                        )}
+
+                                        {!isLoading && tabs && tabs.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).map((tab: Tab, index: any) => (
+                                            <div
+                                                key={tab.id}
+                                                onContextMenu={(e: { preventDefault: () => void; clientX: any; clientY: any; }) => {
+                                                    e.preventDefault();
+                                                    setContextMenu({
+                                                        visible: true,
+                                                        x: e.clientX,
+                                                        y: e.clientY,
+                                                        padId: tab.id,
+                                                        padName: tab.title
+                                                    });
+                                                }}
+                                            >
+                                                {(selectedTabId === tab.id || tab.title.length > 8) ? (
+                                                    <Tooltip
+                                                        label={
+                                                            selectedTabId === tab.id
+                                                                ? (tab.title.length > 8
+                                                                    ? `${tab.title} (current pad)`
+                                                                    : "Current pad")
+                                                                : tab.title
+                                                        }
+                                                        children={
+                                                            <Button
+                                                                onSelect={() => handlePadSelect(tab)}
+                                                                className={`tab-sharing-${tab.sharingPolicy} ${selectedTabId === tab.id ? "active-pad" : ""}`}
+                                                                children={
+                                                                    <div className="tab-content">
+                                                                        <span 
+                                                                            ref={el => titleRefs.current[tab.id] = el}
+                                                                            className={`tab-title ${overflowMap[tab.id] ? 'tab-title-overflow' : ''}`}
+                                                                        >
+                                                                            {selectedTabId === tab.id && displayPadLoadingIndicator ? "..." : tab.title}
+                                                                        </span>
+                                                                        {/* Calculate position based on overall index in `tabs` if needed, or `startPadIndex + index + 1` */}
+                                                                        {tab.sharingPolicy === "public" ? 
+                                                                            <Users className="tab-position tab-users-icon" /> : 
+                                                                            <span className="tab-position">{tabs.findIndex((t: { id: any; }) => t.id === tab.id) + 1}</span>
+                                                                        }
+                                                                    </div>
+                                                                }
+                                                            />
+                                                        }
+                                                    />
+                                                ) : (
                                                     <Button
-                                                        onSelect={() => handlePadSelect(pad)}
-                                                        className={activePadId === pad.id ? "active-pad" : ""}
+                                                        onSelect={() => handlePadSelect(tab)}
+                                                        className={`tab-sharing-${tab.sharingPolicy} ${selectedTabId === tab.id ? "active-pad" : ""}`}
                                                         children={
                                                             <div className="tab-content">
-                                                                {pad.display_name.length > 8 ? `${pad.display_name.substring(0, 11)}...` : pad.display_name}
-                                                                <span className="tab-position">{startPadIndex + pads.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).indexOf(pad) + 1}</span>
+                                                                <span 
+                                                                    ref={el => titleRefs.current[tab.id] = el}
+                                                                    className={`tab-title ${overflowMap[tab.id] ? 'tab-title-overflow' : ''}`}
+                                                                >
+                                                                    {tab.title}
+                                                                </span>
+                                                                {tab.sharingPolicy === "public" ? 
+                                                                    <Users className="tab-position tab-users-icon" /> : 
+                                                                    <span className="tab-position">{tabs.findIndex((t: { id: any; }) => t.id === tab.id) + 1}</span>
+                                                                }
                                                             </div>
                                                         }
                                                     />
-                                                } 
-                                            />
-                                        ) : (
-                                            <Button
-                                                onSelect={() => handlePadSelect(pad)}
-                                                className={activePadId === pad.id ? "active-pad" : ""}
-                                                children={
-                                                    <div className="tab-content">
-                                                        {pad.display_name}
-                                                        <span className="tab-position">{startPadIndex + pads.slice(startPadIndex, startPadIndex + PADS_PER_PAGE).indexOf(pad) + 1}</span>
-                                                    </div>
-                                                }
-                                            />
-                                        )}
+                                                )}
+                                            </div>
+                                        ))}
+
                                     </div>
-                                    ))}
-                                    
-                                    </div>
-                                                                        
-                                    {/* Left scroll button - only visible when there are more pads than can fit in the view */}
-                                    {pads && pads.length > PADS_PER_PAGE && (
+
+                                    {tabs && tabs.length > PADS_PER_PAGE && (
                                         <React.Fragment key={`left-tooltip-${startPadIndex}`}>
-                                            <Tooltip 
-                                                label={`Scroll to the left${startPadIndex > 0 ? `\n(${startPadIndex} more)` : ''}`} 
+                                            <Tooltip
+                                                label={`Scroll to the left${startPadIndex > 0 ? `\n(${startPadIndex} more)` : ''}`}
                                                 children={
-                                                    <button 
+                                                    <button
                                                         className={`scroll-button left ${startPadIndex > 0 ? '' : 'disabled'}`}
                                                         onClick={showPreviousPads}
                                                         aria-label="Show previous pads"
@@ -410,26 +410,25 @@ const Tabs: React.FC<TabsProps> = ({
                                                     >
                                                         <ChevronLeft size={20} />
                                                     </button>
-                                                } 
+                                                }
                                             />
                                         </React.Fragment>
                                     )}
-                                    
-                                    {/* Right scroll button - only visible when there are more pads than can fit in the view */}
-                                    {pads && pads.length > PADS_PER_PAGE && (
+
+                                    {tabs && tabs.length > PADS_PER_PAGE && (
                                         <React.Fragment key={`right-tooltip-${startPadIndex}`}>
-                                            <Tooltip 
-                                                label={`Scroll to the right${pads && pads.length - (startPadIndex + PADS_PER_PAGE) > 0 ? `\n(${Math.max(0, pads.length - (startPadIndex + PADS_PER_PAGE))} more)` : ''}`} 
+                                            <Tooltip
+                                                label={`Scroll to the right${tabs && tabs.length - (startPadIndex + PADS_PER_PAGE) > 0 ? `\n(${Math.max(0, tabs.length - (startPadIndex + PADS_PER_PAGE))} more)` : ''}`}
                                                 children={
-                                                    <button 
-                                                        className={`scroll-button right ${pads && startPadIndex < pads.length - PADS_PER_PAGE ? '' : 'disabled'}`}
+                                                    <button
+                                                        className={`scroll-button right ${tabs && startPadIndex < tabs.length - PADS_PER_PAGE ? '' : 'disabled'}`}
                                                         onClick={showNextPads}
                                                         aria-label="Show next pads"
-                                                        disabled={!pads || startPadIndex >= pads.length - PADS_PER_PAGE}
+                                                        disabled={!tabs || startPadIndex >= tabs.length - PADS_PER_PAGE}
                                                     >
                                                         <ChevronRight size={20} />
                                                     </button>
-                                                } 
+                                                }
                                             />
                                         </React.Fragment>
                                     )}
@@ -439,54 +438,47 @@ const Tabs: React.FC<TabsProps> = ({
                     </Section>
                 </Stack.Col>
             </div>
-            
-            {/* Context Menu */}
+
             {contextMenu.visible && (
                 <TabContextMenu
                     x={contextMenu.x}
                     y={contextMenu.y}
                     padId={contextMenu.padId}
                     padName={contextMenu.padName}
-                    onRename={(padId, newName) => {
-                        // Track pad rename event
-                        capture("pad_renamed", {
-                            padId,
-                            newName
-                        });
-                        
-                        // Call the renamePad mutation
+                    sharingPolicy={tabs.find(tab => tab.id === contextMenu.padId)?.sharingPolicy}
+                    currentUserId={currentUser?.id}
+                    tabOwnerId={tabs.find(tab => tab.id === contextMenu.padId)?.ownerId}
+                    onRename={(padId: any, newName: any) => {
+                        capture("pad_renamed", { padId, newName });
                         renamePad({ padId, newName });
                     }}
-                    onDelete={(padId) => {
-                        // Don't allow deleting the last pad
-                        if (pads && pads.length <= 1) {
+                    onDelete={(padId: any) => { // This is for 'deleteOwnedPad'
+                        if (tabs && tabs.length <= 1) {
                             alert("Cannot delete the last pad");
                             return;
                         }
-                        
-                        // Find the pad name before deletion for analytics
-                        const padToDelete = pads?.find(p => p.id === padId);
-                        const padName = padToDelete?.display_name || "";
-                        
-                        // Track pad deletion event
-                        capture("pad_deleted", {
-                            padId,
-                            padName
-                        });
-                        
-                        // If deleting the active pad, switch to another pad first
-                        if (padId === activePadId && pads) {
-                            const otherPad = pads.find(p => p.id !== padId);
-                            if (otherPad) {
-                                handlePadSelect(otherPad);
+
+                        const tabToDelete = tabs?.find((t: { id: any; }) => t.id === padId);
+                        const padName = tabToDelete?.title || "";
+                        capture("pad_deleted", { padId, padName });
+
+                        if (padId === selectedTabId && tabs) {
+                            const otherTab = tabs.find((t: { id: any; }) => t.id !== padId);
+                            if (otherTab) {
+                                selectTab(otherTab.id);
                             }
                         }
-                        
-                        // Call the deletePad mutation
-                        deletePad(padId);
+                        deletePad(padId); // Calls the prop for deleting owned pad
+                    }}
+                    onLeaveSharedPad={(padId: string) => { // New prop for 'leaveSharedPad'
+                        leaveSharedPad(padId); // Calls the prop for leaving shared pad
+                    }}
+                    onUpdateSharingPolicy={(padId: string, policy: string) => {
+                        capture("pad_sharing_policy_updated", { padId, policy });
+                        updateSharingPolicy({ padId, policy });
                     }}
                     onClose={() => {
-                        setContextMenu(prev => ({ ...prev, visible: false }));
+                        setContextMenu((prev: any) => ({ ...prev, visible: false }));
                     }}
                 />
             )}

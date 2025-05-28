@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidraw/element/types';
-import { ExcalidrawElementFactory } from '../../lib/ExcalidrawElementFactory';
+import { ExcalidrawElementFactory } from '../../lib/elementFactory';
 import HtmlPreview from './HtmlPreview';
 import './HtmlEditor.scss';
 
@@ -68,7 +68,7 @@ export const useHtmlEditor = (
       }
       
       // Otherwise, create a new element as before
-      const elements = excalidrawAPI.getSceneElements();
+      const elements = excalidrawAPI.getSceneElementsIncludingDeleted();
       
       // Get the current editor content
       const currentContent = editorRef.current.getValue();

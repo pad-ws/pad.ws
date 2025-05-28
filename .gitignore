@@ -6,3 +6,4 @@ src/excalidraw
 .env
 src/frontend/.env.local
 .vscode/settings.json
+dev/

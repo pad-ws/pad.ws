@@ -3,15 +3,15 @@ import React, { useState } from 'react';
 import type { ExcalidrawImperativeAPI } from '@atyrode/excalidraw/types';
 import type { MainMenu as MainMenuType } from '@atyrode/excalidraw';
 
-import { LogOut, SquarePlus, LayoutDashboard, SquareCode, Eye, Coffee, Grid2x2, User, Text, ArchiveRestore, Settings, Terminal, FileText } from 'lucide-react';
+import { LogOut, SquarePlus, LayoutDashboard, User, Text, Settings, Terminal, FileText, FlaskConical } from 'lucide-react';
 import AccountDialog from './AccountDialog';
 import md5 from 'crypto-js/md5';
-import { capture } from '../utils/posthog';
-import { ExcalidrawElementFactory, PlacementMode } from '../lib/ExcalidrawElementFactory';
-import { useUserProfile } from "../api/hooks";
-import { queryClient } from "../api/queryClient";
+import { useLogout } from '../hooks/useLogout';
+import { useAuthStatus } from '../hooks/useAuthStatus';
+import { ExcalidrawElementFactory, PlacementMode } from '../lib/elementFactory';
 import "./MainMenu.scss";
-
+import { INITIAL_APP_DATA } from '../constants';
+import { capture } from '../lib/posthog';
 // Function to generate gravatar URL
 const getGravatarUrl = (email: string, size = 32) => {
   const hash = md5(email.toLowerCase().trim()).toString();
@@ -20,8 +20,6 @@ const getGravatarUrl = (email: string, size = 32) => {
 interface MainMenuConfigProps {
   MainMenu: typeof MainMenuType;
   excalidrawAPI: ExcalidrawImperativeAPI | null;
-  showBackupsModal: boolean;
-  setShowBackupsModal: (show: boolean) => void;
   showPadsModal: boolean;
   setShowPadsModal: (show: boolean) => void;
   showSettingsModal?: boolean;
@@ -31,22 +29,22 @@ interface MainMenuConfigProps {
 export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
   MainMenu,
   excalidrawAPI,
-  setShowBackupsModal,
   setShowPadsModal,
   setShowSettingsModal = (show: boolean) => {},
 }) => {
   const [showAccountModal, setShowAccountModal] = useState(false);
-  const { data, isLoading, isError } = useUserProfile();
+  const { mutate: logoutMutation, isPending: isLoggingOut } = useLogout();
+  const { user, isLoading, isError } = useAuthStatus();
 
   let username = "";
   let email = "";
   if (isLoading) {
     username = "Loading...";
-  } else if (isError || !data?.username) {
+  } else if (isError || !user?.username) {
     username = "Unknown";
   } else {
-    username = data.username;
-    email = data.email || "";
+    username = user.username;
+    email = user.email || "";
   }
 
   const handleDashboardButtonClick = () => {
@@ -59,6 +57,22 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     });
     
     ExcalidrawElementFactory.placeInScene(dashboardElement, excalidrawAPI, {
+      mode: PlacementMode.NEAR_VIEWPORT_CENTER,
+      bufferPercentage: 10,
+      scrollToView: true
+    });
+  };
+
+  const handleDevToolsClick = () => {
+    if (!excalidrawAPI) return;
+    
+    const devToolsElement = ExcalidrawElementFactory.createEmbeddableElement({
+      link: "!dev",
+      width: 800,
+      height: 500
+    });
+    
+    ExcalidrawElementFactory.placeInScene(devToolsElement, excalidrawAPI, {
       mode: PlacementMode.NEAR_VIEWPORT_CENTER,
       bufferPercentage: 10,
       scrollToView: true
@@ -113,10 +127,6 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     });
   };
 
-  const handleCanvasBackupsClick = () => {
-    setShowBackupsModal(true);
-  };
-  
   const handleManagePadsClick = () => {
     setShowPadsModal(true);
   };
@@ -129,67 +139,57 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
     setShowAccountModal(true);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     capture('logout_clicked');
+
+    logoutMutation(undefined, {
+      onSuccess: (data) => {
+        const keycloakLogoutUrl = data.logout_url;
+
+        const createIframeLoader = (url: string, debugName: string): Promise<void> => {
+          return new Promise<void>((resolve, reject) => { // Added reject for error handling
+            const iframe = document.createElement("iframe");
+            iframe.style.display = "none";
+            iframe.src = url;
+            console.debug(`[pad.ws] (Silently) Priming ${debugName} logout for ${url}`);
+
+            let timeoutId: number | undefined;
+
+            const cleanup = (error?: any) => {
+              if (timeoutId) clearTimeout(timeoutId);
+              if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+              if (error) reject(error); else resolve();
+            };
+
+            iframe.onload = () => cleanup();
+            // Fallback: remove iframe after 2s if onload doesn't fire
+            timeoutId = window.setTimeout(() => cleanup(new Error(`${debugName} iframe load timed out`)), 5000);
+
+            iframe.onerror = (event) => { // event can be an ErrorEvent or string
+                const errorMsg = typeof event === 'string' ? event : (event instanceof ErrorEvent ? event.message : `Error loading ${debugName} iframe`);
+                cleanup(new Error(errorMsg));
+            };
+            document.body.appendChild(iframe);
+          });
+        };
+
+        const promises = [createIframeLoader(keycloakLogoutUrl, "Keycloak")];
+
+        Promise.all(promises)
+          .then(() => {
+            console.debug("[pad.ws] Keycloak iframe logout process completed successfully.");
+          })
+          .catch(err => {
+            console.error("[pad.ws] Error during iframe logout process:", err);
+          });
+      },
+      onError: (error) => {
+        console.error("[pad.ws] Logout failed in MainMenu component:", error.message);
+      }
+    });
+
+    excalidrawAPI.updateScene(INITIAL_APP_DATA);
     
-    try {
-      // Call the logout endpoint and get the logout_url
-      const response = await fetch('/auth/logout', { 
-        method: 'GET',
-        credentials: 'include' 
-      });
-      const data = await response.json();
-      const keycloakLogoutUrl = data.logout_url;
-      
-      // Create a function to create an iframe and return a promise that resolves when it loads or times out
-      const createIframeLoader = (url: string, debugName: string): Promise<void> => {
-        return new Promise<void>((resolve) => {
-          const iframe = document.createElement("iframe");
-          iframe.style.display = "none";
-          iframe.src = url;
-          console.debug(`[pad.ws] (Silently) Priming ${debugName} logout for ${url}`);
-
-          const cleanup = () => {
-            if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-            resolve();
-          };
-
-          iframe.onload = cleanup;
-          // Fallback: remove iframe after 2s if onload doesn't fire
-          const timeoutId = window.setTimeout(cleanup, 2000);
-
-          // Also clean up if the iframe errors
-          iframe.onerror = () => {
-            clearTimeout(timeoutId);
-            cleanup();
-          };
-
-          // Add the iframe to the DOM
-          document.body.appendChild(iframe);
-        });
-      };
-
-      // Create a promise for Keycloak logout iframe
-      const promises = [];
-
-      // Add Keycloak logout iframe
-      promises.push(createIframeLoader(keycloakLogoutUrl, "Keycloak"));
-
-      // Wait for both iframes to complete
-      await Promise.all(promises);
-
-      // Wait for the iframe to complete
-      await Promise.all(promises);
-            
-      // Invalidate auth query to show the AuthModal
-      queryClient.invalidateQueries({ queryKey: ['auth'] });
-      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
-      
-      // No need to redirect to the logout URL since we're already handling it via iframe
-      console.debug("[pad.ws] Logged out successfully");
-    } catch (error) {
-      console.error("[pad.ws] Logout failed:", error);
-    }
   };
 
   return (
@@ -228,12 +228,6 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
         >
           Manage pads...
         </MainMenu.Item>
-        <MainMenu.Item
-          icon={<ArchiveRestore />}
-          onClick={handleCanvasBackupsClick}
-        >
-          Load backup...
-        </MainMenu.Item>
         <MainMenu.DefaultItems.ClearCanvas />
       </MainMenu.Group>
       
@@ -264,6 +258,12 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
         >
           Action Button
         </MainMenu.Item>
+        <MainMenu.Item
+          icon={<FlaskConical />}
+          onClick={handleDevToolsClick}
+        >
+          Dev. Tools
+        </MainMenu.Item>
       </MainMenu.Group>
       
       <MainMenu.Separator />
@@ -285,8 +285,9 @@ export const MainMenuConfig: React.FC<MainMenuConfigProps> = ({
       <MainMenu.Item
           icon={<LogOut />}
           onClick={handleLogout}
+          disabled={isLoggingOut} // Disable button while logout is in progress
         >
-          Logout
+          {isLoggingOut ? "Logging out..." : "Logout"}
         </MainMenu.Item>
       
     </MainMenu>

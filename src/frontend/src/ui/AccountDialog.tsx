@@ -1,8 +1,10 @@
 import React, { useState, useCallback } from "react";
 import { Dialog } from "@atyrode/excalidraw";
-import { useUserProfile } from "../api/hooks";
 import md5 from 'crypto-js/md5';
 import "./AccountDialog.scss";
+
+// Hooks
+import { useAuthStatus } from "../hooks/useAuthStatus";
 
 interface AccountDialogProps {
   excalidrawAPI?: any;
@@ -16,11 +18,11 @@ const getGravatarUrl = (email: string, size = 100) => {
 };
 
 const AccountDialog: React.FC<AccountDialogProps> = ({
-  excalidrawAPI,
   onClose,
 }) => {
   const [modalIsShown, setModalIsShown] = useState(true);
-  const { data: profile, isLoading, isError } = useUserProfile();
+
+  const { user: profile, isLoading, isError } = useAuthStatus();
 
   const handleClose = useCallback(() => {
     setModalIsShown(false);
@@ -56,9 +58,6 @@ const AccountDialog: React.FC<AccountDialogProps> = ({
           <div className="account-dialog__user-info">
             <h2 className="account-dialog__name">
               {profile.name || profile.username}
-              {profile.email_verified && (
-                <span className="account-dialog__verified">✓ Verified</span>
-              )}
             </h2>
             <p className="account-dialog__username">{profile.username}</p>
             <p className="account-dialog__user-id">{profile.id}</p>

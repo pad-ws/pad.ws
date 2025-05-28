@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useWorkspaceState } from '../../api/hooks';
-// Import SVGs as modules - using relative paths from the action button location
 import { Terminal, Braces, Settings, Plus, ExternalLink, Monitor } from 'lucide-react';
+import { useWorkspace } from '../../hooks/useWorkspace';
 import { ActionType, TargetType, CodeVariant, ActionButtonProps } from './types';
 import './ActionButton.scss';
-import { capture } from '../../utils/posthog';
-import { ExcalidrawElementFactory, PlacementMode } from '../../lib/ExcalidrawElementFactory';
+import { capture } from '../../lib/posthog';
+import { ExcalidrawElementFactory, PlacementMode } from '../../lib/elementFactory';
 
 // Interface for button settings stored in customData
 interface ButtonSettings {
@@ -28,7 +27,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   settingsEnabled = true, // Default to enabled for backward compatibility
   backgroundColor // Custom background color
 }) => {
-  const { data: workspaceState } = useWorkspaceState();
+  const { workspaceState } = useWorkspace();
   
   // Parse settings from parent element's customData if available
   const parseElementSettings = (): { 
@@ -119,7 +118,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
         currentSettingsRef.current = newSettings;
         
         // Get all elements from the scene
-        const elements = excalidrawAPI.getSceneElements();
+        const elements = excalidrawAPI.getSceneElementsIncludingDeleted();
         
         // Find and update the parent element
         const updatedElements = elements.map(el => {
@@ -299,9 +298,9 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     });
     
     if (selectedAction === 'embed') {
-      const excalidrawAPI = (window as any).excalidrawAPI;
+      // Use the excalidrawAPI prop passed to the component
       if (!excalidrawAPI) {
-        console.error('Excalidraw API not available');
+        console.error('Excalidraw API not available from props');
         return;
       }
       

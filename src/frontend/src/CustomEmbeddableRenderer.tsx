@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Lock } from 'lucide-react';
-import { debounce } from './utils/debounce';
+import { debounce } from './lib/debounce';
 import type { NonDeleted, ExcalidrawEmbeddableElement } from '@atyrode/excalidraw/element/types';
 import type { AppState } from '@atyrode/excalidraw/types';
 import {
@@ -9,6 +9,7 @@ import {
   ControlButton,
   Editor,
   Terminal,
+  DevTools,
 } from './pad';
 import { ActionButton } from './pad/buttons';
 import "./CustomEmbeddableRenderer.scss";
@@ -62,6 +63,10 @@ export const renderCustomEmbeddable = (
       case 'dashboard':
         content = <Dashboard element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
         title = "Dashboard";
+        break;
+      case 'dev':
+        content = <DevTools element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+        title = "Dev Tools";
         break;
       default:
         title = "Untitled";

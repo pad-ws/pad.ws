@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useAuthCheck } from "./api/hooks";
-import { getAppConfig } from "./api/configService";
+import { useAppConfig } from "./hooks/useAppConfig"; // Import useAppConfig
+import { useAuthStatus } from "./hooks/useAuthStatus";
 
 /**
  * If unauthenticated, it shows the AuthModal as an overlay, but still renders the app behind it.
@@ -11,22 +11,20 @@ import { getAppConfig } from "./api/configService";
  * 
  * The iframe is removed as soon as it loads, or after a fallback timeout.
  */
-export default function AuthGate({ children }: { children: React.ReactNode }) {
-  const { data: isAuthenticated, isLoading } = useAuthCheck();
+export default function AuthGate() {
   const [coderAuthDone, setCoderAuthDone] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const timeoutRef = useRef<number | null>(null);
+  const { config, isLoadingConfig, configError } = useAppConfig(); // Use the hook
+  const { isAuthenticated, isLoading: isLoadingAuth } = useAuthStatus();
 
   useEffect(() => {
-    // Only run the Coder OIDC priming once per session, after auth is confirmed
-    if (isAuthenticated === true && !coderAuthDone) {
+    if (isAuthenticated && !isLoadingAuth && !coderAuthDone && config && !isLoadingConfig && !configError) {
+      console.debug('[pad.ws] Priming Coder OIDC session');
       const setupIframe = async () => {
         try {
-          // Get config from API
-          const config = await getAppConfig();
-          
           if (!config.coderUrl) {
-            console.warn('[pad.ws] Coder URL not found, skipping OIDC priming');
+            console.warn('[pad.ws] Coder URL not found in config, skipping OIDC priming');
             setCoderAuthDone(true);
             return;
           }
@@ -65,10 +63,12 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           clearTimeout(timeoutRef.current);
         }
       };
+    } else if (configError) {
+      console.error('[pad.ws] Failed to load app config for OIDC priming:', configError);
+      setCoderAuthDone(true); // Mark as done to prevent retries if config fails
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, coderAuthDone]);
+  }, [isAuthenticated, isLoadingAuth, coderAuthDone, config, isLoadingConfig, configError]);
 
-  // Just render children - AuthModal is now handled by ExcalidrawWrapper
-  return <>{children}</>;
+  return null;
 }

@@ -1,3 +1,16 @@
+// Add these at a suitable top-level scope in your SCSS file
+@property --a {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+}
+
+@keyframes a {
+    to {
+        --a: 1turn;
+    }
+}
+
 .tabs-bar {
     margin-inline-start: 0.6rem;
     height: var(--lg-button-size);
@@ -5,38 +18,35 @@
 
     Button {
         height: var(--lg-button-size) !important;
-        width: 100px !important;
-        min-width: 100px !important;
+        width: 120px !important;
+        min-width: 120px !important;
         margin-right: 0.6rem;
-        text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
-        
-        &.active-pad {
-            background-color: #cc6d24 !important;
-            color: var(--color-on-primary) !important;
-            font-weight: bold;
-            border: 1px solid #cccccc !important;
+        position: relative;
 
-            .tab-position {
-                color: var(--color-on-primary) !important;
-            }
-        }
-        
-        &.creating-pad {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        
         .tab-content {
             position: relative;
             width: 100%;
             height: 100%;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
+            align-items: center;
             justify-content: center;
 
-            
+            .tab-title {
+                flex-grow: 1;
+                text-align: center;
+                overflow: hidden;
+                white-space: nowrap;
+
+                /* Only apply fadeout effect when content is overflowing */
+                &.tab-title-overflow {
+                    mask-image: linear-gradient(to right, black 75%, transparent 95%);
+                    -webkit-mask-image: linear-gradient(to right, black 75%, transparent 95%);
+                }
+            }
+
             .tab-position {
                 position: absolute;
                 bottom: -7px;
@@ -46,35 +56,146 @@
                 color: var(--keybinding-color);
                 font-weight: normal;
             }
+
+            .tab-users-icon.tab-position {
+                width: 16px;
+                height: 16px;
+                font-size: 16px;
+                bottom: -7px;
+                right: -4px;
+                opacity: 0.5;
+                z-index: 0;
+            }
+        }
+
+        &.active-pad {
+            color: var(--color-on-primary);
+            font-weight: bold;
+
+            .tab-position {
+                color: var(--color-on-primary);
+            }
+        }
+
+        &.creating-pad {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+
+        /* Styles for tabs with 'public' sharing policy */
+        &.tab-sharing-public {
+            --b-width: 0px;
+            --tab-border-radius: var(--border-radius-lg);
+            --l-colors: #de9457, #f7b538, #ff7b00, #c37434, #c39427, #de9457;
+
+            --tab-inner-bg: var(--button-bg, var(--island-bg-color));
+
+            --tab-glow-dilate-radius: 1;
+            --tab-glow-blur-std-deviation: 6;
+            --tab-glow-opacity-slope: 0.5;
+
+            box-sizing: border-box;
+            border-width: var(--b-width);
+            border-color: transparent;
+
+            background-color: var(--tab-inner-bg);
+            background-image: none;
+            background-clip: padding-box;
+
+            &:hover:not(.active-pad) {
+                --b-width: 1px;
+                --tab-inner-bg: #2E2D39;
+                border-color: transparent;
+
+                .tab-users-icon.tab-position {
+                    opacity: 1;
+                }
+
+                background-image: linear-gradient(var(--tab-inner-bg), var(--tab-inner-bg)),
+                repeating-conic-gradient(from var(--a, 0deg), var(--l-colors));
+                background-clip: padding-box,
+                border-box;
+                filter: url(#glow-1);
+                animation: a 1s linear infinite;
+            }
+
+            &.active-pad {
+                --tab-inner-bg: #cc6d24;
+                border: 1px solid #c6c6c6;
+                background-color: var(--tab-inner-bg);
+                background-image: none;
+                background-clip: padding-box;
+
+                .tab-users-icon.tab-position {
+                    opacity: 1;
+                }
+
+                .tab-position {
+                    color: var(--color-on-primary) !important;
+                }
+
+                &:hover {
+
+
+
+                    background-image: linear-gradient(var(--tab-inner-bg), var(--tab-inner-bg)),
+                        repeating-conic-gradient(from var(--a, 0deg), var(--l-colors));
+                    background-clip: padding-box,
+                        border-box;
+                    filter: url(#glow-1);
+                    animation: a 5s linear infinite;
+                }
+
+
+            }
+        }
+
+        /* Styles for tabs with 'whitelist' sharing policy */
+        /* &.tab-sharing-whitelist {
+            /* TODO: Add styles for whitelisted tabs */
+        /* } */
+
+        /* Styles for tabs with 'private' sharing policy (default) */
+        &.tab-sharing-private {
+
+            &.active-pad {
+                background-color: #cc6d24;
+                border: 1px solid #c6c6c6;
+            }
+
+            &:hover {
+                border: 1px solid #c6c6c6;
+            }
         }
     }
-    
+
     .tabs-wrapper {
         display: flex;
         flex-direction: row;
         align-items: center;
         position: relative;
     }
-    
+
     .tabs-container {
         display: flex;
         flex-direction: row;
         align-items: center;
         position: relative;
-        
+
         .loading-indicator {
             font-size: 0.8rem;
             color: var(--color-muted);
             margin-right: 0.5rem;
         }
     }
-    
+
     .scroll-buttons-container {
         display: flex;
         flex-direction: row;
         align-items: center;
     }
-    
+
     .scroll-button {
         height: var(--lg-button-size) !important;
         width: var(--lg-button-size) !important; // Square button
@@ -96,23 +217,23 @@
         &:hover:not(.disabled) {
             color: #ffffff;
         }
-        
+
         &:active:not(.disabled) {
-            color: #ffffff;        
+            color: #ffffff;
         }
-        
+
         &.disabled {
             color: #575757; // Light gray color for the icons
             opacity: 1;
             cursor: default;
         }
-        
+
         &.left {
             margin-right: 4px; // Add a small margin between left button and tabs
         }
-        
+
     }
-    
+
     .new-tab-button-container {
         Button {
             border: none !important;

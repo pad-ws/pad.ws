@@ -1,30 +1,62 @@
 import React from 'react';
-import { useWorkspaceState, useStartWorkspace, useStopWorkspace } from '../../api/hooks';
 import './ControlButton.scss';
 import { Play, Square, LoaderCircle } from 'lucide-react';
+import { useWorkspace } from '../../hooks/useWorkspace';
 
 export const ControlButton: React.FC = () => {
-  const { data: workspaceState } = useWorkspaceState({
-    queryKey: ['workspaceState'],
-    enabled: true,
-  });
+  const {
+    workspaceState,
+    isLoadingState,
+    stateError,
+    startWorkspace,
+    isStarting,
+    stopWorkspace,
+    isStopping,
+  } = useWorkspace();
 
-  const { mutate: startWorkspace, isPending: isStarting } = useStartWorkspace();
-  const { mutate: stopWorkspace, isPending: isStopping } = useStopWorkspace();
-
-  // Determine current status
-  const currentStatus = workspaceState?.status || 'unknown';
+  let currentUiStatus = 'unknown';
+  if (isLoadingState) {
+    currentUiStatus = 'loading';
+  } else if (stateError) {
+    currentUiStatus = 'error';
+  } else if (workspaceState) {
+    switch (workspaceState.state) {
+      case 'pending':
+      case 'starting':
+        currentUiStatus = 'starting';
+        break;
+      case 'running':
+        currentUiStatus = 'running';
+        break;
+      case 'stopping':
+      case 'canceling':
+      case 'deleting':
+        currentUiStatus = 'stopping';
+        break;
+      case 'stopped':
+      case 'canceled':
+      case 'deleted':
+        currentUiStatus = 'stopped';
+        break;
+      case 'failed':
+        currentUiStatus = 'error';
+        break;
+      default:
+        currentUiStatus = 'unknown';
+    }
+  }
 
   const handleClick = () => {
-    if (isStarting || isStopping) return;
-    if (currentStatus === 'running') {
+    if (isStarting || isStopping || isLoadingState) return;
+
+    if (currentUiStatus === 'running') {
       stopWorkspace();
-    } else if (currentStatus === 'stopped' || currentStatus === 'error') {
+    } else if (currentUiStatus === 'stopped' || currentUiStatus === 'error' || currentUiStatus === 'unknown') {
       startWorkspace();
     }
   };
 
-  if (currentStatus === 'starting' || currentStatus === 'stopping' || isStarting || isStopping) {
+  if (currentUiStatus === 'loading' || currentUiStatus === 'starting' || currentUiStatus === 'stopping' || isStarting || isStopping) {
     return (
       <button
         className="control-button control-button--disabled"
@@ -34,7 +66,7 @@ export const ControlButton: React.FC = () => {
         <LoaderCircle className="control-icon control-icon--loading" />
       </button>
     );
-  } else if (currentStatus === 'running' && (!workspaceState || !workspaceState.error)) {
+  } else if (currentUiStatus === 'running') {
     return (
       <button
         onClick={handleClick}
@@ -44,7 +76,7 @@ export const ControlButton: React.FC = () => {
         <Square className="control-icon" color="black" />
       </button>
     );
-  } else {
+  } else { // Covers 'stopped', 'error', 'unknown'
     return (
       <button
         onClick={handleClick}
