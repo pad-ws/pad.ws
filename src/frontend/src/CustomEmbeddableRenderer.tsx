@@ -9,7 +9,6 @@ import {
   ControlButton,
   Editor,
   Terminal,
-  DevTools,
 } from './pad';
 import { ActionButton } from './pad/buttons';
 import "./CustomEmbeddableRenderer.scss";
@@ -36,7 +35,7 @@ export const renderCustomEmbeddable = (
         title = "HTML Editor";
         break;
       case 'editor':
-        content = <Editor element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
+        content = <Editor element={element} excalidrawAPI={excalidrawAPI} />;
         title = "Code Editor";
         break;
       case 'terminal':
@@ -63,10 +62,6 @@ export const renderCustomEmbeddable = (
       case 'dashboard':
         content = <Dashboard element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
         title = "Dashboard";
-        break;
-      case 'dev':
-        content = <DevTools element={element} appState={appState} excalidrawAPI={excalidrawAPI} />;
-        title = "Dev Tools";
         break;
       default:
         title = "Untitled";

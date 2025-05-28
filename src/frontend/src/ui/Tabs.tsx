@@ -20,7 +20,7 @@ interface TabsProps {
     createNewPadAsync: () => Promise<Tab | null | undefined>;
     renamePad: (args: { padId: string; newName: string }) => void;
     deletePad: (padId: string) => void;
-    leaveSharedPad: (padId: string) => void; // Added prop
+    leaveSharedPad: (padId: string) => void;
     updateSharingPolicy: (args: { padId: string; policy: string }) => void;
     selectTab: (tabId: string) => void;
 }
@@ -470,7 +470,7 @@ const Tabs: React.FC<TabsProps> = ({
                         }
                         deletePad(padId); // Calls the prop for deleting owned pad
                     }}
-                    onLeaveSharedPad={(padId: string) => { // New prop for 'leaveSharedPad'
+                    onLeaveSharedPad={(padId: string) => {
                         leaveSharedPad(padId); // Calls the prop for leaving shared pad
                     }}
                     onUpdateSharingPolicy={(padId: string, policy: string) => {

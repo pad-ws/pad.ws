@@ -33,7 +33,7 @@ export const useHtmlEditor = (
   element: NonDeleted<ExcalidrawEmbeddableElement> | undefined,
   editorRef: React.RefObject<any>,
   excalidrawAPI?: any,
-  isActive: boolean = true // New parameter to control if the hook is active
+  isActive: boolean = true
 ) => {
   // Always initialize these hooks regardless of isActive
   const [createNew, setCreateNew] = useState(false);
