@@ -12,7 +12,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     network_mode: host
-    
+
   redis:
     image: redis:alpine
     container_name: redis
@@ -78,7 +78,7 @@ services:
       - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
       - OIDC_SERVER_URL=http://localhost:${KEYCLOAK_PORT}
       - OIDC_REALM=${OIDC_REALM}
-      - REDIRECT_URI=http://localhost:${APP_PORT}/auth/callback
+      - REDIRECT_URI=${REDIRECT_URI}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
