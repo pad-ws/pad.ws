@@ -42,7 +42,7 @@ CODER_WORKSPACE_NAME = os.getenv("CODER_WORKSPACE_NAME", "ubuntu")
 # Cache for JWKS client
 _jwks_client = None
 
-# TODO
+# TODO deprecate this in favor of the newer implementation in dependencies.py
 def get_jwks_client():
     """Get or create a PyJWKClient for token verification"""
     global _jwks_client

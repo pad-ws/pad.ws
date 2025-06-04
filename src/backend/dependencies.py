@@ -25,6 +25,7 @@ async def get_session_domain() -> Session:
     """Get a Session domain instance for the current request."""
     redis_client = await RedisClient.get_instance()
     
+    # TODO Optimize this to avoid fetching OIDC config on every request
     async with httpx.AsyncClient() as client:
         oidc_response = await client.get(oidc_config['discovery_url'])
         if oidc_response.status_code != 200:
