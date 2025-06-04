@@ -49,7 +49,6 @@ async def lifespan(app: FastAPI):
     
     # Initialize Redis client and verify connection
     redis = await RedisClient.get_instance()
-    await redis.ping()
     print("Redis connection established successfully")
     
     # Initialize the canvas worker
@@ -58,9 +57,8 @@ async def lifespan(app: FastAPI):
     
     yield
     
-    # Shutdown
     await CanvasWorker.shutdown_instance()
-    await redis.close()
+    await RedisClient.close()
     await engine.dispose()
 
 app = FastAPI(lifespan=lifespan)
