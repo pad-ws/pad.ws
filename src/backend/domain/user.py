@@ -1,3 +1,4 @@
+from random import Random
 from uuid import UUID
 from typing import Dict, Any, Optional, List
 from datetime import datetime
@@ -167,7 +168,10 @@ class User:
     @classmethod
     async def ensure_exists(cls, session: AsyncSession, user_info: dict) -> 'User':
         """Ensure a user exists in the database, creating them if they don't"""
-        user_id = UUID(user_info['sub'])
+        # Certain OIDC don't provide 'sub' in user_info as UUID.
+        # So we have to generate a UUID based on the user 'sub' to ensure consistency
+        rng = Random(user_info['sub'])
+        user_id = UUID(int=rng.getrandbits(123)) 
         user = await cls.get_by_id(session, user_id)
         
         if not user:

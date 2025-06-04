@@ -88,12 +88,12 @@ class Session:
         Returns:
             The authentication URL
         """
-        auth_url = f"{self.oidc_config['server_url']}/realms/{self.oidc_config['realm']}/protocol/openid-connect/auth"
+        auth_url = self.oidc_config['authorization_endpoint']
         params = {
             'client_id': self.oidc_config['client_id'],
             'response_type': 'code',
             'redirect_uri': self.oidc_config['redirect_uri'],
-            'scope': 'openid profile email'
+            'scope': 'openid profile email offline_access'
         }
         return f"{auth_url}?{'&'.join(f'{k}={v}' for k,v in params.items())}"
 
@@ -104,7 +104,7 @@ class Session:
         Returns:
             The token endpoint URL
         """
-        return f"{self.oidc_config['server_url']}/realms/{self.oidc_config['realm']}/protocol/openid-connect/token"
+        return self.oidc_config['token_endpoint']
 
     def is_token_expired(self, token_data: Dict[str, Any], buffer_seconds: int = 30) -> bool:
         """
@@ -195,8 +195,7 @@ class Session:
             The JWKs client
         """
         if self._jwks_client is None:
-            jwks_url = f"{self.oidc_config['server_url']}/realms/{self.oidc_config['realm']}/protocol/openid-connect/certs"
-            self._jwks_client = PyJWKClient(jwks_url)
+            self._jwks_client = PyJWKClient(self.oidc_config['jwks_uri'])
         return self._jwks_client
 
     async def track_event(self, session_id: str, event_type: str, metadata: Dict[str, Any] = None) -> bool:

@@ -1,12 +1,7 @@
 import os
 import json
-import time
-import httpx
-import jwt
 from jwt.jwks_client import PyJWKClient
-from typing import Optional, Dict, Any, Tuple
 from dotenv import load_dotenv
-from cache import RedisClient
 
 # Load environment variables once
 load_dotenv()
@@ -28,10 +23,9 @@ POSTHOG_API_KEY = os.getenv("VITE_PUBLIC_POSTHOG_KEY")
 POSTHOG_HOST = os.getenv("VITE_PUBLIC_POSTHOG_HOST")
 
 # ===== OIDC Configuration =====
+OIDC_DISCOVERY_URL = os.getenv("OIDC_DISCOVERY_URL")
 OIDC_CLIENT_ID = os.getenv('OIDC_CLIENT_ID')
 OIDC_CLIENT_SECRET = os.getenv('OIDC_CLIENT_SECRET')
-OIDC_SERVER_URL = os.getenv('OIDC_SERVER_URL')
-OIDC_REALM = os.getenv('OIDC_REALM')
 OIDC_REDIRECT_URI = os.getenv('REDIRECT_URI')
 
 default_pad = {}
@@ -48,6 +42,7 @@ CODER_WORKSPACE_NAME = os.getenv("CODER_WORKSPACE_NAME", "ubuntu")
 # Cache for JWKS client
 _jwks_client = None
 
+# TODO deprecate this in favor of the newer implementation in dependencies.py
 def get_jwks_client():
     """Get or create a PyJWKClient for token verification"""
     global _jwks_client
