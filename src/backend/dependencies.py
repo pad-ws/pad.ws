@@ -1,23 +1,21 @@
+import httpx
 import jwt
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Tuple
 from uuid import UUID
 import os
-import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import Request, HTTPException, Depends
 
 from cache import RedisClient
 from domain.session import Session
-from domain.user import User
 from domain.pad import Pad
 from coder import CoderAPI
 from database.database import get_session
 
 # oidc_config for session creation and user sessions
 oidc_config = {
-    'server_url': os.getenv('OIDC_SERVER_URL'),
-    'realm': os.getenv('OIDC_REALM'),
+    'discovery_url': os.getenv('OIDC_DISCOVERY_URL'),
     'client_id': os.getenv('OIDC_CLIENT_ID'),
     'client_secret': os.getenv('OIDC_CLIENT_SECRET'),
     'redirect_uri': os.getenv('REDIRECT_URI')
@@ -26,6 +24,19 @@ oidc_config = {
 async def get_session_domain() -> Session:
     """Get a Session domain instance for the current request."""
     redis_client = await RedisClient.get_instance()
+    
+    async with httpx.AsyncClient() as client:
+        oidc_response = await client.get(oidc_config['discovery_url'])
+        if oidc_response.status_code != 200:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to fetch OIDC configuration"
+            )
+        oidc_config['authorization_endpoint'] = oidc_response.json().get('authorization_endpoint')
+        oidc_config['token_endpoint'] = oidc_response.json().get('token_endpoint')
+        oidc_config['end_session_endpoint'] = oidc_response.json().get('end_session_endpoint')
+        oidc_config['jwks_uri'] = oidc_response.json().get('jwks_uri')
+        
     return Session(redis_client, oidc_config)
 
 class UserSession:

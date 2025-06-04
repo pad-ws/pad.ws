@@ -167,6 +167,7 @@ class User:
     @classmethod
     async def ensure_exists(cls, session: AsyncSession, user_info: dict) -> 'User':
         """Ensure a user exists in the database, creating them if they don't"""
+        # TODO Certain OIDC don't provide 'sub' in user_info as UUID, handle that case 
         user_id = UUID(user_info['sub'])
         user = await cls.get_by_id(session, user_id)
         
